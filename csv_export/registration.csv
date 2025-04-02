@@ -1,0 +1,4 @@
+id,user_id,event_id,registration_date,status,payment_status
+1,2,1,2025-03-28 04:52:34.365380,registered,completed
+2,2,2,2025-03-27 04:52:34.365380,registered,pending
+3,3,3,2025-03-26 04:52:34.365380,registered,completed

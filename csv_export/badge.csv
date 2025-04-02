@@ -1,0 +1,3 @@
+id,user_id,badge_type,name,description,image_url,earned_date
+1,2,event_master,Event Master,Attended 5 events,https://example.com/badge1.jpg,2025-02-27 04:52:34.365380
+2,2,trivia_champion,Trivia Champion,Won a trivia night event,https://example.com/badge2.jpg,2025-03-14 04:52:34.365380

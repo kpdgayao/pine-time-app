@@ -1,0 +1,4 @@
+id,email,username,full_name,hashed_password,is_active,is_superuser,user_type
+1,admin@pinetimeexperience.com,admin,Admin User,$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW,1,1,admin
+2,user@example.com,user,Regular User,$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW,1,0,regular
+3,business@example.com,business,Business User,$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW,1,0,business

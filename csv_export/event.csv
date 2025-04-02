@@ -1,0 +1,4 @@
+id,title,description,event_type,location,start_time,end_time,max_participants,points_reward,is_active,image_url,price
+1,Trivia Night at Pine Time,Join us for a fun night of trivia at Pine Time Experience Baguio!,trivia,"Pine Time Cafe, Baguio City",2025-04-05 04:52:34.365380,2025-04-05 07:52:34.365380,30,100,1,https://example.com/trivia.jpg,0.0
+2,Board Game Night,Enjoy a variety of board games with friends and family!,game_night,"Pine Time Cafe, Baguio City",2025-04-12 04:52:34.365380,2025-04-12 08:52:34.365380,20,150,1,https://example.com/games.jpg,50.0
+3,Murder Mystery Dinner,Solve a murder mystery while enjoying a delicious dinner!,murder_mystery,"Pine Time Restaurant, Baguio City",2025-04-19 04:52:34.365380,2025-04-19 09:52:34.365380,15,200,1,https://example.com/mystery.jpg,100.0

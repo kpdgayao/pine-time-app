@@ -1,0 +1,4 @@
+id,user_id,points,transaction_type,description,event_id,transaction_date
+1,2,100,earned,Attended Trivia Night,1,2025-02-12 04:52:34.365380
+2,2,150,earned,Won Game Night,2,2025-02-27 04:52:34.365380
+3,3,200,earned,Hosted Murder Mystery,3,2025-03-14 04:52:34.365380
