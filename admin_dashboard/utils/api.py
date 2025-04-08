@@ -7,6 +7,7 @@ import requests
 import streamlit as st
 import json
 import time
+import math
 import logging
 from typing import Dict, List, Any, Optional, Union, Callable
 from requests.adapters import HTTPAdapter
@@ -116,7 +117,29 @@ class APIClient:
         if response.status_code >= 400:
             try:
                 error_data = response.json()
-                error_detail = error_data.get("detail", str(response.status_code))
+                
+                # Log the full error response for debugging
+                logger.debug(f"Error response from {response.url}: {error_data}")
+                
+                # Extract error details based on different possible formats
+                if isinstance(error_data, dict):
+                    # Standard FastAPI error format
+                    if "detail" in error_data:
+                        error_detail = error_data["detail"]
+                    # JWT auth error format
+                    elif "msg" in error_data:
+                        error_detail = error_data["msg"]
+                    # Generic error message
+                    elif "message" in error_data:
+                        error_detail = error_data["message"]
+                    # Error code with description
+                    elif "code" in error_data and "description" in error_data:
+                        error_detail = f"{error_data['code']}: {error_data['description']}"
+                    # Fall back to the whole response
+                    else:
+                        error_detail = str(error_data)
+                else:
+                    error_detail = str(error_data)
                 
                 # Check for PostgreSQL-specific errors
                 if isinstance(error_detail, dict) and error_detail.get("type") == "database_error":
@@ -129,16 +152,49 @@ class APIClient:
                         pg_code
                     )
                 
-                raise APIError(f"{error_message}: {error_detail}", response.status_code, response)
+                # Create user-friendly error message based on status code
+                status_message = {
+                    400: "Bad Request",
+                    401: "Unauthorized",
+                    403: "Forbidden",
+                    404: "Not Found",
+                    405: "Method Not Allowed",
+                    408: "Request Timeout",
+                    409: "Conflict",
+                    422: "Validation Error",
+                    429: "Too Many Requests",
+                    500: "Internal Server Error",
+                    502: "Bad Gateway",
+                    503: "Service Unavailable",
+                    504: "Gateway Timeout"
+                }.get(response.status_code, f"Error {response.status_code}")
+                
+                raise APIError(
+                    f"{error_message}: {status_message} - {error_detail}", 
+                    response.status_code, 
+                    response
+                )
             except json.JSONDecodeError:
-                raise APIError(f"{error_message}: {response.status_code}", response.status_code, response)
+                # Non-JSON error response
+                error_text = response.text[:100] + ("..." if len(response.text) > 100 else "")
+                logger.debug(f"Non-JSON error response: {error_text}")
+                raise APIError(
+                    f"{error_message}: {response.status_code} - Non-JSON response", 
+                    response.status_code, 
+                    response
+                )
         
         try:
             return response.json()
         except json.JSONDecodeError:
             if response.status_code == 204:  # No content
                 return {}
-            raise APIError(f"Invalid JSON response: {response.text}", response.status_code, response)
+            # Empty response with success status
+            if response.status_code < 300 and not response.text.strip():
+                return {}
+            # Log the problematic response
+            logger.warning(f"Invalid JSON in successful response from {response.url}: {response.text[:100]}")
+            raise APIError(f"Invalid JSON response: {response.text[:100]}", response.status_code, response)
     
     def request(
         self, 
@@ -152,7 +208,10 @@ class APIClient:
         error_message: str = "API request failed",
         show_spinner: bool = True,
         spinner_text: str = "Processing request...",
-        fallback_to_demo: bool = True
+        fallback_to_demo: bool = True,
+        max_retries: int = 2,
+        retry_status_codes: List[int] = None,
+        retry_delay: float = 1.0
     ) -> Dict:
         """
         Make a request to the API.
@@ -169,6 +228,9 @@ class APIClient:
             show_spinner (bool, optional): Whether to show a spinner
             spinner_text (str, optional): Text to show in spinner
             fallback_to_demo (bool, optional): Whether to fallback to demo data on failure
+            max_retries (int, optional): Maximum number of retry attempts
+            retry_status_codes (List[int], optional): Status codes to retry on
+            retry_delay (float, optional): Delay between retries in seconds
             
         Returns:
             dict: Response JSON
@@ -176,17 +238,25 @@ class APIClient:
         Raises:
             APIError: If API request failed and no fallback
         """
+        # Default retry status codes if none provided
+        if retry_status_codes is None:
+            retry_status_codes = [408, 429, 500, 502, 503, 504]  # Common retryable status codes
+            
         # If in demo mode, use demo data
         if is_demo_mode():
             logger.info(f"Demo mode active, skipping actual API request to {endpoint}")
-            return {}
+            return self._generate_fallback_data(endpoint, method, params)
         
         # Ensure valid token if auth is required
-        if with_auth and not ensure_valid_token():
-            if fallback_to_demo:
-                logger.warning("Authentication failed, falling back to demo data")
-                return {}
-            raise AuthError("Authentication required")
+        if with_auth:
+            token_valid = ensure_valid_token()
+            if not token_valid:
+                if fallback_to_demo:
+                    logger.warning("Authentication failed, falling back to demo data")
+                    # Display a more user-friendly message
+                    st.warning("⚠️ Authentication issues detected. Using sample data instead. Your experience may be limited.")
+                    return self._generate_fallback_data(endpoint, method, params)
+                raise AuthError("Authentication required")
         
         # Prepare headers
         request_headers = {}
@@ -195,38 +265,99 @@ class APIClient:
         if headers:
             request_headers.update(headers)
         
-        # Make request with spinner if requested
-        try:
-            if show_spinner:
-                with st.spinner(spinner_text):
+        # Initialize retry counter and last error
+        retries = 0
+        last_error = None
+        
+        # Retry loop
+        while retries <= max_retries:
+            try:
+                # Make request with spinner if requested
+                if show_spinner:
+                    with st.spinner(spinner_text):
+                        response = self.session.request(
+                            method=method,
+                            url=endpoint,  # Endpoint already contains the full URL
+                            params=params,
+                            data=data,
+                            json=json_data,
+                            headers=request_headers,
+                            timeout=REQUEST_TIMEOUT
+                        )
+                else:
                     response = self.session.request(
                         method=method,
-                        url=endpoint,
+                        url=endpoint,  # Endpoint already contains the full URL
                         params=params,
                         data=data,
                         json=json_data,
                         headers=request_headers,
                         timeout=REQUEST_TIMEOUT
                     )
-            else:
-                response = self.session.request(
-                    method=method,
-                    url=endpoint,
-                    params=params,
-                    data=data,
-                    json=json_data,
-                    headers=request_headers,
-                    timeout=REQUEST_TIMEOUT
-                )
-            
-            return self._handle_response(response, error_message)
-        except (requests.RequestException, APIError, PostgreSQLError) as e:
+                
+                # Check if we should retry based on status code
+                if response.status_code in retry_status_codes and retries < max_retries:
+                    retries += 1
+                    wait_time = retry_delay * (2 ** (retries - 1))  # Exponential backoff
+                    logger.warning(f"Received status {response.status_code} from {endpoint}, retrying in {wait_time:.2f}s (attempt {retries}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                
+                # Process the response
+                return self._handle_response(response, error_message)
+                
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                last_error = e
+                if retries < max_retries:
+                    retries += 1
+                    wait_time = retry_delay * (2 ** (retries - 1))  # Exponential backoff
+                    logger.warning(f"{type(e).__name__} for {endpoint}, retrying in {wait_time:.2f}s (attempt {retries}/{max_retries}): {str(e)}")
+                    time.sleep(wait_time)
+                else:
+                    break
+            except requests.exceptions.RequestException as e:
+                # Don't retry other request exceptions
+                last_error = e
+                break
+        
+        # If we've exhausted retries or had a non-retryable error, handle the failure
+        if isinstance(last_error, requests.exceptions.ConnectionError):
+            logger.error(f"Connection error for {endpoint} after {retries} retries: {str(last_error)}")
             if fallback_to_demo:
-                logger.warning(f"API request failed, falling back to demo data: {str(e)}")
-                return {}
-            if isinstance(e, requests.RequestException):
-                raise APIError(f"Request failed: {str(e)}")
-            raise e
+                logger.warning(f"Connection failed, falling back to demo data for {endpoint}")
+                # Show a more specific error message to the user
+                st.warning(f"⚠️ Unable to connect to the server. Using sample data instead. Please check your internet connection.")
+                # Update connection status in session state to trigger reconnection attempts
+                if "connection_status" in st.session_state:
+                    st.session_state["connection_status"]["api_connected"] = False
+                    st.session_state["connection_status"]["success"] = False
+                    st.session_state["last_connection_check"] = 0  # Force a recheck on next verification
+                return self._generate_fallback_data(endpoint, method, params)
+            raise APIError(f"Connection error after {retries} retries: {str(last_error)}")
+            
+        elif isinstance(last_error, requests.exceptions.Timeout):
+            logger.error(f"Timeout error for {endpoint} after {retries} retries: {str(last_error)}")
+            if fallback_to_demo:
+                logger.warning(f"Request timed out, falling back to demo data for {endpoint}")
+                # Show a more specific error message to the user
+                st.warning(f"⚠️ Server response timeout. Using sample data instead. The server might be under heavy load.")
+                return self._generate_fallback_data(endpoint, method, params)
+            raise APIError(f"Request timed out after {retries} retries: {str(last_error)}")
+            
+        elif isinstance(last_error, requests.exceptions.RequestException):
+            logger.error(f"Request error for {endpoint}: {str(last_error)}")
+            if fallback_to_demo:
+                logger.warning(f"Request failed, falling back to demo data for {endpoint}")
+                # Show a more specific error message based on the type of exception
+                error_type = type(last_error).__name__
+                if "SSLError" in error_type:
+                    st.warning(f"⚠️ Secure connection failed. Using sample data instead. This might be a certificate issue.")
+                elif "ProxyError" in error_type:
+                    st.warning(f"⚠️ Proxy connection issue. Using sample data instead. Please check your network settings.")
+                else:
+                    st.warning(f"⚠️ Connection issue detected. Using sample data instead. Please try again later.")
+                return self._generate_fallback_data(endpoint, method, params)
+            raise APIError(f"Request failed: {str(last_error)}")
     
     def get(self, endpoint: str, **kwargs) -> Dict:
         """Make a GET request"""
@@ -247,6 +378,84 @@ class APIClient:
     def patch(self, endpoint: str, **kwargs) -> Dict:
         """Make a PATCH request"""
         return self.request("PATCH", endpoint, **kwargs)
+        
+    def _generate_fallback_data(self, endpoint: str, method: str, params: Dict = None) -> Dict:
+        """
+        Generate fallback data based on the endpoint and request parameters.
+        This provides more intelligent fallbacks than just returning an empty dict.
+        
+        Args:
+            endpoint (str): The API endpoint that was requested
+            method (str): The HTTP method that was used
+            params (Dict, optional): The query parameters that were used
+            
+        Returns:
+            Dict: Appropriate fallback data for the endpoint
+        """
+        from utils.connection import (
+            get_sample_users, get_sample_events, get_sample_user_profile,
+            get_sample_user_badges, get_sample_user_events, get_sample_points_history,
+            get_sample_leaderboard, get_sample_badges
+        )
+        
+        # Extract page and size from params if available
+        page = 1
+        page_size = 20
+        if params:
+            page = params.get("page", 1)
+            page_size = params.get("size", 20)
+        
+        # Users endpoints
+        if "/users/" in endpoint:
+            if endpoint.endswith("/users/") or endpoint.endswith("/users"):
+                return get_sample_users(page, page_size)
+            elif "/profile" in endpoint or "/me" in endpoint:
+                return get_sample_user_profile()
+            elif "/badges" in endpoint:
+                return get_sample_user_badges()
+            elif "/events" in endpoint:
+                return get_sample_user_events()
+            # Individual user endpoint
+            elif method == "GET" and any(char.isdigit() for char in endpoint.split("/")[-1]):
+                return get_sample_user_profile()
+        
+        # Events endpoints
+        elif "/events/" in endpoint:
+            if endpoint.endswith("/events/") or endpoint.endswith("/events"):
+                return get_sample_events(page, page_size)
+            # Individual event endpoint
+            elif method == "GET" and any(char.isdigit() for char in endpoint.split("/")[-1]):
+                events = get_sample_events(1, 1)
+                if events and "items" in events and events["items"]:
+                    return events["items"][0]
+                return {}
+        
+        # Points endpoints
+        elif "/points/" in endpoint:
+            if "/history" in endpoint:
+                return get_sample_points_history()
+            elif "/leaderboard" in endpoint:
+                return get_sample_leaderboard()
+        
+        # Badges endpoints
+        elif "/badges/" in endpoint:
+            if endpoint.endswith("/badges/") or endpoint.endswith("/badges"):
+                return get_sample_badges()
+            # Individual badge endpoint
+            elif method == "GET" and any(char.isdigit() for char in endpoint.split("/")[-1]):
+                badges = get_sample_badges()
+                if badges:
+                    return badges[0]
+                return {}
+        
+        # Default empty response
+        if method == "GET":
+            logger.warning(f"No specific fallback data for GET {endpoint}, returning empty result")
+            return {}
+        else:
+            # For POST/PUT/DELETE/PATCH, return success response
+            logger.warning(f"No specific fallback data for {method} {endpoint}, returning success response")
+            return {"success": True, "message": "Operation completed in demo mode"}
     
     def paginated_request(
         self, 
@@ -269,7 +478,43 @@ class APIClient:
         """
         params = kwargs.pop("params", {})
         params.update({"page": page, "size": page_size})
-        return self.get(endpoint, params=params, **kwargs)
+        
+        response = self.get(endpoint, params=params, **kwargs)
+        
+        # Handle different response formats
+        if isinstance(response, list):
+            # API returned a list instead of paginated response
+            logger.info(f"API endpoint {endpoint} returned a list instead of paginated response")
+            # Convert to paginated format
+            return {
+                "items": response,
+                "total": len(response),
+                "page": page,
+                "size": page_size,
+                "pages": max(1, math.ceil(len(response) / page_size))
+            }
+        elif isinstance(response, dict):
+            # Check if this is already a paginated response
+            if all(key in response for key in ["items", "total", "page", "size", "pages"]):
+                return response
+                
+            # If not, check if there's a key that might contain the items
+            for key in response.keys():
+                if isinstance(response[key], list):
+                    # Found a list, assume these are the items
+                    items = response[key]
+                    logger.info(f"Using '{key}' as items list from response")
+                    return {
+                        "items": items,
+                        "total": len(items),
+                        "page": page,
+                        "size": page_size,
+                        "pages": max(1, math.ceil(len(items) / page_size))
+                    }
+        
+        # If we can't determine the structure, return as is
+        logger.warning(f"Could not normalize paginated response format: {type(response)}")
+        return response
 
 # Initialize global API client
 api_client = APIClient()
@@ -375,10 +620,21 @@ def get_user_badges(user_id: str) -> List[Dict[str, Any]]:
     try:
         return api_client.get(
             API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
-            spinner_text="Loading badges..."
+            spinner_text="Loading badges...",
+            error_message="Fetching user badges"
         )
+    except APIError as e:
+        # Handle 404 errors gracefully - user might not have any badges yet
+        if e.status_code == 404:
+            logger.info(f"No badges found for user {user_id}")
+            # Don't show error to user for 404 - it's an expected condition
+            return []
+        logger.error(f"Error fetching user badges: {str(e)}")
+        st.error(f"Error fetching badges: {str(e)}")
+        return []
     except Exception as e:
-        st.error(f"Error fetching user badges: {str(e)}")
+        logger.error(f"Unexpected error fetching user badges: {str(e)}")
+        st.error(f"Error fetching badges: {str(e)}")
         return []
 
 # Event API functions
@@ -390,10 +646,16 @@ def get_events(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> Dict[str, A
             API_ENDPOINTS["events"]["list"],
             page=page,
             page_size=page_size,
-            spinner_text="Loading events..."
+            spinner_text="Loading events...",
+            error_message="Fetching events"
         )
+    except APIError as e:
+        logger.error(f"API error fetching events: {str(e)}")
+        st.error(f"Error loading events: {str(e)}")
+        return {"items": [], "total": 0, "page": page, "size": page_size, "pages": 0}
     except Exception as e:
-        st.error(f"Error fetching events: {str(e)}")
+        logger.error(f"Unexpected error fetching events: {str(e)}")
+        st.error(f"Error loading events: {str(e)}")
         return {"items": [], "total": 0, "page": page, "size": page_size, "pages": 0}
 
 @st.cache_data(ttl=60)
@@ -547,13 +809,36 @@ def get_points_history(user_id: str = None) -> List[Dict[str, Any]]:
         if user_id:
             params["user_id"] = user_id
         
-        return api_client.get(
+        response = api_client.get(
             API_ENDPOINTS["points"]["history"],
             params=params,
-            spinner_text="Loading points history..."
+            spinner_text="Loading points history...",
+            error_message="Fetching points history"
         )
+        
+        # Handle various response formats
+        if isinstance(response, dict) and "points_history" in response:
+            return response["points_history"]
+        elif isinstance(response, list):
+            return response
+        elif isinstance(response, dict) and "items" in response:
+            return response["items"]
+        else:
+            logger.warning(f"Unexpected points history response format: {type(response)}")
+            return []
+            
+    except APIError as e:
+        # Handle 404 errors gracefully
+        if e.status_code == 404:
+            logger.info(f"No points history found for user {user_id}")
+            # Don't show error to user for 404
+            return []
+        logger.error(f"Error fetching points history: {str(e)}")
+        st.error(f"Error loading points history: {str(e)}")
+        return []
     except Exception as e:
-        st.error(f"Error fetching points history: {str(e)}")
+        logger.error(f"Unexpected error fetching points history: {str(e)}")
+        st.error(f"Error loading points history: {str(e)}")
         return []
 
 @st.cache_data(ttl=3600)
