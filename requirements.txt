@@ -5,6 +5,7 @@ pydantic==2.3.0
 pydantic-settings==2.0.3  # Required for BaseSettings in Pydantic v2
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==3.2.0  # Pinned version for compatibility with passlib
 python-multipart==0.0.6
 alembic==1.12.0
 email-validator==2.0.0
