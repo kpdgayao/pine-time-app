@@ -37,13 +37,15 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 from utils.api import (
     get_users, get_events, get_event_popularity, get_user_engagement, 
     get_points_distribution, get_leaderboard, get_points_history, get_badges,
-    api_client, check_api_connection
+    api_client, check_api_connection, get_user_badges, APIError
 )
 from utils.auth import (
-    login, logout, check_authentication, verify_token, ensure_valid_token,
+    logout, check_authentication, verify_token, ensure_valid_token,
     get_current_user, check_user_access
 )
-from utils.db import is_demo_mode, test_database_connection, create_user_in_database
+# Import login from auth module as auth_login to avoid conflict
+from utils.auth import login as auth_login
+from utils.db import is_demo_mode, test_database_connection, create_user_in_database, get_database_config
 from utils.connection import (
     verify_connection, show_connection_status, with_connection_fallback,
     get_sample_users, get_sample_events, get_sample_user_profile,
@@ -54,6 +56,149 @@ from config import (
     PAGE_TITLE, PAGE_ICON, THEME_COLOR, DATABASE_TYPE,
     API_ENDPOINTS
 )
+
+# Utility function for safe API response handling
+def safe_api_response_handler(response, key=None, default=None):
+    """
+    Safely handle API responses with different formats and error conditions.
+    
+    Args:
+        response: The API response to process (could be dict, list, or None)
+        key: Optional key to extract from dict response
+        default: Default value to return if response is invalid or key not found
+        
+    Returns:
+        Processed response data or default value
+    """
+    if default is None:
+        default = []
+        
+    # Handle None response
+    if response is None:
+        return default
+        
+    try:
+        # Handle list response
+        if isinstance(response, list):
+            return response
+            
+        # Handle dict response
+        if isinstance(response, dict):
+            # If a specific key is requested
+            if key and key in response:
+                return response[key]
+                
+            # Try common keys if the specific key wasn't found
+            if key:
+                common_keys = ['items', 'data', key + 's', key + '_list']
+                for common_key in common_keys:
+                    if common_key in response:
+                        return response[common_key]
+            
+            # If no key specified or found, return the whole dict
+            return response
+            
+        # For any other type, return as is
+        return response
+    except Exception as e:
+        logger.error(f"Error processing API response: {str(e)}")
+        return default
+
+# Additional utility functions for improved error handling
+
+def safe_get_current_user():
+    """
+    Safely get the current user with error handling.
+    
+    Returns:
+        dict: User data or None if not available
+    """
+    try:
+        return get_current_user()
+    except Exception as e:
+        logger.error(f"Error getting current user: {str(e)}")
+        return None
+
+def safe_get_user_id():
+    """
+    Safely get the current user ID with error handling.
+    
+    Returns:
+        str: User ID or None if not available
+    """
+    user = safe_get_current_user()
+    if not user:
+        logger.warning("No user found when trying to get user ID")
+        return None
+        
+    user_id = user.get("id")
+    if not user_id:
+        logger.warning("User ID not found in user data")
+        return None
+        
+    return user_id
+
+def safe_api_call(call_func, error_message="API call failed", default_return=None):
+    """
+    Wrapper for API calls to provide consistent error handling.
+    
+    Args:
+        call_func: Function to call that makes the API request
+        error_message: Message to log on error
+        default_return: Value to return on error
+        
+    Returns:
+        The result of call_func or default_return on error
+    """
+    if default_return is None:
+        default_return = []
+        
+    try:
+        return call_func()
+    except APIError as e:
+        # Handle 404 errors gracefully - might be an expected condition
+        if e.status_code == 404:
+            logger.info(f"{error_message}: Resource not found")
+            # Don't show error to user for 404
+            return default_return
+        logger.error(f"{error_message}: {str(e)}")
+        st.error(f"Error: {str(e)}")
+        return default_return
+    except Exception as e:
+        logger.error(f"{error_message} (unexpected error): {str(e)}")
+        st.error(f"Unexpected error: {str(e)}")
+        return default_return
+
+def parse_date_safely(date_str):
+    """
+    Parse a date string safely with error handling.
+    
+    Args:
+        date_str: Date string to parse
+        
+    Returns:
+        datetime.date: Parsed date or None if parsing failed
+    """
+    if not date_str or not isinstance(date_str, str) or date_str.strip() == '':
+        return None
+        
+    try:
+        # Try ISO format first
+        return datetime.fromisoformat(date_str.replace('Z', '+00:00')).date()
+    except ValueError:
+        try:
+            # Try common formats
+            for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%b %d, %Y"]:
+                try:
+                    return datetime.strptime(date_str, fmt).date()
+                except ValueError:
+                    continue
+        except Exception:
+            pass
+    except Exception as e:
+        logger.error(f"Error parsing date '{date_str}': {str(e)}")
+        
+    return None
 
 # Set page configuration
 st.set_page_config(
@@ -600,6 +745,7 @@ def show_home_page():
     
     # Get events with fallback to sample data
     @with_connection_fallback(get_sample_events)
+    @st.cache_data(ttl=60)
     def fetch_events():
         # Get all events first
         events_data = get_events()
@@ -618,21 +764,58 @@ def show_home_page():
             
         # Date filtering
         today = datetime.now().date()
+        
+        # Process dates and handle missing or invalid date fields
+        def get_event_date(event):
+            # Try start_time first (preferred format)
+            if event.get('start_time'):
+                try:
+                    date_str = event.get('start_time')
+                    # Handle empty strings
+                    if not date_str or date_str.strip() == '':
+                        return None
+                    return datetime.fromisoformat(date_str.replace('Z', '+00:00')).date()
+                except (ValueError, TypeError):
+                    pass
+                    
+            # Fall back to date field
+            if event.get('date'):
+                try:
+                    date_str = event.get('date')
+                    # Handle empty strings
+                    if not date_str or date_str.strip() == '':
+                        return None
+                    return datetime.fromisoformat(date_str.replace('Z', '+00:00')).date()
+                except (ValueError, TypeError):
+                    pass
+            
+            # If we get here, we couldn't parse a date
+            return None
+        
+        # Filter by date range if applicable
         if date_filter == "This Week":
             start_date = today
             end_date = today + timedelta(days=7)
-            filtered_items = [e for e in filtered_items if start_date <= datetime.fromisoformat(e.get('date', '')).date() <= end_date]
+            filtered_items = [e for e in filtered_items if 
+                            (event_date := get_event_date(e)) is not None and 
+                            start_date <= event_date <= end_date]
         elif date_filter == "This Month":
             start_date = today
             end_date = (today.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-            filtered_items = [e for e in filtered_items if start_date <= datetime.fromisoformat(e.get('date', '')).date() <= end_date]
+            filtered_items = [e for e in filtered_items if 
+                            (event_date := get_event_date(e)) is not None and 
+                            start_date <= event_date <= end_date]
         elif date_filter == "Next Month":
             next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
             start_date = next_month
             end_date = (next_month + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-            filtered_items = [e for e in filtered_items if start_date <= datetime.fromisoformat(e.get('date', '')).date() <= end_date]
+            filtered_items = [e for e in filtered_items if 
+                            (event_date := get_event_date(e)) is not None and 
+                            start_date <= event_date <= end_date]
         elif date_filter == "All Upcoming":
-            filtered_items = [e for e in filtered_items if today <= datetime.fromisoformat(e.get('date', '')).date()]
+            filtered_items = [e for e in filtered_items if 
+                            (event_date := get_event_date(e)) is not None and 
+                            today <= event_date]
             
         # Update the events data with filtered items
         events_data['items'] = filtered_items
@@ -735,29 +918,106 @@ def show_profile_page():
     # Get user badges with fallback to sample data
     @with_connection_fallback(get_sample_user_badges)
     def fetch_user_badges():
-        user_id = get_current_user().get("id")
-        return api_client.get(
-            API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
-            with_auth=True
-        )
+        # Use our safe utility function to get user ID
+        user_id = safe_get_user_id()
+        if not user_id:
+            return []
+            
+        # Use safe_api_call to handle errors consistently
+        def _get_badges():
+            return api_client.get(
+                API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
+                with_auth=True,
+                error_message="Fetching user badges"
+            )
+            
+        response = safe_api_call(_get_badges, error_message="Error fetching user badges")
+        
+        # Use our safe_api_response_handler to process the response
+        return safe_api_response_handler(response, key="badges")
     
     # Get user events with fallback to sample data
     @with_connection_fallback(get_sample_user_events)
     def fetch_user_events():
-        user_id = get_current_user().get("id")
-        return api_client.get(
-            API_ENDPOINTS["users"]["events"].format(user_id=user_id),
-            with_auth=True
-        )
+        # Get current user safely
+        user = get_current_user()
+        if not user:
+            logger.warning("No user found when fetching user events")
+            return []
+            
+        user_id = user.get("id")
+        if not user_id:
+            logger.warning("User ID not found when fetching user events")
+            return []
+            
+        try:
+            response = api_client.get(
+                API_ENDPOINTS["users"]["events"].format(user_id=user_id),
+                with_auth=True,
+                error_message="Fetching user events",
+                fallback_to_demo=True
+            )
+            
+            # Handle different response formats
+            if isinstance(response, list):
+                return response
+            elif isinstance(response, dict):
+                if "events" in response:
+                    return response["events"]
+                elif "items" in response:
+                    return response["items"]
+                elif "registrations" in response:
+                    return response["registrations"]
+                elif response:  # If it's a non-empty dict, return it
+                    return [response]
+            
+            # Default empty list
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching user events: {str(e)}")
+            return []
     
     # Get points history with fallback to sample data
     @with_connection_fallback(get_sample_points_history)
     def fetch_points_history():
-        user_id = get_current_user().get("id")
-        return api_client.get(
-            API_ENDPOINTS["users"]["points_history"].format(user_id=user_id),
-            with_auth=True
-        )
+        # Get current user safely
+        user = get_current_user()
+        if not user:
+            logger.warning("No user found when fetching points history")
+            return []
+            
+        user_id = user.get("id")
+        if not user_id:
+            logger.warning("User ID not found when fetching points history")
+            return []
+            
+        try:
+            response = api_client.get(
+                API_ENDPOINTS["users"]["points_history"].format(user_id=user_id),
+                with_auth=True,
+                error_message="Fetching points history"
+            )
+            
+            # Handle different response formats
+            if isinstance(response, dict):
+                # If the response has a points_history key, return that
+                if "points_history" in response:
+                    return response["points_history"]
+                # If the response has an items key, return that
+                elif "items" in response:
+                    return response["items"]
+                # Otherwise return the whole response if it's not empty
+                elif response:
+                    return response
+            # If the response is already a list, return it directly
+            elif isinstance(response, list):
+                return response
+                
+            # Default fallback
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching points history: {str(e)}")
+            return []
     
     # Fetch all data
     profile = fetch_user_profile()
@@ -1032,11 +1292,23 @@ def show_badge_gallery():
     # Get user badges with fallback to sample data
     @with_connection_fallback(get_sample_user_badges)
     def fetch_user_badges():
-        user_id = get_current_user().get("id")
-        return api_client.get(
-            API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
-            with_auth=True
-        )
+        # Use our safe utility function to get user ID
+        user_id = safe_get_user_id()
+        if not user_id:
+            return []
+            
+        # Use safe_api_call to handle errors consistently
+        def _get_badges():
+            return api_client.get(
+                API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
+                with_auth=True,
+                error_message="Fetching user badges"
+            )
+            
+        response = safe_api_call(_get_badges, error_message="Error fetching user badges")
+        
+        # Use our safe_api_response_handler to process the response
+        return safe_api_response_handler(response, key="badges")
     
     all_badges = fetch_all_badges()
     user_badges = fetch_user_badges()
@@ -1204,78 +1476,37 @@ def login(username: str, password: str) -> bool:
         bool: True if login successful, False otherwise
     """
     try:
-        # Check if we're in demo mode
-        if is_demo_mode():
-            # In demo mode, accept any login
-            user_data = {
-                "id": "demo-user-id",
-                "username": "demo",
-                "email": "demo@pinetimeexperience.com",
-                "full_name": "Demo User",
-                "is_active": True,
-                "is_superuser": False,
-                "access_token": "demo-token",
-                "token_type": "bearer"
-            }
-            st.session_state["user"] = user_data
-            st.session_state["user_info"] = user_data
-            st.session_state["is_authenticated"] = True
+        logger.info(f"Calling auth_login for user: {username}")
+        
+        # Use the auth module's login function
+        login_success = auth_login(username, password)
+        
+        if login_success:
+            # Set additional session state variables for compatibility
             st.session_state["login_successful"] = True
-            st.info("Use any username/password combination to login in demo mode.")
+            
+            # If user_info exists in session state, copy it to user for compatibility
+            if "user_info" in st.session_state and "user" not in st.session_state:
+                st.session_state["user"] = st.session_state["user_info"]
+                
+            logger.info(f"Login successful for user: {username}")
             return True
-        
-        # Make API request to login
-        response = api_client.post(
-            API_ENDPOINTS["auth"]["login"],
-            data={
-                "username": username,
-                "password": password
-            },
-            with_auth=False
-        )
-        
-        # Store user info in session
-        st.session_state["user"] = response
-        st.session_state["user_info"] = response
-        st.session_state["is_authenticated"] = True
-        st.session_state["login_successful"] = True
-        
-        return True
+        else:
+            logger.warning(f"Login failed for user: {username}")
+            return False
+            
     except Exception as e:
         error_msg = str(e)
+        logger.error(f"Login exception: {error_msg}")
         
         # Check if this is a connection error
         if "Connection" in error_msg and "refused" in error_msg:
             # Enable demo mode automatically
             os.environ["DEMO_MODE"] = "true"
-            
-            # Log the switch to demo mode
             logger.warning(f"API connection failed. Switching to demo mode: {error_msg}")
             
-            # Set up demo user
-            user_data = {
-                "id": "demo-user-id",
-                "username": username,
-                "email": f"{username}@pinetimeexperience.com",
-                "full_name": "Demo User",
-                "is_active": True,
-                "is_superuser": False,
-                "access_token": "demo-token",
-                "token_type": "bearer"
-            }
-            
-            # Store in both session state variables for compatibility
-            st.session_state["user"] = user_data
-            st.session_state["user_info"] = user_data
-            st.session_state["is_authenticated"] = True
-            st.session_state["login_successful"] = True
-            
-            # Show a warning to the user
-            st.warning("API server is not available. Logging in with demo mode.")
-            st.info("Use any username/password combination to login in demo mode.")
-            time.sleep(2)  # Give user time to read the message
-            
-            return True
+            # Try login again (will use demo mode now)
+            return auth_login(username, password)
         
         # For other errors, show the error message
         st.error(f"Login failed: {error_msg}")
