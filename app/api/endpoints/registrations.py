@@ -9,60 +9,126 @@ from app.services.points_manager import PointsManager
 
 router = APIRouter()
 
-
+# This is a duplicate endpoint to support both registration patterns
 @router.post("/events/{event_id}/register", response_model=schemas.Registration)
-def register_for_event(
+def register_for_event_by_path(
     *,
     db: Session = Depends(dependencies.get_db),
     event_id: int = Path(..., gt=0),
     current_user: models.User = Depends(dependencies.get_current_active_user),
 ) -> Any:
+    """Register current user for an event using path parameter"""
+    # Create a registration data object
+    registration_data = schemas.RegistrationCreate(event_id=event_id)
+    
+    # Call the main registration function
+    return register_for_event(db=db, registration_data=registration_data, current_user=current_user)
+
+
+@router.post("/", response_model=schemas.Registration)
+def register_for_event(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    registration_data: schemas.RegistrationCreate,
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+) -> Any:
     """
     Register current user for an event.
     """
-    # Check if event exists and is active
-    event = db.query(models.Event).filter(models.Event.id == event_id, models.Event.is_active == True).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found or inactive")
-    
-    # Check if event has already started
-    from datetime import datetime
-    if event.start_time <= datetime.utcnow():
-        raise HTTPException(status_code=400, detail="Cannot register for an event that has already started")
-    
-    # Check if user is already registered
-    existing_registration = db.query(models.Registration).filter(
-        models.Registration.user_id == current_user.id,
-        models.Registration.event_id == event_id,
-        models.Registration.status != "cancelled"
-    ).first()
-    
-    if existing_registration:
-        raise HTTPException(status_code=400, detail="User already registered for this event")
-    
-    # Check if event is at capacity
-    if event.max_participants:
-        current_registrations = db.query(models.Registration).filter(
+    try:
+        # Extract event_id from registration data
+        event_id = registration_data.event_id
+        
+        # Ensure user_id is never null by using current_user.id as fallback
+        # This is critical because user_id is a NOT NULL column in the database
+        user_id = None
+        if hasattr(registration_data, 'user_id') and registration_data.user_id is not None:
+            user_id = registration_data.user_id
+        else:
+            user_id = current_user.id
+            
+        # Double-check that user_id is not None
+        if user_id is None:
+            logger.error(f"Critical error: user_id is None when registering for event {event_id}")
+            raise HTTPException(status_code=400, detail="User ID is required for registration")
+        
+        # Set up logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Processing registration for event {event_id} by user {user_id}")
+        
+        # Check if event exists and is active
+        event = db.query(models.Event).filter(models.Event.id == event_id, models.Event.is_active == True).first()
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found or inactive")
+        
+        # Check if event has already started
+        from datetime import datetime
+        current_time = datetime.utcnow()
+        
+        if event.start_time <= current_time:
+            # Log detailed information about the failed registration attempt
+            logger.warning(
+                f"Registration rejected for event {event_id} '{event.title}' that started at "
+                f"{event.start_time.strftime('%Y-%m-%d %H:%M')}. Current time: {current_time.strftime('%Y-%m-%d %H:%M')}"
+            )
+            
+            # Calculate how long ago the event started
+            time_diff = current_time - event.start_time
+            hours_ago = time_diff.total_seconds() / 3600
+            
+            # Provide a more informative error message
+            if hours_ago < 1:
+                detail = f"This event started {int(time_diff.total_seconds() / 60)} minutes ago. Registration is closed."
+            elif hours_ago < 24:
+                detail = f"This event started {int(hours_ago)} hours ago. Registration is closed."
+            else:
+                detail = f"This event started {int(hours_ago / 24)} days ago. Registration is closed."
+                
+            raise HTTPException(status_code=400, detail=detail)
+        
+        # Check if user is already registered
+        existing_registration = db.query(models.Registration).filter(
+            models.Registration.user_id == user_id,
             models.Registration.event_id == event_id,
             models.Registration.status != "cancelled"
-        ).count()
+        ).first()
         
-        if current_registrations >= event.max_participants:
-            raise HTTPException(status_code=400, detail="Event is at full capacity")
-    
-    # Create registration
-    registration = models.Registration(
-        user_id=current_user.id,
-        event_id=event_id,
-        status="registered",
-        payment_status="pending" if event.price > 0 else "not_required"
-    )
-    
-    db.add(registration)
-    db.commit()
-    db.refresh(registration)
-    
-    return registration
+        if existing_registration:
+            raise HTTPException(status_code=400, detail="User already registered for this event")
+        
+        # Check if event is at capacity
+        if event.max_participants:
+            current_registrations = db.query(models.Registration).filter(
+                models.Registration.event_id == event_id,
+                models.Registration.status != "cancelled"
+            ).count()
+            
+            if current_registrations >= event.max_participants:
+                raise HTTPException(status_code=400, detail="Event is at full capacity")
+        
+        # Create registration
+        registration = models.Registration(
+            user_id=user_id,
+            event_id=event_id,
+            status="registered",
+            payment_status="pending" if event.price > 0 else "not_required"
+        )
+        
+        db.add(registration)
+        db.commit()
+        db.refresh(registration)
+        
+        return registration
+    except HTTPException as http_ex:
+        # Re-raise HTTP exceptions as they are already properly formatted
+        logger.warning(f"HTTP exception during registration: {http_ex.detail}")
+        raise
+    except Exception as e:
+        # Log the exception
+        logger.error(f"Unexpected error in register_for_event: {str(e)}")
+        # Wrap other exceptions in an HTTPException
+        raise HTTPException(status_code=500, detail=f"Registration error: {str(e)}")
 
 
 @router.get("/events/{event_id}/registrations", response_model=List[schemas.Registration])

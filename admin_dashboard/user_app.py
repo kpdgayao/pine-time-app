@@ -20,7 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 from utils.api import (
     get_users, get_events, get_event_popularity, get_user_engagement, 
     get_points_distribution, get_leaderboard, get_points_history, get_badges,
-    register_user
+    register_user, get_user_badges, get_user_events, register_for_event
 )
 from utils.auth import login, logout, check_authentication, verify_token, ensure_valid_token
 
@@ -552,6 +552,9 @@ def show_sample_events():
 
 def display_events(events):
     """Display events in a visually appealing format"""
+    # Import here to avoid circular imports
+    from utils.api import register_for_event
+    
     for event in events:
         with st.container():
             st.markdown(f"""
@@ -576,7 +579,10 @@ def display_events(events):
                 st.write(f"Spots: **{event.get('registered')}/{event.get('capacity')}**")
             
             # Check if user is already registered
-            is_registered = False  # This would be checked via API in production
+            # In production, this would be checked via API
+            is_registered = False
+            user_info = st.session_state.get("user_info", {})
+            user_id = user_info.get("id", "")
             
             if is_registered:
                 st.success("You're registered for this event!")
@@ -601,9 +607,17 @@ def display_events(events):
                             del st.session_state[f"confirm_reg_{event.get('id')}"]
                     with col2:
                         if st.button("Confirm Registration", key=f"confirm_{event.get('id')}"):
-                            # API call to register would go here
-                            st.success(f"Successfully registered for {event.get('title')}!")
-                            del st.session_state[f"confirm_reg_{event.get('id')}"]
+                            # Use the new register_for_event function
+                            success = register_for_event(event.get('id'), user_id)
+                            if success:
+                                # Registration was successful
+                                st.success(f"Successfully registered for {event.get('title')}!")
+                                del st.session_state[f"confirm_reg_{event.get('id')}"]
+                                # Set a flag to trigger page refresh
+                                st.session_state["refresh_events"] = True
+                            else:
+                                # Registration failed, but error message already shown by the function
+                                pass
             
             st.markdown("---")
 
@@ -695,30 +709,91 @@ def show_profile_page():
             
             with tabs[0]:
                 try:
-                    # This would be an API call in production
-                    # For now, use sample data
-                    upcoming_events = []  # Would be fetched from API
+                    # Import here to avoid circular imports
+                    from utils.api import get_user_events
+                    
+                    # Fetch user events using our new function
+                    user_events = get_user_events(user_info.get("id", ""))
+                    
+                    # Filter for upcoming events (events with future dates)
+                    current_date = datetime.now().date()
+                    upcoming_events = []
+                    
+                    for event in user_events:
+                        # Parse event date - handle different date formats
+                        event_date_str = event.get('date', '')
+                        try:
+                            if 'T' in event_date_str:
+                                # ISO format
+                                event_date = datetime.fromisoformat(event_date_str.split('T')[0]).date()
+                            elif '-' in event_date_str:
+                                # YYYY-MM-DD format
+                                event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+                            elif '/' in event_date_str:
+                                # MM/DD/YYYY format
+                                event_date = datetime.strptime(event_date_str, '%m/%d/%Y').date()
+                            else:
+                                # Unknown format, assume it's in the future
+                                event_date = current_date + timedelta(days=1)
+                                
+                            if event_date >= current_date:
+                                upcoming_events.append(event)
+                        except Exception:
+                            # If date parsing fails, include it in upcoming events
+                            upcoming_events.append(event)
+                    
                     if upcoming_events:
                         display_user_events(upcoming_events, is_past=False)
                     else:
                         st.info("You don't have any upcoming events. Check out the home page to register for events!")
                         display_sample_user_events(is_past=False)
                 except Exception as e:
-                    st.error(f"Error loading upcoming events: {str(e)}")
+                    logger.error(f"Error fetching user events: {str(e)}")
+                    st.info("Unable to load your upcoming events. Using sample data instead.")
                     display_sample_user_events(is_past=False)
             
             with tabs[1]:
                 try:
-                    # This would be an API call in production
-                    # For now, use sample data
-                    past_events = []  # Would be fetched from API
+                    # Import here to avoid circular imports if not already imported
+                    if 'get_user_events' not in locals():
+                        from utils.api import get_user_events
+                        user_events = get_user_events(user_info.get("id", ""))
+                    
+                    # Filter for past events (events with past dates)
+                    current_date = datetime.now().date()
+                    past_events = []
+                    
+                    for event in user_events:
+                        # Parse event date - handle different date formats
+                        event_date_str = event.get('date', '')
+                        try:
+                            if 'T' in event_date_str:
+                                # ISO format
+                                event_date = datetime.fromisoformat(event_date_str.split('T')[0]).date()
+                            elif '-' in event_date_str:
+                                # YYYY-MM-DD format
+                                event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+                            elif '/' in event_date_str:
+                                # MM/DD/YYYY format
+                                event_date = datetime.strptime(event_date_str, '%m/%d/%Y').date()
+                            else:
+                                # Unknown format, assume it's in the past
+                                event_date = current_date - timedelta(days=1)
+                                
+                            if event_date < current_date:
+                                past_events.append(event)
+                        except Exception:
+                            # If date parsing fails, don't include in past events
+                            pass
+                    
                     if past_events:
                         display_user_events(past_events, is_past=True)
                     else:
                         st.info("You don't have any past events.")
                         display_sample_user_events(is_past=True)
                 except Exception as e:
-                    st.error(f"Error loading past events: {str(e)}")
+                    logger.error(f"Error loading past events: {str(e)}")
+                    st.info("Unable to load your past events. Using sample data instead.")
                     display_sample_user_events(is_past=True)
             
             # Points history
@@ -938,30 +1013,59 @@ def display_sample_user_badges():
             "image_url": "https://via.placeholder.com/100?text=Eco"
         }
     ]
-    
-    display_user_badges(sample_badges)
 
 def display_user_events(events, is_past=False):
     """Display user's registered events"""
+    if not events:
+        st.info("No events to display.")
+        return
+        
     for event in events:
+        # Handle different event data formats
+        event_id = event.get('id') or event.get('event_id') or "unknown"
+        title = event.get('title') or event.get('name') or event.get('event_name') or "Untitled Event"
+        date = event.get('date') or event.get('event_date') or event.get('start_date') or "TBD"
+        time = event.get('time') or event.get('event_time') or event.get('start_time') or "TBD"
+        location = event.get('location') or event.get('venue') or event.get('place') or "TBD"
+        event_type = event.get('event_type') or event.get('type') or event.get('category') or "Event"
+        points = event.get('points') or event.get('points_reward') or event.get('reward_points') or 0
+        status = event.get('status') or event.get('registration_status') or "Registered"
+        
         with st.container():
             st.markdown(f"""
             <div class="card event-card">
-                <h3>{event.get('title')}</h3>
-                <p><strong>Date:</strong> {event.get('date')} at {event.get('time')}</p>
-                <p><strong>Location:</strong> {event.get('location')}</p>
-                <p><strong>Type:</strong> {event.get('event_type')}</p>
+                <h3>{title}</h3>
+                <p><strong>Date:</strong> {date} at {time}</p>
+                <p><strong>Location:</strong> {location}</p>
+                <p><strong>Type:</strong> {event_type}</p>
             </div>
             """, unsafe_allow_html=True)
             
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"Status: **{status}**")
+            
+            with col2:
+                st.write(f"Points: **{points}**")
+            
             if not is_past:
-                # Show cancel button for upcoming events
-                if st.button(f"Cancel Registration (Event {event.get('id')})", key=f"cancel_reg_{event.get('id')}"):
+                if st.button(f"Cancel Registration (Event {event_id})", key=f"cancel_reg_{event_id}"):
                     # API call to cancel registration would go here
-                    st.success("Registration cancelled successfully!")
+                    try:
+                        # This would be an API call in production
+                        st.info("Attempting to cancel registration...")
+                        # Placeholder for actual API call
+                        st.success("Registration cancelled successfully!")
+                        # Set a flag to trigger page refresh
+                        st.session_state["refresh_events"] = True
+                    except Exception as e:
+                        st.error(f"Error cancelling registration: {str(e)}")
             else:
-                # Show points earned for past events
-                st.write(f"Points earned: **{event.get('points_earned', 0)}**")
+                # For past events, show completion status
+                completion_status = event.get('completion_status') or event.get('attendance') or "Attended"
+                st.write(f"Completion Status: **{completion_status}**")
+                st.write(f"Points Earned: **{event.get('points_earned', 0)}**")
             
             st.markdown("---")
 
@@ -977,7 +1081,9 @@ def display_sample_user_events(is_past=False):
                 "event_type": "Hiking",
                 "location": "Baguio City",
                 "date": (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d"),
-                "time": "08:00 AM"
+                "time": "08:00 AM",
+                "points": 50,
+                "status": "Confirmed"
             }
         ]
     else:
@@ -991,6 +1097,8 @@ def display_sample_user_events(is_past=False):
                 "location": "La Trinidad",
                 "date": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d"),
                 "time": "01:00 PM",
+                "points": 40,
+                "status": "Completed",
                 "points_earned": 40
             },
             {
@@ -1001,6 +1109,8 @@ def display_sample_user_events(is_past=False):
                 "location": "Baguio City",
                 "date": (datetime.now() - timedelta(days=25)).strftime("%Y-%m-%d"),
                 "time": "09:00 AM",
+                "points": 75,
+                "status": "Completed",
                 "points_earned": 75
             }
         ]

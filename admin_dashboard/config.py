@@ -52,6 +52,12 @@ API_ENDPOINTS = {
         "list": f"{API_BASE_URL}{API_V1_STR}/badges",
         "detail": f"{API_BASE_URL}{API_V1_STR}/badges/{{badge_id}}",
         "categories": f"{API_BASE_URL}{API_V1_STR}/badges/categories",
+    },
+    "registrations": {
+        "create": f"{API_BASE_URL}{API_V1_STR}/registrations",
+        "list": f"{API_BASE_URL}{API_V1_STR}/registrations",
+        "detail": f"{API_BASE_URL}{API_V1_STR}/registrations/{{registration_id}}",
+        "delete": f"{API_BASE_URL}{API_V1_STR}/registrations/{{registration_id}}",
     }
 }
 

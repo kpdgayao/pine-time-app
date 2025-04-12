@@ -13,6 +13,7 @@ class RegistrationBase(BaseModel):
 # Properties to receive via API on creation
 class RegistrationCreate(RegistrationBase):
     event_id: int
+    user_id: Optional[int] = None
 
 
 # Properties to receive via API on update

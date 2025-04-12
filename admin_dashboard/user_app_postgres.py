@@ -37,7 +37,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "utils"))
 from utils.api import (
     get_users, get_events, get_event_popularity, get_user_engagement, 
     get_points_distribution, get_leaderboard, get_points_history, get_badges,
-    api_client, check_api_connection, get_user_badges, APIError
+    api_client, check_api_connection, get_user_badges, APIError, get_user_events,
+    register_for_event
 )
 from utils.auth import (
     logout, check_authentication, verify_token, ensure_valid_token,
@@ -750,11 +751,16 @@ def show_home_page():
         # Get all events first
         events_data = get_events()
         
-        if not events_data or not events_data.get('items'):
+        # Handle both list and dictionary responses for events
+        if not events_data:
             return events_data
             
         # Filter events manually
-        filtered_items = events_data.get('items', [])
+        if isinstance(events_data, dict):
+            filtered_items = events_data.get('items', [])
+        else:
+            # If events_data is a list, use it directly
+            filtered_items = events_data
         
         # Apply filters
         if event_type != "All Types":
@@ -817,18 +823,27 @@ def show_home_page():
                             (event_date := get_event_date(e)) is not None and 
                             today <= event_date]
             
-        # Update the events data with filtered items
-        events_data['items'] = filtered_items
-        return events_data
+        # Return the filtered items in the same format as the input
+        if isinstance(events_data, dict):
+            events_data['items'] = filtered_items
+            return events_data
+        else:
+            # If the original data was a list, return the filtered list directly
+            return filtered_items
     
     events = fetch_events()
     
-    if not events or not events.get('items'):
+    # Handle both list and dictionary responses for events
+    if not events:
         st.info("No events found matching your filters.")
     else:
-        # Display events in a grid
-        items = events.get('items', [])
-        st.subheader(f"Found {len(items)} events")
+        # If events is a dictionary with 'items' key, use that, otherwise use the list directly
+        items = events.get('items', []) if isinstance(events, dict) else events
+        
+        if not items:
+            st.info("No events found matching your filters.")
+        else:
+            st.subheader(f"Found {len(items)} events")
         
         # Create rows of 3 events each
         for i in range(0, len(items), 3):
@@ -887,17 +902,19 @@ def show_home_page():
                             time.sleep(1)
                             st.rerun()
                         else:
-                            # Make API request to register for event
+                            # Use our new register_for_event function
                             with st.spinner("Registering..."):
-                                response = api_client.post(
-                                    API_ENDPOINTS["events"]["register"].format(event_id=event['id']),
-                                    with_auth=True
-                                )
+                                # Get current user ID
+                                user_id = safe_get_user_id()
                                 
-                                st.success(f"Successfully registered for {event['title']}!")
-                                st.session_state["show_event_details"] = False
-                                time.sleep(1)
-                                st.rerun()
+                                # Register for the event
+                                success = register_for_event(event['id'], user_id)
+                                
+                                if success:
+                                    st.success(f"Successfully registered for {event['title']}!")
+                                    st.session_state["show_event_details"] = False
+                                    time.sleep(1)
+                                    st.rerun()
                     except Exception as e:
                         st.error(f"Registration failed: {str(e)}")
                         logger.error(f"Event registration error: {str(e)}")
@@ -921,57 +938,43 @@ def show_profile_page():
         # Use our safe utility function to get user ID
         user_id = safe_get_user_id()
         if not user_id:
+            logger.warning("No user ID found when fetching user badges")
             return []
-            
-        # Use safe_api_call to handle errors consistently
-        def _get_badges():
-            return api_client.get(
-                API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
-                with_auth=True,
-                error_message="Fetching user badges"
-            )
-            
-        response = safe_api_call(_get_badges, error_message="Error fetching user badges")
         
-        # Use our safe_api_response_handler to process the response
-        return safe_api_response_handler(response, key="badges")
+        try:
+            # Use our improved get_user_badges function that handles errors and fallbacks
+            badges = get_user_badges(user_id)
+            
+            # If we got badges back, return them
+            if badges:
+                return badges
+            
+            # If no badges were returned, log and return empty list
+            logger.info(f"No badges found for user {user_id}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching user badges: {str(e)}")
+            return []
     
     # Get user events with fallback to sample data
     @with_connection_fallback(get_sample_user_events)
     def fetch_user_events():
         # Get current user safely
-        user = get_current_user()
-        if not user:
-            logger.warning("No user found when fetching user events")
-            return []
-            
-        user_id = user.get("id")
+        user_id = safe_get_user_id()
         if not user_id:
-            logger.warning("User ID not found when fetching user events")
+            logger.warning("No user ID found when fetching user events")
             return []
-            
+        
         try:
-            response = api_client.get(
-                API_ENDPOINTS["users"]["events"].format(user_id=user_id),
-                with_auth=True,
-                error_message="Fetching user events",
-                fallback_to_demo=True
-            )
+            # Use our improved get_user_events function that handles errors and fallbacks
+            events = get_user_events(user_id)
             
-            # Handle different response formats
-            if isinstance(response, list):
-                return response
-            elif isinstance(response, dict):
-                if "events" in response:
-                    return response["events"]
-                elif "items" in response:
-                    return response["items"]
-                elif "registrations" in response:
-                    return response["registrations"]
-                elif response:  # If it's a non-empty dict, return it
-                    return [response]
+            # If we got events back, return them
+            if events:
+                return events
             
-            # Default empty list
+            # If no events were returned, log and return empty list
+            logger.info(f"No events found for user {user_id}")
             return []
         except Exception as e:
             logger.error(f"Error fetching user events: {str(e)}")
@@ -981,39 +984,21 @@ def show_profile_page():
     @with_connection_fallback(get_sample_points_history)
     def fetch_points_history():
         # Get current user safely
-        user = get_current_user()
-        if not user:
-            logger.warning("No user found when fetching points history")
-            return []
-            
-        user_id = user.get("id")
+        user_id = safe_get_user_id()
         if not user_id:
-            logger.warning("User ID not found when fetching points history")
+            logger.warning("No user ID found when fetching points history")
             return []
-            
+        
         try:
-            response = api_client.get(
-                API_ENDPOINTS["users"]["points_history"].format(user_id=user_id),
-                with_auth=True,
-                error_message="Fetching points history"
-            )
+            # Use our improved get_points_history function that handles errors and fallbacks
+            history = get_points_history(user_id)
             
-            # Handle different response formats
-            if isinstance(response, dict):
-                # If the response has a points_history key, return that
-                if "points_history" in response:
-                    return response["points_history"]
-                # If the response has an items key, return that
-                elif "items" in response:
-                    return response["items"]
-                # Otherwise return the whole response if it's not empty
-                elif response:
-                    return response
-            # If the response is already a list, return it directly
-            elif isinstance(response, list):
-                return response
-                
-            # Default fallback
+            # If we got history back, return it
+            if history:
+                return history
+            
+            # If no history was returned, log and return empty list
+            logger.info(f"No points history found for user {user_id}")
             return []
         except Exception as e:
             logger.error(f"Error fetching points history: {str(e)}")
@@ -1078,14 +1063,19 @@ def show_profile_page():
                             st.write(badge.get("description", ""))
     
     with tab2:
-        if not events or not events.get('items'):
+        # Handle both list and dictionary responses for events
+        if not events:
             st.info("You haven't registered for any events yet.")
         else:
-            items = events.get('items', [])
-            st.subheader(f"Registered Events ({len(items)})")
+            # If events is a dictionary with 'items' key, use that, otherwise use the list directly
+            items = events.get('items', []) if isinstance(events, dict) else events
             
-            # Sort events by date
-            items.sort(key=lambda x: x.get("start_date", ""))
+            if not items:
+                st.info("You haven't registered for any events yet.")
+            else:
+                st.subheader(f"Registered Events ({len(items)})")            
+                # Sort events by date
+                items.sort(key=lambda x: x.get("start_date", "") if isinstance(x, dict) else "")
             
             # Separate upcoming and past events
             today = datetime.now().date().isoformat()
@@ -1098,9 +1088,9 @@ def show_profile_page():
                 for event in upcoming_events:
                     st.markdown(f"""
                     <div class="card event-card">
-                        <h4>{event['title']}</h4>
-                        <p><strong>Date:</strong> {event['start_date']}</p>
-                        <p><strong>Location:</strong> {event['location']}</p>
+                        <h4>{event.get('title', 'Event')}</h4>
+                        <p><strong>Date:</strong> {event.get('start_date', 'N/A')}</p>
+                        <p><strong>Location:</strong> {event.get('location', 'N/A')}</p>
                     </div>
                     """, unsafe_allow_html=True)
             
@@ -1111,8 +1101,8 @@ def show_profile_page():
                     attended = event.get("attended", False)
                     st.markdown(f"""
                     <div class="card event-card">
-                        <h4>{event['title']}</h4>
-                        <p><strong>Date:</strong> {event['start_date']}</p>
+                        <h4>{event.get('title', 'Event')}</h4>
+                        <p><strong>Date:</strong> {event.get('start_date', 'N/A')}</p>
                         <p><strong>Status:</strong> {"Attended" if attended else "Registered"}</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1295,20 +1285,23 @@ def show_badge_gallery():
         # Use our safe utility function to get user ID
         user_id = safe_get_user_id()
         if not user_id:
+            logger.warning("No user ID found when fetching user badges")
             return []
-            
-        # Use safe_api_call to handle errors consistently
-        def _get_badges():
-            return api_client.get(
-                API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
-                with_auth=True,
-                error_message="Fetching user badges"
-            )
-            
-        response = safe_api_call(_get_badges, error_message="Error fetching user badges")
         
-        # Use our safe_api_response_handler to process the response
-        return safe_api_response_handler(response, key="badges")
+        try:
+            # Use our improved get_user_badges function that handles errors and fallbacks
+            badges = get_user_badges(user_id)
+            
+            # If we got badges back, return them
+            if badges:
+                return badges
+            
+            # If no badges were returned, log and return empty list
+            logger.info(f"No badges found for user {user_id}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching user badges: {str(e)}")
+            return []
     
     all_badges = fetch_all_badges()
     user_badges = fetch_user_badges()

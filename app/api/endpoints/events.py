@@ -203,6 +203,40 @@ def delete_event(
     return event
 
 
+@router.post("/{event_id}/register", response_model=schemas.Registration)
+def register_for_event_path(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    event_id: int,
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+) -> Any:
+    """
+    Register current user for an event.
+    This endpoint is a redirect to the main registration endpoint in the registrations router.
+    """
+    try:
+        # Import the registration function from registrations module
+        from app.api.endpoints.registrations import register_for_event
+        
+        # Create a registration data object with explicit user_id
+        registration_data = schemas.RegistrationCreate(event_id=event_id, user_id=current_user.id)
+        
+        # Call the main registration function
+        return register_for_event(db=db, registration_data=registration_data, current_user=current_user)
+    except Exception as e:
+        # Log the exception
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in register_for_event_path: {str(e)}")
+        
+        # Check if it's already an HTTPException
+        if isinstance(e, HTTPException):
+            raise e
+        
+        # Otherwise, wrap it in an HTTPException
+        raise HTTPException(status_code=500, detail=f"Registration error: {str(e)}")
+
+
 @router.post("/{event_id}/complete", response_model=schemas.Event)
 def complete_event(
     *,
