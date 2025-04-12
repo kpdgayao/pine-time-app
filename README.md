@@ -12,6 +12,9 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 - **Admin Dashboard**: Comprehensive tools for managing users, events, and analytics
 - **User Interface**: Mobile-friendly design with intuitive navigation
 - **Demo Mode**: Test the application without backend connection
+- **Enhanced Error Handling**: Robust error handling with graceful degradation
+- **API Integration**: Resilient API client with response format handling
+- **PostgreSQL Support**: Optimized for PostgreSQL with connection pooling
 
 ## Project Structure
 
@@ -19,9 +22,9 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 pine-time-app/
 ├── admin_dashboard/       # Streamlit frontend applications
 │   ├── pages/             # Dashboard page components
-│   ├── utils/             # Utility modules (auth, API, DB)
+│   ├── utils/             # Utility modules (auth, API, DB, connection)
 │   ├── app.py             # Admin dashboard entry point
-│   └── user_app.py        # User interface entry point
+│   └── user_app_postgres.py # User interface entry point with PostgreSQL support
 ├── app/                   # FastAPI backend
 │   ├── api/               # API endpoints
 │   ├── core/              # Core functionality
@@ -30,6 +33,11 @@ pine-time-app/
 │   ├── schemas/           # Pydantic schemas
 │   ├── services/          # Business logic
 │   └── main.py            # Backend entry point
+├── tests/                 # Comprehensive test suite
+│   ├── api/               # API tests
+│   ├── frontend/          # Frontend tests
+│   ├── integration/       # Integration tests
+│   └── load/              # Load testing tools
 ├── .env.example           # Example environment variables
 └── requirements.txt       # Backend dependencies
 ```
@@ -37,10 +45,11 @@ pine-time-app/
 ## Tech Stack
 
 - **Backend**: FastAPI with SQLAlchemy ORM
-- **Database**: SQLite (development), PostgreSQL (production)
+- **Database**: PostgreSQL 17.4 (primary), SQLite (development)
 - **Frontend**: Streamlit
-- **Authentication**: JWT-based auth system
+- **Authentication**: JWT-based auth system with token refresh
 - **Styling**: Custom CSS with Pine Time green theme (#2E7D32)
+- **Testing**: Pytest with demo mode support
 
 ## Setup Instructions
 
@@ -48,7 +57,7 @@ pine-time-app/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/pine-time-app.git
+   git clone https://github.com/kpdgayao/pine-time-app.git
    cd pine-time-app
    ```
 
@@ -61,7 +70,7 @@ pine-time-app/
    - Windows: `venv\Scripts\activate`
    - Unix/MacOS: `source venv/bin/activate`
 
-4. Install backend dependencies:
+4. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
@@ -83,19 +92,14 @@ pine-time-app/
    cd admin_dashboard
    ```
 
-2. Install frontend dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run the admin dashboard:
+2. Run the admin dashboard:
    ```bash
    streamlit run app.py
    ```
 
-4. Run the user interface:
+3. Run the user interface with PostgreSQL support:
    ```bash
-   streamlit run user_app.py
+   streamlit run user_app_postgres.py
    ```
 
 ## Environment Variables
@@ -104,9 +108,20 @@ Create a `.env` file with the following variables:
 
 ```bash
 # Database Configuration
-DATABASE_URL=sqlite:///./pine_time.db
-# For PostgreSQL:
-# DATABASE_URL=postgresql://user:password@localhost:5432/pine_time
+DATABASE_TYPE=postgresql
+POSTGRES_SERVER=localhost
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+POSTGRES_DB=pine_time
+POSTGRES_PORT=5432
+POSTGRES_SSL_MODE=prefer
+
+# Connection Pooling
+POOL_SIZE=5
+MAX_OVERFLOW=10
+POOL_TIMEOUT=30
+POOL_RECYCLE=1800
+POOL_PRE_PING=True
 
 # JWT Authentication
 SECRET_KEY=your-secret-key-here
@@ -115,43 +130,63 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 
 # API Configuration
 API_BASE_URL=http://localhost:8000
+
+# Demo Mode (set to "true" to enable)
+DEMO_MODE=false
 ```
 
 ## Demo Mode
 
-The application includes a demo mode for testing without a backend connection:
+The application includes an enhanced demo mode for testing without backend connection:
 
-1. For the user interface, check the "Use demo login" box on the login page
-2. For the admin dashboard, use the demo credentials:
-   - Username: admin
-   - Password: admin
+1. Set `DEMO_MODE=true` in your `.env` file or run:
+   ```bash
+   python run_admin_dashboard_demo.py
+   ```
+
+2. Use the demo credentials:
+   - Username: demo@pinetimeexperience.com
+   - Password: demo
 
 ## Error Handling and Resilience
 
-The application implements robust error handling and resilience patterns:
+The application implements a robust error handling system with multiple layers:
 
-- API error handling with custom exception classes
-- Fallback mechanisms with sample data generation
-- Graceful degradation when services are impaired
-- Comprehensive user feedback for error conditions
+- **API Client Layer**: Enhanced error handling with specific error messages for different status codes
+- **Connection Utility Layer**: Connection verification with caching and fallback mechanisms
+- **User Interface Layer**: Graceful degradation with informative error messages
+- **Custom Exceptions**: Specialized exception classes for different error types (APIError, PostgreSQLError)
+- **Response Format Handling**: Support for both list and dictionary response formats from API endpoints
 
-## Database Integration
+## PostgreSQL Integration
 
-The application supports both SQLite and PostgreSQL:
+The application is optimized for PostgreSQL with:
 
-- SQLite for development and testing
-- PostgreSQL for production environments
 - Connection pooling with configurable parameters
-- ORM implementation with SQLAlchemy
+- Connection verification and testing
+- Proper error handling for database constraints
+- Sequence management utilities
+- Type-safe database operations
 
-## Authentication System
+## Testing Capabilities
 
-The authentication system includes:
+The application includes a comprehensive test suite:
 
-- JWT token management (acquisition, storage, refresh)
-- Role-based access control (admin vs. regular users)
-- Session timeout management
-- Secure token handling with proper validation
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test interactions between components
+- **API Tests**: Test API endpoints and error handling
+- **Load Tests**: Evaluate performance under load
+- **Demo Mode Tests**: Test without backend connection
+
+Run the test suite with:
+```bash
+python run_comprehensive_tests.py
+```
+
+Or run specific test categories:
+```bash
+python run_demo_tests.py  # Run tests in demo mode
+```
 
 ## Contributing
 
