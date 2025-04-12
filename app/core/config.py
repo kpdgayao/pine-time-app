@@ -2,7 +2,7 @@ import secrets
 import os
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import AnyHttpUrl, EmailStr, HttpUrl, validator
+from pydantic import AnyHttpUrl, EmailStr, HttpUrl, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -15,8 +15,22 @@ class Settings(BaseSettings):
     # e.g: '["http://localhost", "http://localhost:4200", "http://localhost:3000", \
     # "http://localhost:8080", "http://local.dockertoolbox.tiangolo.com"]'
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    
+    # API configuration
+    API_BASE_URL: Optional[str] = None
+    
+    # Load testing configuration
+    LOAD_TEST_MIN_WAIT: Optional[str] = None
+    LOAD_TEST_MAX_WAIT: Optional[str] = None
+    LOAD_TEST_USER_COUNT: Optional[str] = None
+    LOAD_TEST_SPAWN_RATE: Optional[str] = None
+    
+    # Authentication configuration
+    TOKEN_REFRESH_INTERVAL: Optional[str] = None
+    AUTH_RETRY_ATTEMPTS: Optional[str] = None
+    AUTH_RETRY_DELAY: Optional[str] = None
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
@@ -77,6 +91,7 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = True
         env_file = ".env"
+        extra = "ignore"  # Allow extra fields from environment variables
 
 
 settings = Settings()

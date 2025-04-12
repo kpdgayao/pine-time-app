@@ -29,7 +29,7 @@ if "last_connection_check" not in st.session_state:
 
 def verify_connection(force: bool = False) -> Dict[str, Any]:
     """
-    Verify API and database connections.
+    Verify API and database connections with enhanced error handling and detailed diagnostics.
     
     Args:
         force: If True, force a new connection check even if cached.
@@ -37,6 +37,9 @@ def verify_connection(force: bool = False) -> Dict[str, Any]:
     Returns:
         Dict with connection status information.
     """
+    # Track verification time for performance monitoring
+    verification_start = time.time()
+    
     # Use cached result if available and not forcing refresh
     current_time = time.time()
     if (not force and 
@@ -49,57 +52,108 @@ def verify_connection(force: bool = False) -> Dict[str, Any]:
     # Check if we're in demo mode
     demo_mode = is_demo_mode()
     
-    # Initialize result
+    # Initialize result with detailed diagnostics
     result = {
         "success": False,
         "api_connected": False,
         "db_connected": False,
         "db_type": None,
         "message": "",
-        "is_demo": demo_mode
+        "is_demo": demo_mode,
+        "diagnostics": {
+            "api": {},
+            "database": {},
+            "verification_time": 0
+        }
     }
     
     # If in demo mode, we don't need to check connections
     if demo_mode:
         result["success"] = True
         result["message"] = "Running in demo mode"
+        result["diagnostics"]["verification_time"] = time.time() - verification_start
         st.session_state["connection_status"] = result
         st.session_state["last_connection_check"] = current_time
         return result
     
-    # Check API connection
-    api_status = check_api_connection()
-    result["api_connected"] = api_status.get("success", False)
-    result["api_message"] = api_status.get("message", "")
+    # Check API connection with timeout
+    try:
+        api_status = check_api_connection()
+        result["api_connected"] = api_status.get("success", False)
+        result["api_message"] = api_status.get("message", "")
+        result["diagnostics"]["api"] = api_status
+    except Exception as e:
+        logger.error(f"Error checking API connection: {str(e)}")
+        result["api_message"] = f"Error checking API: {str(e)}"
+        result["diagnostics"]["api"]["error"] = str(e)
     
-    # Check database connection
+    # Check database connection with detailed diagnostics
     try:
         db_config = get_database_config()
         result["db_type"] = db_config.get("database_type", "unknown")
+        result["diagnostics"]["database"]["type"] = result["db_type"]
         
         # Test database connection
+        db_connection_start = time.time()
         db_version = test_database_connection()
+        db_connection_time = time.time() - db_connection_start
+        result["diagnostics"]["database"]["connection_time"] = db_connection_time
+        
         if db_version:
             result["db_connected"] = True
             result["db_version"] = db_version
+            result["diagnostics"]["database"]["version"] = db_version
+            logger.info(f"Database connection successful in {db_connection_time:.2f}s")
         else:
             result["message"] += "Database connection failed. "
+            result["diagnostics"]["database"]["error"] = "Connection test returned no version"
+            logger.warning(f"Database connection failed after {db_connection_time:.2f}s")
+            
+            # Try to get more specific database error information
+            if result["db_type"] == "postgresql":
+                try:
+                    import psycopg2
+                    params = get_postgres_connection_params()
+                    conn = psycopg2.connect(**params, connect_timeout=5)
+                    conn.close()
+                except Exception as db_e:
+                    result["diagnostics"]["database"]["specific_error"] = str(db_e)
+                    logger.error(f"PostgreSQL specific error: {str(db_e)}")
     except Exception as e:
         result["message"] += f"Database error: {str(e)}. "
+        result["diagnostics"]["database"]["error"] = str(e)
         logger.error(f"Database connection error: {str(e)}")
     
-    # Set overall success
+    # Set overall success with fallback strategy
     # We consider the connection successful if either:
-    # 1. Both API and database are connected
+    # 1. Both API and database are connected (ideal)
     # 2. Database is connected (we can work with sample data for API)
-    result["success"] = result["db_connected"]
+    # 3. API is connected but database isn't (we can use in-memory storage)
+    if result["db_connected"]:
+        result["success"] = True
+    elif result["api_connected"]:
+        # Fallback to in-memory storage if API is available but database isn't
+        result["success"] = True
+        result["message"] += "Database connection failed. Using in-memory storage as fallback. "
+        logger.warning("Database connection failed. Using in-memory storage as fallback.")
+        result["diagnostics"]["fallback"] = "in_memory_storage"
     
-    # If API is not connected but database is, we can still work with sample data
+    # Provide detailed status messages
     if not result["api_connected"] and result["db_connected"]:
         result["message"] += "API connection failed. Using sample data for API requests. "
         logger.warning("API connection failed. Using sample data for API requests.")
+        result["diagnostics"]["fallback"] = "sample_api_data"
     elif result["api_connected"] and result["db_connected"]:
         result["message"] = f"Connected to API and {result['db_type'].upper()} database"
+    elif not result["api_connected"] and not result["db_connected"]:
+        result["message"] = "All connections failed. Using demo mode as fallback."
+        logger.error("All connections failed. Using demo mode as fallback.")
+        result["is_demo"] = True  # Force demo mode as ultimate fallback
+        result["success"] = True  # Consider successful with demo fallback
+        result["diagnostics"]["fallback"] = "forced_demo_mode"
+    
+    # Record verification time
+    result["diagnostics"]["verification_time"] = time.time() - verification_start
     
     # Cache the result
     st.session_state["connection_status"] = result
@@ -107,14 +161,19 @@ def verify_connection(force: bool = False) -> Dict[str, Any]:
     
     # Log connection status
     if result["success"]:
-        logger.info(f"Connection verified: {result['message']}")
+        logger.info(f"Connection verified in {result['diagnostics']['verification_time']:.2f}s: {result['message']}")
     else:
-        logger.warning(f"Connection issues: {result['message']}")
+        logger.warning(f"Connection issues after {result['diagnostics']['verification_time']:.2f}s: {result['message']}")
     
     return result
 
-def show_connection_status():
-    """Display connection status in the UI"""
+def show_connection_status(show_details: bool = False):
+    """
+    Display connection status in the UI with enhanced diagnostics.
+    
+    Args:
+        show_details: If True, show detailed diagnostics information
+    """
     status = verify_connection()
     
     if is_demo_mode():
@@ -122,48 +181,126 @@ def show_connection_status():
         return
     
     if status["success"]:
-        st.success(f"✅ Connected to API and {status['db_type'].upper()} database")
-        if status.get("db_version"):
-            st.caption(f"Database version: {status['db_version']}")
+        if status.get("is_demo") and status.get("diagnostics", {}).get("fallback") == "forced_demo_mode":
+            # Special case: forced demo mode due to all connections failing
+            st.warning("⚠️ All connections failed. Running in fallback demo mode.")
+            st.caption("Limited functionality available. Some features may not work properly.")
+        elif status["api_connected"] and status["db_connected"]:
+            # Ideal case: both API and database connected
+            st.success(f"✅ Connected to API and {status['db_type'].upper()} database")
+            if status.get("db_version"):
+                st.caption(f"Database version: {status['db_version']}")
+        elif status["db_connected"] and not status["api_connected"]:
+            # Database connected but API failed
+            st.warning(f"⚠️ {status['db_type'].upper()} database connected but API connection failed.")
+            st.caption("Using sample data for API requests. Some features may be limited.")
+        elif status["api_connected"] and not status["db_connected"]:
+            # API connected but database failed
+            st.warning(f"⚠️ API connected but {status['db_type'].upper()} database connection failed.")
+            st.caption("Using in-memory storage as fallback. Data will not be persisted.")
     else:
-        if status["api_connected"]:
-            st.warning(f"⚠️ API connected but {status['db_type'].upper()} database connection failed. Using sample data.")
-            if status.get("db_message"):
-                st.caption(f"Error: {status['db_message']}")
-        else:
-            st.error("❌ API connection failed. Using sample data.")
-            if status.get("api_message"):
-                st.caption(f"Error: {status['api_message']}")
+        # Complete failure case
+        st.error("❌ All connections failed. Application functionality will be severely limited.")
+        if status.get("api_message"):
+            st.caption(f"API Error: {status['api_message']}")
+        if status.get("message"):
+            st.caption(f"Details: {status['message']}")
+    
+    # Show detailed diagnostics if requested
+    if show_details and "diagnostics" in status:
+        with st.expander("Connection Diagnostics"):
+            st.markdown("### Connection Diagnostics")
+            st.markdown(f"**Verification Time:** {status['diagnostics'].get('verification_time', 0):.2f} seconds")
+            
+            st.markdown("#### API Connection")
+            api_diag = status['diagnostics'].get('api', {})
+            st.markdown(f"**Connected:** {status['api_connected']}")
+            for key, value in api_diag.items():
+                if key != 'success':
+                    st.markdown(f"**{key.capitalize()}:** {value}")
+            
+            st.markdown("#### Database Connection")
+            db_diag = status['diagnostics'].get('database', {})
+            st.markdown(f"**Connected:** {status['db_connected']}")
+            st.markdown(f"**Type:** {status['db_type']}")
+            for key, value in db_diag.items():
+                if key not in ['type', 'version']:
+                    st.markdown(f"**{key.capitalize()}:** {value}")
+            
+            if "fallback" in status['diagnostics']:
+                st.markdown(f"**Fallback Strategy:** {status['diagnostics']['fallback']}")
 
-def with_connection_fallback(fallback_func: Callable[..., T]) -> Callable:
+def with_connection_fallback(fallback_func: Callable[..., T], max_retries: int = 1, retry_delay: float = 0.5) -> Callable:
     """
-    Decorator to execute a function with connection fallback.
+    Enhanced decorator to execute a function with connection fallback and retry logic.
     
     Args:
         fallback_func: Function to execute if connection fails
+        max_retries: Maximum number of retries before using fallback
+        retry_delay: Delay between retries in seconds
         
     Returns:
         Decorated function
     """
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         def wrapper(*args, **kwargs) -> T:
+            # Track function execution for logging
+            func_name = func.__name__
+            start_time = time.time()
+            
             # In demo mode, always use fallback
             if is_demo_mode():
+                logger.info(f"Demo mode active, using fallback for {func_name}")
                 return fallback_func(*args, **kwargs)
             
             # Verify connection
             status = verify_connection()
             
-            # If connection is successful, use the main function
+            # If connection is successful, try the main function with retries
             if status["success"]:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    logger.error(f"Error executing function {func.__name__}: {str(e)}")
-                    return fallback_func(*args, **kwargs)
+                retries = 0
+                last_error = None
+                
+                while retries <= max_retries:
+                    try:
+                        if retries > 0:
+                            logger.info(f"Retry {retries}/{max_retries} for {func_name}")
+                        
+                        result = func(*args, **kwargs)
+                        
+                        # Log successful execution time
+                        execution_time = time.time() - start_time
+                        logger.debug(f"Function {func_name} executed successfully in {execution_time:.2f}s")
+                        
+                        return result
+                    except Exception as e:
+                        last_error = e
+                        retries += 1
+                        
+                        # Log the error
+                        logger.warning(f"Error executing {func_name} (attempt {retries}/{max_retries+1}): {str(e)}")
+                        
+                        # Wait before retrying (unless it's the last attempt)
+                        if retries <= max_retries:
+                            time.sleep(retry_delay * retries)  # Exponential backoff
+                
+                # If we've exhausted retries, log and use fallback
+                logger.error(f"All {max_retries+1} attempts failed for {func_name}: {str(last_error)}")
+                
+                # Show a warning to the user about the fallback
+                st.warning(f"⚠️ Using fallback data due to errors. Some information may be limited.")
+                
+                # Use fallback function
+                return fallback_func(*args, **kwargs)
             
-            # Otherwise use fallback
+            # If connection check failed, use fallback immediately
+            logger.info(f"Connection check failed, using fallback for {func_name}")
             return fallback_func(*args, **kwargs)
+        
+        # Preserve function metadata
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        
         return wrapper
     return decorator
 

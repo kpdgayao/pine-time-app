@@ -19,7 +19,13 @@ def get_db() -> Generator:
         db = SessionLocal()
         yield db
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception as e:
+            # Handle SQLAlchemy IllegalStateChangeError during shutdown
+            # This prevents the "Method 'close()' can't be called here" errors
+            # that occur when the server is shutting down
+            pass
 
 
 def get_current_user(

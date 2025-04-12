@@ -165,7 +165,7 @@ def login(username, password):
 
 def refresh_token(force: bool = False):
     """
-    Refresh JWT token using refresh token.
+    Refresh JWT token using refresh token with enhanced error handling and retry logic.
     
     Args:
         force (bool): Force token refresh even if not expired
@@ -185,7 +185,7 @@ def refresh_token(force: bool = False):
     
     refresh_token = st.session_state.get("refresh_token")
     if not refresh_token:
-        logger.warning("No refresh token available")
+        logger.warning("No refresh token available for token refresh")
         return False
     
     # Track refresh attempts to prevent infinite loops
@@ -196,55 +196,76 @@ def refresh_token(force: bool = False):
         st.error("🔑 Session expired. Please log in again.")
         return False
     
+    # Update refresh attempts counter
+    st.session_state["token_refresh_attempts"] = refresh_attempts + 1
+    
     try:
         logger.info("Attempting to refresh token")
-        response = requests.post(
+        
+        # Create session with retry logic
+        from requests.adapters import HTTPAdapter
+        from urllib3.util import Retry
+        
+        session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["POST"]
+        )
+        session.mount("http://", HTTPAdapter(max_retries=retries))
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        
+        # Make token refresh request with timeout
+        response = session.post(
             API_ENDPOINTS["auth"]["refresh"],
-            json={"refresh_token": refresh_token},
+            data={"refresh_token": refresh_token},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
             timeout=10  # Add timeout to prevent hanging
         )
         
         if response.status_code == 200:
-            token_data = response.json()
-            st.session_state["token"] = token_data["access_token"]
-            st.session_state["token_expiry"] = time.time() + token_data.get("expires_in", 3600)
-            # Update refresh token if provided
-            if "refresh_token" in token_data:
-                st.session_state["refresh_token"] = token_data["refresh_token"]
-            # Reset refresh attempts counter on success
-            st.session_state["token_refresh_attempts"] = 0
-            logger.info("Token refreshed successfully")
-            return True
-        elif response.status_code == 401 or response.status_code == 403:
-            # Invalid or expired refresh token
-            logger.warning(f"Refresh token invalid or expired: {response.status_code}")
-            # Clear invalid tokens and force re-login
-            logout()
+            try:
+                token_data = response.json()
+                
+                # Validate token data
+                if "access_token" not in token_data:
+                    logger.error("Invalid token refresh response: missing access_token")
+                    return False
+                
+                # Store new tokens
+                st.session_state["token"] = token_data["access_token"]
+                st.session_state["refresh_token"] = token_data.get("refresh_token", refresh_token)  # Use old refresh token if not provided
+                st.session_state["token_expiry"] = time.time() + token_data.get("expires_in", 3600)
+                st.session_state["token_refresh_attempts"] = 0  # Reset attempts counter on success
+                
+                logger.info("Token refreshed successfully")
+                return True
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON in token refresh response: {response.text[:100]}")
+                return False
+        elif response.status_code == 401:
+            logger.warning("Refresh token is invalid or expired")
+            logout()  # Force logout to clear invalid tokens
             st.error("🔑 Session expired. Please log in again.")
             return False
         else:
-            # Increment refresh attempts counter
-            st.session_state["token_refresh_attempts"] = refresh_attempts + 1
-            logger.warning(f"Token refresh failed with status code: {response.status_code}")
-            # Try to extract error details from response
             try:
-                error_details = response.json().get("detail", "Unknown error")
-                logger.warning(f"Token refresh error details: {error_details}")
-            except Exception:
-                pass
+                error_data = response.json()
+                error_detail = error_data.get("detail", f"Error code: {response.status_code}")
+                logger.error(f"Token refresh failed: {error_detail}")
+            except json.JSONDecodeError:
+                logger.error(f"Token refresh failed with status {response.status_code}: {response.text[:100]}")
+            
             return False
+    except requests.exceptions.Timeout:
+        logger.error("Token refresh request timed out")
+        return False
     except requests.exceptions.ConnectionError:
         logger.error("Connection error during token refresh")
-        # Don't increment counter for connection errors as they might be temporary
         return False
-    except requests.exceptions.Timeout:
-        logger.error("Timeout during token refresh")
-        # Don't increment counter for timeouts as they might be temporary
-        return False
-    except Exception as e:
-        # Increment refresh attempts counter
-        st.session_state["token_refresh_attempts"] = refresh_attempts + 1
-        logger.error(f"Token refresh error: {str(e)}")
+    except requests.RequestException as e:
+        logger.error(f"Token refresh request failed: {str(e)}")
         return False
 
 def verify_token(token):
@@ -386,6 +407,7 @@ def is_token_expired():
 def ensure_valid_token():
     """
     Ensure a valid token is available, refreshing if needed.
+    Implements proactive token refresh before expiration.
     
     Returns:
         bool: True if valid token available, False otherwise
@@ -394,68 +416,95 @@ def ensure_valid_token():
     if is_demo_mode():
         return True
     
-    # Check if token exists
-    token = st.session_state.get("token")
-    if not token:
-        logger.warning("No token available")
+    # Check if user is authenticated
+    if not st.session_state.get("is_authenticated", False):
+        logger.warning("User is not authenticated")
         return False
     
-    # Check if user is authenticated at all
-    if not st.session_state.get("is_authenticated", False):
-        logger.warning("User not authenticated")
+    # Check if token exists
+    if "token" not in st.session_state:
+        logger.warning("No token found in session state")
         return False
     
     # Check if token is expired or about to expire
     if is_token_expired():
-        logger.info("Token expired or about to expire, refreshing")
+        logger.info("Token is expired or about to expire, attempting to refresh")
         refresh_success = refresh_token()
         
-        # If refresh failed, check if we should retry with a forced refresh
-        if not refresh_success and st.session_state.get("token_refresh_attempts", 0) < 2:
-            logger.info("Token refresh failed, attempting forced refresh")
-            return refresh_token(force=True)
+        # If refresh failed, try to verify the existing token as a last resort
+        if not refresh_success and "token" in st.session_state:
+            logger.info("Token refresh failed, attempting to verify existing token")
+            user_info = verify_token(st.session_state["token"])
+            if user_info:
+                logger.info("Existing token is still valid despite expiry calculation")
+                # Update expiry to prevent continuous refresh attempts
+                st.session_state["token_expiry"] = time.time() + 300  # Give it 5 more minutes
+                return True
+            else:
+                logger.warning("Token verification failed after refresh failure")
+                return False
         
         return refresh_success
     
-    # Validate token periodically (every 30 minutes) even if not expired
-    last_validation = st.session_state.get("token_last_validation", 0)
-    current_time = time.time()
-    if current_time - last_validation > 1800:  # 30 minutes
-        logger.info("Performing periodic token validation")
-        user_info = verify_token(token)
-        st.session_state["token_last_validation"] = current_time
-        
-        if not user_info:
-            logger.warning("Token validation failed, attempting refresh")
-            return refresh_token(force=True)
+    # Proactively refresh token if it's close to expiry (75% of lifetime elapsed)
+    token_expiry = st.session_state.get("token_expiry", 0)
+    token_lifetime = token_expiry - st.session_state.get("login_time", time.time())
+    time_elapsed = time.time() - st.session_state.get("login_time", time.time())
+    
+    if token_lifetime > 0 and time_elapsed > (token_lifetime * 0.75):
+        logger.info("Proactively refreshing token before expiration")
+        return refresh_token(force=True)
     
     return True
 
 def check_authentication():
     """
     Check if user is authenticated and session is still valid.
+    Implements comprehensive session validation with detailed logging.
     
     Returns:
         bool: True if authenticated, False otherwise
     """
-    if not st.session_state.get("is_authenticated"):
+    # Check if we're in demo mode
+    if is_demo_mode():
+        # In demo mode, always consider authenticated if the flag is set
+        is_auth = st.session_state.get("is_authenticated", False)
+        if not is_auth:
+            logger.debug("Not authenticated in demo mode")
+        return is_auth
+    
+    # Check if user is authenticated in session state
+    if not st.session_state.get("is_authenticated", False):
+        logger.debug("User is not authenticated in session state")
         return False
     
-    # Check session expiry
-    current_time = time.time()
-    login_time = st.session_state.get("login_time", 0)
-    
-    if current_time - login_time > SESSION_EXPIRY:
-        logger.info("Session expired, logging out")
+    # Check if user info exists
+    if not st.session_state.get("user_info"):
+        logger.warning("User is marked as authenticated but user_info is missing")
         logout()
+        st.error("🔑 Session data is incomplete. Please log in again.")
         return False
     
-    # Ensure valid token
-    if not ensure_valid_token():
+    # Check if session has expired
+    login_time = st.session_state.get("login_time", 0)
+    session_age = time.time() - login_time
+    
+    if session_age > SESSION_EXPIRY:
+        logger.info(f"Session has expired after {session_age:.1f}s (limit: {SESSION_EXPIRY}s)")
+        logout()
+        st.error("🔑 Session expired. Please log in again.")
         return False
     
-    # Refresh session time
-    st.session_state["login_time"] = current_time
+    # Check if token is valid
+    token_valid = ensure_valid_token()
+    
+    if not token_valid:
+        logger.warning("Token validation failed during authentication check")
+        logout()
+        st.error("🔑 Authentication token is invalid. Please log in again.")
+        return False
+    
+    # All checks passed
     return True
 
 def check_admin_access():

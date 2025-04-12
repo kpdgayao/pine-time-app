@@ -196,6 +196,92 @@ class APIClient:
             logger.warning(f"Invalid JSON in successful response from {response.url}: {response.text[:100]}")
             raise APIError(f"Invalid JSON response: {response.text[:100]}", response.status_code, response)
     
+    def safe_api_response_handler(self, response_data):
+        """
+        Safely process API response data, handling different formats.
+        
+        Args:
+            response_data: API response data (could be list or dict)
+            
+        Returns:
+            Processed response data with consistent format
+        """
+        try:
+            # Check if response is a dictionary with 'items' key (paginated response)
+            if isinstance(response_data, dict) and "items" in response_data:
+                return response_data
+            # Check if response is a list (non-paginated response)
+            elif isinstance(response_data, list):
+                # Convert to paginated format for consistency
+                return {
+                    "items": response_data,
+                    "total": len(response_data),
+                    "page": 1,
+                    "size": len(response_data),
+                    "pages": 1
+                }
+            # Return as is for other formats
+            return response_data
+        except Exception as e:
+            logger.error(f"Error processing API response: {str(e)}")
+            # Return empty result with consistent format
+            return {
+                "items": [],
+                "total": 0,
+                "page": 1,
+                "size": 0,
+                "pages": 0
+            }
+    
+    def safe_api_call(self, method, url, **kwargs):
+        """
+        Make an API call with comprehensive error handling.
+        
+        Args:
+            method: HTTP method
+            url: API endpoint URL
+            **kwargs: Additional arguments for requests
+            
+        Returns:
+            API response data
+            
+        Raises:
+            APIError: If API request failed
+        """
+        try:
+            # Ensure valid token before making request
+            from utils.auth import ensure_valid_token
+            token_valid = ensure_valid_token()
+            
+            if not token_valid and not kwargs.get("skip_auth", False):
+                raise APIError("Authentication token is invalid or expired")
+            
+            # Make the request with timeout
+            response = self.session.request(
+                method, 
+                url, 
+                timeout=kwargs.pop("timeout", REQUEST_TIMEOUT),
+                **kwargs
+            )
+            
+            # Handle response
+            return self._handle_response(response, kwargs.get("error_message", "API request failed"))
+        except requests.exceptions.Timeout:
+            logger.error(f"API request to {url} timed out after {kwargs.get('timeout', REQUEST_TIMEOUT)}s")
+            raise APIError(f"Request timed out. The server is taking too long to respond.")
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Connection error when calling {url}")
+            raise APIError("Connection error. Unable to connect to the server.")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request exception when calling {url}: {str(e)}")
+            raise APIError(f"Request failed: {str(e)}")
+        except APIError:
+            # Re-raise API errors
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error when calling {url}: {str(e)}")
+            raise APIError(f"Unexpected error: {str(e)}")
+    
     def request(
         self, 
         method: str, 
@@ -255,6 +341,11 @@ class APIClient:
                     logger.warning("Authentication failed, falling back to demo data")
                     # Display a more user-friendly message
                     st.warning("⚠️ Authentication issues detected. Using sample data instead. Your experience may be limited.")
+                    # Update connection status in session state to trigger reconnection attempts
+                    if "connection_status" in st.session_state:
+                        st.session_state["connection_status"]["api_connected"] = False
+                        st.session_state["connection_status"]["success"] = False
+                        st.session_state["last_connection_check"] = 0  # Force a recheck on next verification
                     return self._generate_fallback_data(endpoint, method, params)
                 raise AuthError("Authentication required")
         
@@ -605,14 +696,54 @@ def check_api_connection() -> Dict[str, Any]:
 def get_users(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> Dict[str, Any]:
     """Get all users with pagination"""
     try:
-        return api_client.paginated_request(
+        response = api_client.paginated_request(
             API_ENDPOINTS["users"]["list"],
             page=page,
             page_size=page_size,
-            spinner_text="Loading users..."
+            spinner_text="Loading users...",
+            error_message="Fetching users"
         )
+        
+        # Process the response to handle different formats
+        if isinstance(response, dict) and "items" in response:
+            # Standard paginated response
+            items = response["items"]
+        elif isinstance(response, list):
+            # List response (could be list of objects or strings)
+            items = response
+        else:
+            # Unexpected format, use empty list
+            items = []
+            
+        # Convert string items to dictionaries if needed
+        processed_items = []
+        for item in items:
+            if isinstance(item, dict):
+                # Item is already a dictionary
+                processed_items.append(item)
+            else:
+                # Item is a string or other primitive type, convert to dictionary
+                processed_items.append({
+                    "id": str(item),
+                    "username": f"user_{str(item)}",
+                    "email": f"user_{str(item)}@example.com",
+                    "first_name": "Unknown",
+                    "last_name": "User",
+                    "role": "user",
+                    "points": 0,
+                    "created_at": datetime.now().isoformat()
+                })
+        
+        # Return in paginated format
+        return {
+            "items": processed_items,
+            "total": len(processed_items),
+            "page": page,
+            "size": page_size,
+            "pages": max(1, math.ceil(len(processed_items) / page_size))
+        }
     except Exception as e:
-        st.error(f"Error fetching users: {str(e)}")
+        logger.error(f"Error fetching users: {str(e)}")
         return {"items": [], "total": 0, "page": page, "size": page_size, "pages": 0}
 
 @st.cache_data(ttl=60)
@@ -718,13 +849,52 @@ def get_user_badges(user_id: str) -> List[Dict[str, Any]]:
 def get_events(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> Dict[str, Any]:
     """Get all events with pagination"""
     try:
-        return api_client.paginated_request(
+        response = api_client.paginated_request(
             API_ENDPOINTS["events"]["list"],
             page=page,
             page_size=page_size,
             spinner_text="Loading events...",
             error_message="Fetching events"
         )
+        
+        # Process the response to handle different formats
+        if isinstance(response, dict) and "items" in response:
+            # Standard paginated response
+            items = response["items"]
+        elif isinstance(response, list):
+            # List response (could be list of objects or strings)
+            items = response
+        else:
+            # Unexpected format, use empty list
+            items = []
+            
+        # Convert string items to dictionaries if needed
+        processed_items = []
+        for item in items:
+            if isinstance(item, dict):
+                # Item is already a dictionary
+                processed_items.append(item)
+            else:
+                # Item is a string or other primitive type, convert to dictionary
+                processed_items.append({
+                    "id": str(item),
+                    "name": f"Event {str(item)}",
+                    "description": "",
+                    "date": datetime.now().isoformat(),
+                    "location": "",
+                    "status": "unknown",
+                    "registrations": [],
+                    "points": 0
+                })
+        
+        # Return in paginated format
+        return {
+            "items": processed_items,
+            "total": len(processed_items),
+            "page": page,
+            "size": page_size,
+            "pages": max(1, math.ceil(len(processed_items) / page_size))
+        }
     except APIError as e:
         logger.error(f"API error fetching events: {str(e)}")
         st.error(f"Error loading events: {str(e)}")
@@ -738,20 +908,39 @@ def get_events(page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> Dict[str, A
 def get_event(event_id: str) -> Optional[Dict[str, Any]]:
     """Get event by ID"""
     try:
-        return api_client.get(
+        # Get event data from API
+        event_data = api_client.get(
             API_ENDPOINTS["events"]["detail"].format(event_id=event_id),
             spinner_text=f"Loading event details..."
         )
+        
+        # If we have event data, transform field names for UI
+        if event_data:
+            # Import the field mapping utility
+            from utils.field_mappings import transform_event_data_for_ui
+            
+            # Transform API field names to UI field names
+            return transform_event_data_for_ui(event_data)
+        
+        return event_data
     except Exception as e:
+        logger.error(f"Error fetching event: {str(e)}")
         st.error(f"Error fetching event: {str(e)}")
         return None
 
 def create_event(event_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Create new event"""
     try:
+        # Import the field mapping utility
+        from utils.field_mappings import transform_event_data_for_api
+        
+        # Transform field names to match API expectations
+        transformed_data = transform_event_data_for_api(event_data)
+        
+        # Send the transformed data to the API
         response = api_client.post(
             API_ENDPOINTS["events"]["create"],
-            json_data=event_data,
+            json_data=transformed_data,
             spinner_text="Creating event..."
         )
         st.success("Event created successfully")
@@ -765,14 +954,20 @@ def create_event(event_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 def update_event(event_id: str, event_data: Dict[str, Any]) -> bool:
     """Update event by ID"""
     try:
+        # Import the field mapping utility
+        from utils.field_mappings import transform_event_data_for_api
+        
+        # Transform field names to match API expectations
+        transformed_data = transform_event_data_for_api(event_data)
+        
+        # Send the transformed data to the API
         api_client.put(
             API_ENDPOINTS["events"]["update"].format(event_id=event_id),
-            json_data=event_data,
+            json_data=transformed_data,
             spinner_text="Updating event..."
         )
         st.success("Event updated successfully")
-        # Clear cache for this event
-        get_event.clear()
+        # Clear events cache
         get_events.clear()
         return True
     except Exception as e:
@@ -1156,3 +1351,264 @@ def register_user(user_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error registering user: {str(e)}")
         return None
+
+def safe_get_user_id(user_id=None):
+    """
+    Safely get a user ID, falling back to current user if not provided.
+    
+    Args:
+        user_id (str, optional): User ID to use, or None to use current user
+        
+    Returns:
+        str: User ID or None if not available
+    """
+    if user_id:
+        return user_id
+    
+    # Try to get current user ID
+    try:
+        from utils.auth import get_current_user
+        current_user = get_current_user()
+        if current_user and "id" in current_user:
+            return current_user["id"]
+    except Exception as e:
+        logger.error(f"Error getting current user ID: {str(e)}")
+    
+    return None
+
+def safe_get_current_user():
+    """
+    Safely get current user information with error handling.
+    
+    Returns:
+        dict: User information or None if not available
+    """
+    try:
+        from utils.auth import get_current_user
+        return get_current_user()
+    except Exception as e:
+        logger.error(f"Error getting current user: {str(e)}")
+        return None
+
+def get_user_badges(user_id: str = None):
+    """
+    Get user badges with enhanced error handling.
+    
+    Args:
+        user_id (str, optional): User ID, or None to use current user
+        
+    Returns:
+        dict: User badges data with consistent format
+    """
+    # Get user ID, falling back to current user if not provided
+    user_id = safe_get_user_id(user_id)
+    
+    if not user_id:
+        logger.warning("No user ID provided or available for get_user_badges")
+        return {
+            "badges": [],
+            "grouped_badges": {},
+            "total": 0,
+            "error": "No user ID provided"
+        }
+    
+    # If in demo mode, return sample data
+    if is_demo_mode():
+        from utils.connection import get_sample_user_badges
+        return get_sample_user_badges(user_id)
+    
+    try:
+        # Get badges for the user using safe API call
+        response = api_client.safe_api_call(
+            "GET",
+            f"{API_ENDPOINTS['badges']['user']}/{user_id}",
+            headers=get_auth_header(),
+            error_message=f"Failed to get badges for user {user_id}"
+        )
+        
+        # Process badges data with safe response handler
+        badges_data = api_client.safe_api_response_handler(response)
+        
+        # Extract badges list safely
+        if isinstance(badges_data, dict) and "items" in badges_data:
+            badges = badges_data.get("items", [])
+        elif isinstance(badges_data, list):
+            badges = badges_data
+        else:
+            badges = []
+        
+        # Group badges by category with null checking
+        grouped_badges = {}
+        for badge in badges:
+            if not isinstance(badge, dict):
+                continue
+                
+            category = badge.get("category", "Other")
+            if category not in grouped_badges:
+                grouped_badges[category] = []
+            grouped_badges[category].append(badge)
+        
+        # Sort badges within each category by level
+        for category in grouped_badges:
+            grouped_badges[category].sort(key=lambda x: x.get("level", 0))
+        
+        return {
+            "badges": badges,
+            "grouped_badges": grouped_badges,
+            "total": len(badges)
+        }
+    except APIError as e:
+        logger.error(f"API error getting badges for user {user_id}: {str(e)}")
+        # Return empty data with proper structure and error info
+        return {
+            "badges": [],
+            "grouped_badges": {},
+            "total": 0,
+            "error": str(e)
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error getting badges for user {user_id}: {str(e)}")
+        # Return empty data with proper structure
+        return {
+            "badges": [],
+            "grouped_badges": {},
+            "total": 0,
+            "error": "An unexpected error occurred"
+        }
+
+def parse_date_safely(date_str, default=None):
+    """
+    Safely parse a date string with error handling.
+    
+    Args:
+        date_str (str): Date string to parse
+        default: Default value to return if parsing fails
+        
+    Returns:
+        datetime or default: Parsed datetime or default value
+    """
+    if not date_str:
+        return default
+        
+    try:
+        from datetime import datetime
+        return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+    except Exception as e:
+        logger.debug(f"Error parsing date '{date_str}': {str(e)}")
+        return default
+
+def register_for_event(event_id: str, user_id: str = None):
+    """
+    Register a user for an event with enhanced error handling.
+    
+    Args:
+        event_id (str): ID of the event to register for
+        user_id (str, optional): User ID to register. If None, uses current user.
+        
+    Returns:
+        dict: Registration result with status and message
+    """
+    # Check if we're in demo mode - always succeed in demo mode
+    if is_demo_mode():
+        logger.info(f"Demo mode active, simulating successful registration for event {event_id}")
+        return {"success": True, "message": "Registration successful (demo mode)"}
+    
+    # Get user ID with safe fallback
+    user_id = safe_get_user_id(user_id)
+    
+    if not user_id:
+        error_msg = "No user ID provided and no current user available"
+        logger.error(error_msg)
+        return {"success": False, "message": error_msg}
+    
+    # If in demo mode, simulate registration
+    if is_demo_mode():
+        return {"success": True, "message": "Registration successful (demo mode)"}
+    
+    try:
+        # First, get the event to check if registration is allowed
+        event = get_event(event_id)
+        
+        # Check if event exists
+        if not event:
+            error_msg = f"Event {event_id} not found"
+            logger.error(error_msg)
+            return {"success": False, "message": error_msg}
+        
+        # Check if event is in the past with safe date parsing
+        from datetime import datetime, timedelta
+        event_start = parse_date_safely(event.get("start_time"), default=datetime.now())
+        now = datetime.now()
+        
+        if event_start < now:
+            # Calculate how long ago the event started for better user feedback
+            time_diff = now - event_start
+            if time_diff < timedelta(hours=1):
+                time_msg = f"{time_diff.seconds // 60} minutes ago"
+            elif time_diff < timedelta(days=1):
+                time_msg = f"{time_diff.seconds // 3600} hours ago"
+            else:
+                time_msg = f"{time_diff.days} days ago"
+                
+            error_msg = f"Cannot register for past event. Event started {time_msg}."
+            logger.warning(f"Cannot register for past event {event_id} (started {time_msg})")
+            return {"success": False, "message": error_msg, "reason": "past_event"}
+        
+        # Check if event is at capacity
+        registered_count = event.get("registered_count", 0)
+        max_participants = event.get("max_participants", 0)
+        
+        if max_participants > 0 and registered_count >= max_participants:
+            error_msg = f"Event is at full capacity ({registered_count}/{max_participants})"
+            logger.warning(f"Event {event_id} is at capacity")
+            return {"success": False, "message": error_msg, "reason": "capacity_reached"}
+        
+        # Check if user is already registered
+        try:
+            # Get user registrations
+            user_events = get_user_events(user_id)
+            
+            # Check if this event is in the user's registrations
+            if isinstance(user_events, dict) and "items" in user_events:
+                events = user_events.get("items", [])
+            elif isinstance(user_events, list):
+                events = user_events
+            else:
+                events = []
+                
+            for user_event in events:
+                if user_event.get("id") == event_id:
+                    error_msg = "You are already registered for this event"
+                    logger.info(f"User {user_id} is already registered for event {event_id}")
+                    return {"success": False, "message": error_msg, "reason": "already_registered"}
+        except Exception as e:
+            # Log but continue - this is just a convenience check
+            logger.warning(f"Error checking if user is already registered: {str(e)}")
+        
+        # Register for the event with safe API call
+        try:
+            response = api_client.safe_api_call(
+                "POST",
+                API_ENDPOINTS["registrations"]["register"],
+                json={"event_id": event_id, "user_id": user_id},
+                headers=get_auth_header(),
+                error_message=f"Failed to register for event {event_id}"
+            )
+            
+            logger.info(f"Successfully registered for event {event_id}")
+            return {"success": True, "message": "Registration successful", "data": response}
+        except APIError as e:
+            # Check for specific error messages
+            error_msg = str(e)
+            if "already registered" in error_msg.lower():
+                return {"success": False, "message": "You are already registered for this event", "reason": "already_registered"}
+            elif "capacity" in error_msg.lower():
+                return {"success": False, "message": "Event is at full capacity", "reason": "capacity_reached"}
+            elif "past event" in error_msg.lower():
+                return {"success": False, "message": "Cannot register for past events", "reason": "past_event"}
+            else:
+                return {"success": False, "message": error_msg}
+    except Exception as e:
+        error_msg = f"Error registering for event {event_id}: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "message": "An unexpected error occurred during registration"}

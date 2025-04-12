@@ -30,4 +30,10 @@ def get_db():
     try:
         yield db
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception as e:
+            # Silently handle SQLAlchemy IllegalStateChangeError during shutdown
+            # This prevents errors when the server is shutting down and sessions
+            # are being closed while still in use
+            pass
