@@ -94,35 +94,37 @@ def show_events_list():
         search_query = st.text_input("Search Events", "")
     
     # Apply filters
-    filtered_events = events
+    filtered_events = events.get("items", [])
     
     if status_filter != "All":
-        filtered_events = [e for e in filtered_events if e.get('status', '').lower() == status_filter.lower()]
+        filtered_events = [e for e in filtered_events if isinstance(e, dict) and e.get('status', '').lower() == status_filter.lower()]
     
     if date_filter != "All":
         today = datetime.now().date()
         if date_filter == "Upcoming":
             filtered_events = [
                 e for e in filtered_events 
-                if datetime.fromisoformat(e.get('date', today.isoformat())).date() > today
+                if isinstance(e, dict) and datetime.fromisoformat(e.get('start_time', today.isoformat())).date() > today
             ]
         elif date_filter == "Past":
             filtered_events = [
                 e for e in filtered_events 
-                if datetime.fromisoformat(e.get('date', today.isoformat())).date() < today
+                if isinstance(e, dict) and datetime.fromisoformat(e.get('start_time', today.isoformat())).date() < today
             ]
         elif date_filter == "Today":
             filtered_events = [
                 e for e in filtered_events 
-                if datetime.fromisoformat(e.get('date', today.isoformat())).date() == today
+                if isinstance(e, dict) and datetime.fromisoformat(e.get('start_time', today.isoformat())).date() == today
             ]
     
     if search_query:
         filtered_events = [
             e for e in filtered_events 
-            if search_query.lower() in e.get('name', '').lower() or 
-               search_query.lower() in e.get('description', '').lower() or
-               search_query.lower() in e.get('location', '').lower()
+            if isinstance(e, dict) and (
+                search_query.lower() in e.get('title', '').lower() or 
+                search_query.lower() in e.get('description', '').lower() or
+                search_query.lower() in e.get('location', '').lower()
+            )
         ]
     
     # Create new event button
@@ -137,15 +139,31 @@ def show_events_list():
         # Convert to DataFrame for display
         events_data = []
         for event in filtered_events:
-            events_data.append({
-                "ID": event.get('id', ''),
-                "Name": event.get('name', ''),
-                "Date": event.get('date', ''),
-                "Location": event.get('location', ''),
-                "Status": event.get('status', ''),
-                "Registrations": len(event.get('registrations', [])),
-                "Points": event.get('points', 0)
-            })
+            # Handle both dictionary and string/primitive types
+            if isinstance(event, dict):
+                # If event is a dictionary, use get() method with fallbacks for different field names
+                # This handles both API field names and UI field names
+                event_data = {
+                    "ID": event.get('id', ''),
+                    "Name": event.get('title', event.get('name', '')),  # Try both 'title' and 'name'
+                    "Date": event.get('start_time', event.get('date', '')),  # Try both 'start_time' and 'date'
+                    "Location": event.get('location', ''),
+                    "Status": event.get('status', ''),
+                    "Registrations": len(event.get('registrations', [])),
+                    "Points": event.get('points_reward', event.get('points', 0))  # Try both 'points_reward' and 'points'
+                }
+            else:
+                # If event is a string or other primitive type, create a basic entry
+                event_data = {
+                    "ID": str(event),
+                    "Name": "Unknown",
+                    "Date": "",
+                    "Location": "",
+                    "Status": "",
+                    "Registrations": 0,
+                    "Points": 0
+                }
+            events_data.append(event_data)
         
         df_events = pd.DataFrame(events_data)
         
@@ -170,10 +188,26 @@ def show_events_list():
         
         col1, col2 = st.columns(2)
         with col1:
+            # Create a list of event IDs with safe type checking
+            event_ids = []
+            for event in filtered_events:
+                if isinstance(event, dict):
+                    event_ids.append(event.get('id', ''))
+                else:
+                    event_ids.append(str(event))
+                    
+            # Create a safe format function
+            def safe_format_event_name(event_id):
+                for event in filtered_events:
+                    if isinstance(event, dict) and event.get('id', '') == event_id:
+                        # Try both 'title' and 'name' field names
+                        return event.get('title', event.get('name', event_id))
+                return event_id
+                
             selected_event_id = st.selectbox(
                 "Select Event",
-                [event.get('id', '') for event in filtered_events],
-                format_func=lambda x: next((e.get('name', '') for e in filtered_events if e.get('id', '') == x), x)
+                event_ids,
+                format_func=safe_format_event_name
             )
         
         with col2:
@@ -203,22 +237,24 @@ def show_create_event_form():
     st.subheader("Create New Event")
     
     with st.form("create_event_form"):
-        name = st.text_input("Event Name*", placeholder="Forest Hike")
+        title = st.text_input("Event Title*", placeholder="Forest Hike")  # Changed from 'Event Name' to 'Event Title'
         description = st.text_area("Description*", placeholder="Join us for a guided hike through the forest...")
         
         col1, col2 = st.columns(2)
         with col1:
+            event_type = st.selectbox("Event Type*", ["regular", "workshop", "seminar", "social", "other"])  # Added Event Type field
             date = st.date_input("Event Date*", value=datetime.now() + timedelta(days=7))
-            time = st.time_input("Event Time*", value=datetime.strptime("09:00", "%H:%M").time())
+            start_time = st.time_input("Start Time*", value=datetime.strptime("09:00", "%H:%M").time())  # Changed from 'Event Time' to 'Start Time'
         
         with col2:
             location = st.text_input("Location*", placeholder="Pine Forest Park")
-            capacity = st.number_input("Capacity", min_value=1, value=20)
+            max_participants = st.number_input("Max Participants", min_value=1, value=20)  # Changed from 'Capacity' to 'Max Participants'
+            end_time = st.time_input("End Time*", value=datetime.strptime("11:00", "%H:%M").time())  # Added End Time field
         
         col1, col2 = st.columns(2)
         with col1:
-            points = st.number_input("Points Reward", min_value=0, value=50)
-            duration = st.number_input("Duration (hours)", min_value=0.5, value=2.0, step=0.5)
+            points_reward = st.number_input("Points Reward", min_value=0, value=50)  # Changed from 'Points' to 'Points Reward'
+            price = st.number_input("Price", min_value=0.0, value=0.0, step=10.0)  # Added Price field
         
         with col2:
             status = st.selectbox("Status", ["draft", "active", "completed", "cancelled"], index=1)
@@ -229,34 +265,41 @@ def show_create_event_form():
         submit_button = st.form_submit_button("Create Event")
         
         if submit_button:
-            if not name or not description or not location:
+            if not title or not description or not location:
                 st.error("Please fill in all required fields")
             else:
-                # Format date and time
-                event_datetime = datetime.combine(date, time)
+                # Format start and end times
+                start_datetime = datetime.combine(date, start_time)
+                end_datetime = datetime.combine(date, end_time)
                 
-                # Prepare event data
-                event_data = {
-                    "name": name,
-                    "description": description,
-                    "date": event_datetime.isoformat(),
-                    "location": location,
-                    "capacity": capacity,
-                    "points": points,
-                    "duration": duration,
-                    "status": status,
-                    "tags": [tag.strip() for tag in tags.split(",")] if tags else [],
-                    "image_url": image_url if image_url else None
-                }
-                
-                # Create event
-                result = create_event(event_data)
-                if result:
-                    st.success("Event created successfully!")
-                    st.session_state["events_tab"] = "list"
-                    st.experimental_rerun()
+                # Ensure end time is after start time
+                if end_datetime <= start_datetime:
+                    st.error("End time must be after start time")
                 else:
-                    st.error("Failed to create event. Please try again.")
+                    # Prepare event data with correct field names
+                    event_data = {
+                        "title": title,  # Using correct API field name
+                        "description": description,
+                        "event_type": event_type,  # Using correct API field name
+                        "location": location,
+                        "start_time": start_datetime.isoformat(),  # Using correct API field name
+                        "end_time": end_datetime.isoformat(),  # Using correct API field name
+                        "max_participants": max_participants,  # Using correct API field name
+                        "points_reward": points_reward,  # Using correct API field name
+                        "price": price,
+                        "status": status,
+                        "tags": [tag.strip() for tag in tags.split(",")] if tags else [],
+                        "image_url": image_url if image_url else None
+                    }
+                    
+                    # Create event
+                    result = create_event(event_data)
+                    if result:
+                        st.success("Event created successfully!")
+                        st.session_state["events_tab"] = "list"
+                        st.experimental_rerun()
+                    else:
+                        st.error("Failed to create event. Please try again.")
     
     # Cancel button
     if st.button("Cancel", key="cancel_create_event"):
@@ -265,239 +308,224 @@ def show_create_event_form():
 
 def show_edit_event_form(event_id):
     """Display form to edit an existing event"""
+    st.subheader("Edit Event")
+    
     # Fetch event details
     event = get_event(event_id)
-    
     if not event:
         st.error("Event not found")
-        st.session_state["events_tab"] = "list"
-        st.session_state["selected_event"] = None
-        st.experimental_rerun()
         return
     
-    st.subheader(f"Edit Event: {event.get('name', '')}")
-    
-    # Parse event date and time
-    event_datetime = datetime.fromisoformat(event.get('date', datetime.now().isoformat()))
-    event_date = event_datetime.date()
-    event_time = event_datetime.time()
-    
+    # Extract event details
     with st.form("edit_event_form"):
-        name = st.text_input("Event Name*", value=event.get('name', ''))
-        description = st.text_area("Description*", value=event.get('description', ''))
+        title = st.text_input("Event Title*", value=event.get("title", ""))  # Changed from "name" to "title"
+        description = st.text_area("Description*", value=event.get("description", ""))
+        
+        # Parse dates
+        try:
+            start_datetime = datetime.fromisoformat(event.get("start_time", ""))  # Changed from "date" to "start_time"
+            end_datetime = datetime.fromisoformat(event.get("end_time", ""))  # Added end_time parsing
+            event_date = start_datetime.date()
+            start_time_val = start_datetime.time()
+            end_time_val = end_datetime.time()
+        except (ValueError, TypeError):
+            event_date = datetime.now().date()
+            start_time_val = datetime.strptime("09:00", "%H:%M").time()
+            end_time_val = datetime.strptime("11:00", "%H:%M").time()
         
         col1, col2 = st.columns(2)
         with col1:
+            event_type = st.selectbox(
+                "Event Type*", 
+                ["regular", "workshop", "seminar", "social", "other"],
+                index=["regular", "workshop", "seminar", "social", "other"].index(event.get("event_type", "regular"))
+            )  # Added Event Type field
             date = st.date_input("Event Date*", value=event_date)
-            time = st.time_input("Event Time*", value=event_time)
+            start_time = st.time_input("Start Time*", value=start_time_val)  # Changed from "Event Time" to "Start Time"
         
         with col2:
-            location = st.text_input("Location*", value=event.get('location', ''))
-            capacity = st.number_input("Capacity", min_value=1, value=event.get('capacity', 20))
+            location = st.text_input("Location*", value=event.get("location", ""))
+            max_participants = st.number_input("Max Participants", min_value=1, value=event.get("max_participants", 20))  # Changed from "capacity" to "max_participants"
+            end_time = st.time_input("End Time*", value=end_time_val)  # Added End Time field
         
         col1, col2 = st.columns(2)
         with col1:
-            points = st.number_input("Points Reward", min_value=0, value=event.get('points', 50))
-            duration = st.number_input("Duration (hours)", min_value=0.5, value=event.get('duration', 2.0), step=0.5)
+            points_reward = st.number_input("Points Reward", min_value=0, value=event.get("points_reward", 0))  # Changed from "points" to "points_reward"
+            price = st.number_input("Price", min_value=0.0, value=event.get("price", 0.0), step=10.0)  # Added Price field
         
         with col2:
             status = st.selectbox(
                 "Status", 
-                ["draft", "active", "completed", "cancelled"], 
-                index=["draft", "active", "completed", "cancelled"].index(event.get('status', 'active'))
+                ["draft", "active", "completed", "cancelled"],
+                index=["draft", "active", "completed", "cancelled"].index(event.get("status", "active"))
             )
-            tags = st.text_input(
-                "Tags (comma separated)", 
-                value=", ".join(event.get('tags', []))
-            )
+            # Handle tags as comma-separated string
+            tags_str = ", ".join(event.get("tags", []))
+            tags = st.text_input("Tags (comma separated)", value=tags_str)
         
-        image_url = st.text_input("Image URL", value=event.get('image_url', ''))
+        image_url = st.text_input("Image URL", value=event.get("image_url", ""))
         
         submit_button = st.form_submit_button("Update Event")
         
         if submit_button:
-            if not name or not description or not location:
+            if not title or not description or not location:
                 st.error("Please fill in all required fields")
             else:
-                # Format date and time
-                event_datetime = datetime.combine(date, time)
+                # Format start and end times
+                start_datetime = datetime.combine(date, start_time)
+                end_datetime = datetime.combine(date, end_time)
                 
-                # Prepare event data
-                event_data = {
-                    "name": name,
-                    "description": description,
-                    "date": event_datetime.isoformat(),
-                    "location": location,
-                    "capacity": capacity,
-                    "points": points,
-                    "duration": duration,
-                    "status": status,
-                    "tags": [tag.strip() for tag in tags.split(",")] if tags else [],
-                    "image_url": image_url if image_url else None
-                }
-                
-                # Update event
-                if update_event(event_id, event_data):
-                    st.success("Event updated successfully!")
-                    st.session_state["events_tab"] = "list"
-                    st.session_state["selected_event"] = None
-                    st.experimental_rerun()
+                # Ensure end time is after start time
+                if end_datetime <= start_datetime:
+                    st.error("End time must be after start time")
                 else:
-                    st.error("Failed to update event. Please try again.")
+                    # Prepare event data with correct field names
+                    event_data = {
+                        "title": title,
+                        "description": description,
+                        "event_type": event_type,
+                        "location": location,
+                        "start_time": start_datetime.isoformat(),
+                        "end_time": end_datetime.isoformat(),
+                        "max_participants": max_participants,
+                        "points_reward": points_reward,
+                        "price": price,
+                        "status": status,
+                        "tags": [tag.strip() for tag in tags.split(",")] if tags else [],
+                        "image_url": image_url if image_url else None
+                    }
+                    
+                    # Update event
+                    if update_event(event_id, event_data):
+                        st.success("Event updated successfully!")
+                        st.session_state["events_tab"] = "list"
+                        st.experimental_rerun()
+                    else:
+                        st.error("Failed to update event. Please try again.")
     
     # Cancel button
     if st.button("Cancel", key="cancel_edit_event"):
         st.session_state["events_tab"] = "list"
-        st.session_state["selected_event"] = None
         st.experimental_rerun()
 
 def show_manage_participants(event_id):
     """Display interface to manage event participants"""
+    st.subheader("Manage Participants")
+    
     # Fetch event details
     event = get_event(event_id)
-    
     if not event:
         st.error("Event not found")
-        st.session_state["events_tab"] = "list"
-        st.session_state["selected_event"] = None
-        st.experimental_rerun()
         return
     
-    st.subheader(f"Manage Participants: {event.get('name', '')}")
+    # Display event info
+    st.write(f"**Event:** {event.get('title', '')}")  # Changed from "name" to "title"
+    st.write(f"**Date:** {event.get('start_time', '')}")  # Changed from "date" to "start_time"
+    st.write(f"**Location:** {event.get('location', '')}")
     
-    # Event details
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Capacity", event.get('capacity', 0))
-    with col2:
-        st.metric("Registrations", len(event.get('registrations', [])))
-    with col3:
-        st.metric("Completed", len([r for r in event.get('registrations', []) if r.get('completed', False)]))
+    # Get registrations
+    registrations = event.get("registrations", [])
     
-    # Tabs for registrations and check-ins
-    tab1, tab2 = st.tabs(["Registrations", "Check-ins & Completion"])
-    
-    # Registrations tab
-    with tab1:
-        st.subheader("Current Registrations")
+    if not registrations:
+        st.info("No registrations for this event yet.")
+    else:
+        # Display registrations
+        st.write(f"**Total Registrations:** {len(registrations)}")
         
-        if not event.get('registrations', []):
-            st.info("No registrations for this event yet.")
-        else:
-            # Fetch user details for all registered users
-            users = get_users()
-            user_map = {user.get('id', ''): user for user in users}
-            
-            # Create registrations data
-            registrations_data = []
-            for reg in event.get('registrations', []):
-                user_id = reg.get('user_id', '')
-                user = user_map.get(user_id, {})
+        # Convert to DataFrame for display
+        registrations_data = []
+        for reg in registrations:
+            if isinstance(reg, dict):
+                user_id = reg.get("user_id", "")
+                user_name = reg.get("user_name", "Unknown")
+                status = reg.get("status", "registered")
+                checked_in = reg.get("checked_in", False)
+                completed = reg.get("completed", False)
                 
                 registrations_data.append({
                     "User ID": user_id,
-                    "Name": f"{user.get('first_name', '')} {user.get('last_name', '')}",
-                    "Email": user.get('email', ''),
-                    "Registration Date": reg.get('registration_date', ''),
-                    "Checked In": "Yes" if reg.get('checked_in', False) else "No",
-                    "Completed": "Yes" if reg.get('completed', False) else "No"
+                    "Name": user_name,
+                    "Status": status,
+                    "Checked In": "✅" if checked_in else "❌",
+                    "Completed": "✅" if completed else "❌"
                 })
-            
-            # Display registrations table
+        
+        if registrations_data:
             df_registrations = pd.DataFrame(registrations_data)
-            st.dataframe(
-                df_registrations,
-                hide_index=True,
-                use_container_width=True
-            )
-    
-    # Check-ins and completion tab
-    with tab2:
-        st.subheader("Check-in & Mark Completion")
-        
-        # Fetch users
-        users = get_users()
-        
-        # Get registered user IDs
-        registered_user_ids = [reg.get('user_id', '') for reg in event.get('registrations', [])]
-        
-        # Filter users to those who are registered
-        registered_users = [user for user in users if user.get('id', '') in registered_user_ids]
-        
-        if not registered_users:
-            st.info("No registered users to check in or mark as completed.")
-        else:
-            col1, col2 = st.columns(2)
+            st.dataframe(df_registrations, hide_index=True, use_container_width=True)
             
-            # Check-in section
+            # Participant actions
+            st.subheader("Participant Actions")
+            
+            col1, col2, col3 = st.columns(3)
             with col1:
-                st.write("### Check-in User")
-                
-                # Get users who are not checked in yet
-                not_checked_in_regs = [
-                    reg for reg in event.get('registrations', []) 
-                    if not reg.get('checked_in', False)
-                ]
-                not_checked_in_user_ids = [reg.get('user_id', '') for reg in not_checked_in_regs]
-                not_checked_in_users = [user for user in registered_users if user.get('id', '') in not_checked_in_user_ids]
-                
-                if not not_checked_in_users:
-                    st.info("All registered users are already checked in.")
-                else:
-                    selected_user_id_checkin = st.selectbox(
-                        "Select User to Check In",
-                        [user.get('id', '') for user in not_checked_in_users],
-                        format_func=lambda x: next(
-                            (f"{user.get('first_name', '')} {user.get('last_name', '')}" 
-                             for user in not_checked_in_users if user.get('id', '') == x), 
-                            x
-                        )
-                    )
-                    
-                    if st.button("Check In User", key="check_in_user"):
-                        if check_in_user(event_id, selected_user_id_checkin):
-                            st.success("User checked in successfully!")
-                            st.experimental_rerun()
-                        else:
-                            st.error("Failed to check in user. Please try again.")
+                selected_user = st.selectbox(
+                    "Select Participant",
+                    [reg["User ID"] for reg in registrations_data],
+                    format_func=lambda x: next((reg["Name"] for reg in registrations_data if reg["User ID"] == x), x)
+                )
             
-            # Mark completion section
             with col2:
-                st.write("### Mark Completion")
-                
-                # Get users who are checked in but not completed
-                checked_in_not_completed_regs = [
-                    reg for reg in event.get('registrations', []) 
-                    if reg.get('checked_in', False) and not reg.get('completed', False)
-                ]
-                checked_in_not_completed_user_ids = [reg.get('user_id', '') for reg in checked_in_not_completed_regs]
-                checked_in_not_completed_users = [
-                    user for user in registered_users 
-                    if user.get('id', '') in checked_in_not_completed_user_ids
-                ]
-                
-                if not checked_in_not_completed_users:
-                    st.info("No checked-in users pending completion.")
-                else:
-                    selected_user_id_complete = st.selectbox(
-                        "Select User to Mark as Completed",
-                        [user.get('id', '') for user in checked_in_not_completed_users],
-                        format_func=lambda x: next(
-                            (f"{user.get('first_name', '')} {user.get('last_name', '')}" 
-                             for user in checked_in_not_completed_users if user.get('id', '') == x), 
-                            x
-                        )
-                    )
-                    
-                    if st.button("Mark as Completed", key="mark_completed"):
-                        if mark_event_complete(event_id, selected_user_id_complete):
-                            st.success("User marked as completed successfully!")
+                action = st.selectbox(
+                    "Action",
+                    ["Check In", "Mark as Completed", "Remove Registration"]
+                )
+            
+            with col3:
+                if st.button("Perform Action", key="perform_participant_action"):
+                    if action == "Check In":
+                        if check_in_user(event_id, selected_user):
+                            st.success(f"User checked in successfully")
                             st.experimental_rerun()
                         else:
-                            st.error("Failed to mark user as completed. Please try again.")
+                            st.error("Failed to check in user")
+                    elif action == "Mark as Completed":
+                        if mark_event_complete(event_id, selected_user):
+                            st.success(f"Event marked as completed for user")
+                            st.experimental_rerun()
+                        else:
+                            st.error("Failed to mark event as completed")
+                    elif action == "Remove Registration":
+                        # TODO: Implement remove registration functionality
+                        st.error("Remove registration functionality not implemented yet")
+        else:
+            st.info("No valid registration data available.")
+    
+    # Add participant section
+    st.subheader("Add Participant")
+    
+    # Get all users
+    users_response = get_users()
+    users = users_response.get("items", [])
+    
+    # Filter out users already registered
+    registered_user_ids = [reg.get("user_id") for reg in registrations if isinstance(reg, dict)]
+    available_users = [u for u in users if isinstance(u, dict) and u.get("id") not in registered_user_ids]
+    
+    if not available_users:
+        st.info("No more users available to register.")
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            # Create a safe format function for user display
+            def format_user_display(user_id):
+                for user in available_users:
+                    if user.get("id") == user_id:
+                        return f"{user.get('first_name', '')} {user.get('last_name', '')} ({user.get('email', '')})"
+                return user_id
+            
+            selected_user_id = st.selectbox(
+                "Select User",
+                [u.get("id") for u in available_users],
+                format_func=format_user_display
+            )
+        
+        with col2:
+            if st.button("Register User", key="register_user"):
+                # TODO: Implement register user functionality
+                st.error("Register user functionality not implemented yet")
     
     # Back button
-    if st.button("Back to Events List", key="back_to_events_list"):
+    if st.button("Back to Events List", key="back_to_events"):
         st.session_state["events_tab"] = "list"
-        st.session_state["selected_event"] = None
         st.experimental_rerun()

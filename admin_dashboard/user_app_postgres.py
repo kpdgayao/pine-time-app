@@ -1006,7 +1006,18 @@ def show_profile_page():
     
     # Fetch all data
     profile = fetch_user_profile()
-    badges = fetch_user_badges()
+    
+    # Get badges with proper format handling
+    badges_response = fetch_user_badges()
+    # Handle different response formats
+    if isinstance(badges_response, dict) and 'badges' in badges_response:
+        badges = badges_response.get('badges', [])
+    elif isinstance(badges_response, list):
+        badges = badges_response
+    else:
+        logger.warning(f"Unexpected badges format: {type(badges_response)}")
+        badges = []
+    
     events = fetch_user_events()
     points_history = fetch_points_history()
     

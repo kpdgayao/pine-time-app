@@ -86,15 +86,30 @@ def show_users_list():
         # Convert to DataFrame for display
         users_data = []
         for user in filtered_users:
-            users_data.append({
-                "ID": user.get('id', ''),
-                "Name": f"{user.get('first_name', '')} {user.get('last_name', '')}",
-                "Username": user.get('username', ''),
-                "Email": user.get('email', ''),
-                "Role": user.get('role', 'user'),
-                "Points": user.get('points', 0),
-                "Joined": user.get('created_at', '')
-            })
+            # Handle both dictionary and string/primitive types
+            if isinstance(user, dict):
+                # If user is a dictionary, use get() method
+                user_data = {
+                    "ID": user.get('id', ''),
+                    "Name": f"{user.get('first_name', '')} {user.get('last_name', '')}",
+                    "Username": user.get('username', ''),
+                    "Email": user.get('email', ''),
+                    "Role": user.get('role', 'user'),
+                    "Points": user.get('points', 0),
+                    "Joined": user.get('created_at', '')
+                }
+            else:
+                # If user is a string or other primitive type, create a basic entry
+                user_data = {
+                    "ID": str(user),
+                    "Name": "Unknown User",
+                    "Username": "",
+                    "Email": "",
+                    "Role": "user",
+                    "Points": 0,
+                    "Joined": ""
+                }
+            users_data.append(user_data)
         
         df_users = pd.DataFrame(users_data)
         
@@ -119,14 +134,25 @@ def show_users_list():
         
         col1, col2 = st.columns(2)
         with col1:
+            # Create a list of user IDs with safe type checking
+            user_ids = []
+            for user in filtered_users:
+                if isinstance(user, dict):
+                    user_ids.append(user.get('id', ''))
+                else:
+                    user_ids.append(str(user))
+                    
+            # Create a safe format function
+            def safe_format_user_name(user_id):
+                for user in filtered_users:
+                    if isinstance(user, dict) and user.get('id', '') == user_id:
+                        return f"{user.get('first_name', '')} {user.get('last_name', '')} ({user.get('email', '')})"
+                return user_id
+                
             selected_user_id = st.selectbox(
                 "Select User",
-                [user.get('id', '') for user in filtered_users],
-                format_func=lambda x: next(
-                    (f"{user.get('first_name', '')} {user.get('last_name', '')} ({user.get('email', '')})" 
-                     for user in filtered_users if user.get('id', '') == x), 
-                    x
-                )
+                user_ids,
+                format_func=safe_format_user_name
             )
         
         with col2:
