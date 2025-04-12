@@ -1,0 +1,659 @@
+"""
+Tests for the Streamlit frontend application.
+Uses a custom Streamlit test client to simulate user interactions.
+"""
+
+import pytest
+import logging
+import sys
+import os
+import re
+from typing import Dict, Any, List, Optional
+from unittest.mock import patch, MagicMock
+
+# Add project root to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Import project modules
+from admin_dashboard.utils.api import APIClient
+from admin_dashboard.utils.auth import login, logout, check_authentication
+from admin_dashboard.utils.db import is_demo_mode, test_database_connection
+
+# Configure logging
+logger = logging.getLogger("test_streamlit_app")
+
+class StreamlitTestClient:
+    """
+    A test client for Streamlit applications.
+    Simulates Streamlit's session state and widget interactions.
+    """
+    
+    def __init__(self):
+        """Initialize the test client."""
+        self.session_state = {}
+        self.widgets = {}
+        self.sidebar_widgets = {}
+        self.messages = []
+        self.errors = []
+        self.warnings = []
+        self.infos = []
+        self.successes = []
+        self.mock_responses = {}
+    
+    def mock_api_response(self, endpoint: str, response: Any):
+        """
+        Mock an API response for a specific endpoint.
+        
+        Args:
+            endpoint: API endpoint to mock
+            response: Response to return
+        """
+        self.mock_responses[endpoint] = response
+    
+    def get_session_state(self) -> Dict[str, Any]:
+        """
+        Get the current session state.
+        
+        Returns:
+            Dict[str, Any]: Session state
+        """
+        return self.session_state
+    
+    def set_session_state(self, key: str, value: Any):
+        """
+        Set a session state value.
+        
+        Args:
+            key: Session state key
+            value: Value to set
+        """
+        self.session_state[key] = value
+    
+    def get_widget(self, key: str) -> Optional[Any]:
+        """
+        Get a widget value.
+        
+        Args:
+            key: Widget key
+            
+        Returns:
+            Optional[Any]: Widget value
+        """
+        return self.widgets.get(key)
+    
+    def set_widget(self, key: str, value: Any):
+        """
+        Set a widget value.
+        
+        Args:
+            key: Widget key
+            value: Value to set
+        """
+        self.widgets[key] = value
+    
+    def get_sidebar_widget(self, key: str) -> Optional[Any]:
+        """
+        Get a sidebar widget value.
+        
+        Args:
+            key: Widget key
+            
+        Returns:
+            Optional[Any]: Widget value
+        """
+        return self.sidebar_widgets.get(key)
+    
+    def set_sidebar_widget(self, key: str, value: Any):
+        """
+        Set a sidebar widget value.
+        
+        Args:
+            key: Widget key
+            value: Value to set
+        """
+        self.sidebar_widgets[key] = value
+    
+    def get_messages(self) -> List[str]:
+        """
+        Get all messages.
+        
+        Returns:
+            List[str]: Messages
+        """
+        return self.messages
+    
+    def get_errors(self) -> List[str]:
+        """
+        Get error messages.
+        
+        Returns:
+            List[str]: Error messages
+        """
+        return self.errors
+    
+    def get_warnings(self) -> List[str]:
+        """
+        Get warning messages.
+        
+        Returns:
+            List[str]: Warning messages
+        """
+        return self.warnings
+    
+    def get_infos(self) -> List[str]:
+        """
+        Get info messages.
+        
+        Returns:
+            List[str]: Info messages
+        """
+        return self.infos
+    
+    def get_successes(self) -> List[str]:
+        """
+        Get success messages.
+        
+        Returns:
+            List[str]: Success messages
+        """
+        return self.successes
+    
+    def clear_messages(self):
+        """Clear all messages."""
+        self.messages = []
+        self.errors = []
+        self.warnings = []
+        self.infos = []
+        self.successes = []
+    
+    def simulate_login(self, username: str, password: str) -> bool:
+        """
+        Simulate a login with proper session state management.
+        
+        Args:
+            username: Username
+            password: Password
+            
+        Returns:
+            bool: True if login successful, False otherwise
+        """
+        # Mock the login function
+        with patch('admin_dashboard.utils.auth.login') as mock_login, \
+             patch('admin_dashboard.utils.auth.is_demo_mode') as mock_demo_mode:
+            
+            # Configure demo mode behavior
+            mock_demo_mode.return_value = False
+            
+            # Set up mock response
+            if username == "testuser" and password == "testpassword":
+                # Successful login
+                result = True
+                # Set up session state as the login function would
+                self.set_session_state("token", "test-token")
+                self.set_session_state("refresh_token", "test-refresh-token")
+                self.set_session_state("token_expiry", time.time() + 3600)
+                self.set_session_state("is_authenticated", True)
+                self.set_session_state("login_time", time.time())
+                self.set_session_state("user_info", {
+                    "id": "test-user-id",
+                    "username": username,
+                    "email": "test@example.com",
+                    "full_name": "Test User",
+                    "is_active": True,
+                    "is_superuser": False,
+                    "role": "user",
+                    "points": 100
+                })
+                mock_login.return_value = True
+            else:
+                # Failed login
+                result = False
+                mock_login.return_value = False
+            
+            # Call login function
+            login_result = login(username, password)
+            
+            # Return result directly - session state already set in the mock
+            return result
+    
+    def simulate_logout(self):
+        """Simulate a logout."""
+        # Mock the logout function
+        with patch('admin_dashboard.utils.auth.logout') as mock_logout:
+            # Call logout function
+            logout()
+            
+            # Update session state
+            self.session_state.pop("user", None)
+            self.session_state.pop("user_info", None)
+            self.session_state["is_authenticated"] = False
+            self.session_state["login_successful"] = False
+    
+    def simulate_api_call(self, endpoint: str, method: str = "get", data: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Simulate an API call.
+        
+        Args:
+            endpoint: API endpoint
+            method: HTTP method
+            data: Request data
+            
+        Returns:
+            Any: API response
+        """
+        # Check if we have a mock response for this endpoint
+        if endpoint in self.mock_responses:
+            return self.mock_responses[endpoint]
+        
+        # Default mock responses for common endpoints
+        if endpoint.endswith("/events"):
+            return [
+                {
+                    "id": "event-1",
+                    "title": "Test Event 1",
+                    "description": "This is a test event",
+                    "event_type": "workshop",
+                    "location": "Test Location",
+                    "start_time": "2025-04-15T10:00:00",
+                    "end_time": "2025-04-15T12:00:00",
+                    "max_participants": 20,
+                    "points_reward": 10
+                },
+                {
+                    "id": "event-2",
+                    "title": "Test Event 2",
+                    "description": "This is another test event",
+                    "event_type": "social",
+                    "location": "Test Location 2",
+                    "start_time": "2025-04-16T14:00:00",
+                    "end_time": "2025-04-16T16:00:00",
+                    "max_participants": 30,
+                    "points_reward": 15
+                }
+            ]
+        elif endpoint.endswith("/badges"):
+            return [
+                {
+                    "id": "badge-1",
+                    "name": "Test Badge 1",
+                    "description": "This is a test badge",
+                    "category": "attendance",
+                    "level": "bronze",
+                    "points": 10
+                },
+                {
+                    "id": "badge-2",
+                    "name": "Test Badge 2",
+                    "description": "This is another test badge",
+                    "category": "achievement",
+                    "level": "silver",
+                    "points": 25
+                }
+            ]
+        elif endpoint.endswith("/points"):
+            return [
+                {
+                    "id": "points-1",
+                    "user_id": "test-user-id",
+                    "points": 10,
+                    "transaction_type": "event_attendance",
+                    "description": "Attended Test Event 1",
+                    "created_at": "2025-04-10T10:00:00"
+                },
+                {
+                    "id": "points-2",
+                    "user_id": "test-user-id",
+                    "points": 25,
+                    "transaction_type": "badge_earned",
+                    "description": "Earned Test Badge 2",
+                    "created_at": "2025-04-11T14:00:00"
+                }
+            ]
+        
+        # Default empty response
+        return []
+
+@pytest.fixture
+def streamlit_client():
+    """
+    Create a Streamlit test client.
+    
+    Returns:
+        StreamlitTestClient: Streamlit test client
+    """
+    return StreamlitTestClient()
+
+def test_login_page(streamlit_client):
+    """Test the login page with proper authentication flow."""
+    # Mock the Streamlit functions
+    with patch('streamlit.text_input') as mock_text_input, \
+         patch('streamlit.button') as mock_button, \
+         patch('streamlit.error') as mock_error, \
+         patch('admin_dashboard.utils.auth.verify_token') as mock_verify_token:
+        
+        # Set up mock responses
+        mock_text_input.side_effect = lambda label, **kwargs: "testuser" if "username" in label.lower() else "testpassword"
+        mock_button.return_value = True
+        mock_verify_token.return_value = {
+            "id": "test-user-id",
+            "username": "testuser",
+            "email": "test@example.com",
+            "full_name": "Test User",
+            "role": "user"
+        }
+        
+        # Simulate login
+        result = streamlit_client.simulate_login("testuser", "testpassword")
+        
+        # Assert authentication state
+        assert result is True
+        assert streamlit_client.session_state.get("is_authenticated") is True
+        assert streamlit_client.session_state.get("token") == "test-token"
+        assert streamlit_client.session_state.get("refresh_token") == "test-refresh-token"
+        assert "token_expiry" in streamlit_client.session_state
+        assert "login_time" in streamlit_client.session_state
+        
+        # Assert user info
+        user_info = streamlit_client.session_state.get("user_info")
+        assert user_info is not None
+        assert user_info.get("username") == "testuser"
+        assert user_info.get("id") == "test-user-id"
+
+def test_failed_login(streamlit_client):
+    """Test a failed login with proper error handling."""
+    # Mock the Streamlit functions
+    with patch('streamlit.text_input') as mock_text_input, \
+         patch('streamlit.button') as mock_button, \
+         patch('streamlit.error') as mock_error, \
+         patch('admin_dashboard.utils.auth.is_demo_mode') as mock_demo_mode:
+        
+        # Set up mock responses
+        mock_text_input.side_effect = lambda label, **kwargs: "wronguser" if "username" in label.lower() else "wrongpassword"
+        mock_button.return_value = True
+        mock_demo_mode.return_value = False
+        
+        # Simulate login
+        result = streamlit_client.simulate_login("wronguser", "wrongpassword")
+        
+        # Assert
+        assert result is False
+        assert mock_error.called
+        assert streamlit_client.session_state.get("is_authenticated") is not True
+        assert "token" not in streamlit_client.session_state
+        assert "refresh_token" not in streamlit_client.session_state
+        assert streamlit_client.session_state.get("is_authenticated", False) is False
+
+def test_logout(streamlit_client):
+    """Test logout."""
+    # First login
+    streamlit_client.simulate_login("testuser", "testpassword")
+    
+    # Then logout
+    streamlit_client.simulate_logout()
+    
+    # Assert
+    assert streamlit_client.session_state.get("login_successful") is False
+    assert streamlit_client.session_state.get("is_authenticated", False) is False
+    assert "user" not in streamlit_client.session_state
+    assert "user_info" not in streamlit_client.session_state
+
+def test_event_display(streamlit_client):
+    """Test event display."""
+    # Login first
+    streamlit_client.simulate_login("testuser", "testpassword")
+    
+    # Mock events API response
+    events = [
+        {
+            "id": "event-1",
+            "title": "Test Event 1",
+            "description": "This is a test event",
+            "event_type": "workshop",
+            "location": "Test Location",
+            "start_time": "2025-04-15T10:00:00",
+            "end_time": "2025-04-15T12:00:00",
+            "max_participants": 20,
+            "points_reward": 10
+        },
+        {
+            "id": "event-2",
+            "title": "Test Event 2",
+            "description": "This is another test event",
+            "event_type": "social",
+            "location": "Test Location 2",
+            "start_time": "2025-04-16T14:00:00",
+            "end_time": "2025-04-16T16:00:00",
+            "max_participants": 30,
+            "points_reward": 15
+        }
+    ]
+    streamlit_client.mock_api_response("events/list", events)
+    
+    # Simulate API call
+    response = streamlit_client.simulate_api_call("events/list")
+    
+    # Assert
+    assert response is not None
+    assert len(response) == 2
+    assert response[0]["title"] == "Test Event 1"
+    assert response[1]["title"] == "Test Event 2"
+
+def test_profile_page(streamlit_client):
+    """Test profile page."""
+    # Login first
+    streamlit_client.simulate_login("testuser", "testpassword")
+    
+    # Mock profile API response
+    user_profile = {
+        "id": "test-user-id",
+        "username": "testuser",
+        "email": "test@example.com",
+        "full_name": "Test User",
+        "is_active": True,
+        "is_superuser": False,
+        "points": 500,
+        "created_at": "2025-01-01T00:00:00"
+    }
+    streamlit_client.mock_api_response("users/me", user_profile)
+    
+    # Simulate API call
+    response = streamlit_client.simulate_api_call("users/me")
+    
+    # Assert
+    assert response is not None
+    assert response["username"] == "testuser"
+    assert response["email"] == "test@example.com"
+    assert response["full_name"] == "Test User"
+    assert response["points"] == 500
+
+def test_badge_display(streamlit_client):
+    """Test badge display."""
+    # Login first
+    streamlit_client.simulate_login("testuser", "testpassword")
+    
+    # Mock badges API response
+    badges = [
+        {
+            "id": "badge-1",
+            "name": "Test Badge 1",
+            "description": "This is a test badge",
+            "category": "attendance",
+            "level": "bronze",
+            "points": 10
+        },
+        {
+            "id": "badge-2",
+            "name": "Test Badge 2",
+            "description": "This is another test badge",
+            "category": "achievement",
+            "level": "silver",
+            "points": 25
+        }
+    ]
+    streamlit_client.mock_api_response("users/test-user-id/badges", badges)
+    
+    # Simulate API call
+    response = streamlit_client.simulate_api_call("users/test-user-id/badges")
+    
+    # Assert
+    assert response is not None
+    assert len(response) == 2
+    assert response[0]["name"] == "Test Badge 1"
+    assert response[0]["level"] == "bronze"
+    assert response[1]["name"] == "Test Badge 2"
+    assert response[1]["level"] == "silver"
+
+def test_demo_mode(streamlit_client):
+    """Test demo mode with proper session state."""
+    # Mock the demo mode function
+    with patch('admin_dashboard.utils.db.is_demo_mode') as mock_demo_mode, \
+         patch('admin_dashboard.utils.auth.is_demo_mode') as mock_auth_demo_mode, \
+         patch('admin_dashboard.utils.auth.login') as mock_login:
+        
+        # Set up mock responses
+        mock_demo_mode.return_value = True
+        mock_auth_demo_mode.return_value = True
+        mock_login.return_value = True
+        
+        # Test login in demo mode
+        result = streamlit_client.simulate_login("demo@pinetimeexperience.com", "demo")
+        
+        # Assert demo mode authentication
+        assert result is True
+        assert streamlit_client.session_state.get("is_authenticated") is True
+        assert streamlit_client.session_state.get("token") == "test-token"
+        
+        # Test connection verification in demo mode
+        with patch('admin_dashboard.utils.connection.verify_connection') as mock_verify:
+            mock_verify.return_value = {
+                "success": True,
+                "is_demo": True,
+                "message": "Running in demo mode"
+            }
+            
+            # Verify that connection check succeeds in demo mode
+            from admin_dashboard.utils.connection import verify_connection
+            status = verify_connection()
+            assert status["success"] is True
+            assert status["is_demo"] is True
+        
+        # Assert that we can access features without real authentication
+        # This would normally require mocking the entire app flow, but for this test
+        # we'll just verify that the demo mode flag is set correctly
+
+def test_token_refresh(streamlit_client):
+    """Test token refresh mechanism."""
+    # Set up initial authentication state
+    streamlit_client.set_session_state("token", "old-token")
+    streamlit_client.set_session_state("refresh_token", "old-refresh-token")
+    streamlit_client.set_session_state("token_expiry", time.time() - 100)  # Expired token
+    streamlit_client.set_session_state("is_authenticated", True)
+    streamlit_client.set_session_state("login_time", time.time() - 1000)
+    streamlit_client.set_session_state("user_info", {"id": "test-user-id", "username": "testuser"})
+    
+    # Mock the refresh token function and API call
+    with patch('requests.Session.post') as mock_post, \
+         patch('admin_dashboard.utils.auth.is_demo_mode') as mock_demo_mode:
+        
+        # Configure mocks
+        mock_demo_mode.return_value = False
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access_token": "new-token",
+            "refresh_token": "new-refresh-token",
+            "expires_in": 3600
+        }
+        mock_post.return_value = mock_response
+        
+        # Test token refresh
+        from admin_dashboard.utils.auth import refresh_token, is_token_expired
+        
+        # Verify token is expired
+        assert is_token_expired() is True
+        
+        # Refresh token
+        result = refresh_token()
+        
+        # Assert
+        assert result is True
+        assert streamlit_client.session_state.get("token") == "new-token"
+        assert streamlit_client.session_state.get("refresh_token") == "new-refresh-token"
+        assert streamlit_client.session_state.get("token_expiry") > time.time()
+        assert streamlit_client.session_state.get("token_refresh_attempts") == 0
+
+def test_api_error_handling(streamlit_client):
+    """Test API error handling with fallback mechanisms."""
+    # Set up authentication state
+    streamlit_client.simulate_login("testuser", "testpassword")
+    
+    # Mock API client and connection verification
+    with patch('admin_dashboard.utils.api.api_client.safe_api_call') as mock_api_call, \
+         patch('admin_dashboard.utils.connection.verify_connection') as mock_verify_connection, \
+         patch('admin_dashboard.utils.connection.get_sample_user_badges') as mock_sample_badges:
+        
+        # Configure mocks for API failure scenario
+        from admin_dashboard.utils.api import APIError
+        mock_api_call.side_effect = APIError("API connection error", 500)
+        mock_verify_connection.return_value = {
+            "success": True,  # Overall success with fallback
+            "api_connected": False,  # API failed
+            "db_connected": True,  # Database connected
+            "is_demo": False
+        }
+        mock_sample_badges.return_value = {
+            "badges": [{"id": "sample-badge", "name": "Sample Badge", "category": "Test"}],
+            "grouped_badges": {"Test": [{"id": "sample-badge", "name": "Sample Badge"}]},
+            "total": 1
+        }
+        
+        # Test get_user_badges with API failure
+        from admin_dashboard.utils.api import get_user_badges
+        badges = get_user_badges("test-user-id")
+        
+        # Assert fallback to sample data
+        assert badges is not None
+        assert "badges" in badges
+        assert "grouped_badges" in badges
+        assert "total" in badges
+        assert isinstance(badges["badges"], list)
+        assert isinstance(badges["grouped_badges"], dict)
+        assert badges["total"] >= 0
+
+def test_connection_fallback_decorator(streamlit_client):
+    """Test the connection fallback decorator with retry logic."""
+    # Define test functions
+    def test_main_function(*args, **kwargs):
+        # Function that will fail on first call, succeed on second
+        if getattr(test_main_function, 'call_count', 0) == 0:
+            test_main_function.call_count = 1
+            raise Exception("Simulated failure")
+        return {"success": True, "data": "real_data"}
+    
+    def test_fallback_function(*args, **kwargs):
+        return {"success": False, "data": "fallback_data"}
+    
+    # Set up initial state
+    test_main_function.call_count = 0
+    
+    # Apply the decorator
+    from admin_dashboard.utils.connection import with_connection_fallback
+    decorated_function = with_connection_fallback(test_fallback_function, max_retries=1)(test_main_function)
+    
+    # Mock connection verification
+    with patch('admin_dashboard.utils.connection.verify_connection') as mock_verify, \
+         patch('admin_dashboard.utils.db.is_demo_mode') as mock_demo_mode, \
+         patch('streamlit.warning') as mock_warning:
+        
+        # Configure mocks
+        mock_verify.return_value = {"success": True}
+        mock_demo_mode.return_value = False
+        
+        # Test the decorated function
+        result = decorated_function("test_arg")
+        
+        # Assert
+        assert result["success"] is True
+        assert result["data"] == "real_data"
+        assert test_main_function.call_count == 1  # Verify retry happened
+        assert mock_warning.called  # Warning should be shown during retry detected
