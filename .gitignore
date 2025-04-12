@@ -49,6 +49,14 @@ node_modules/
 
 # Cache
 __pycache__/
+
+# Test reports and load test data
+load_test_report_*.html
+load_test_stats_*.csv
+test_report_*.md
+
+# Backup files
+*_backup_*.py
 .pytest_cache/
 .coverage
 htmlcov/
@@ -57,3 +65,6 @@ htmlcov/
 *migration.log
 *migration_detailed.log
 *_migration.log
+
+# windsurf rules
+.windsurfrules
