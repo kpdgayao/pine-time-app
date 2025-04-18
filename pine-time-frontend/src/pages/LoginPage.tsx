@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { api } from '../api';
+import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,9 +22,15 @@ const LoginPage: React.FC = () => {
       const res = await api.post('/login/access-token', params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
-      login(res.data.access_token);
+      login(res.data.access_token, res.data.refresh_token);
       setError('');
-      // redirect or update UI here
+      // Redirect based on user role
+      const user: any = jwtDecode(res.data.access_token);
+      if (user.is_superuser || user.user_type === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       let message = 'Login failed';
       const data = err.response?.data;

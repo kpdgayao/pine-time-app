@@ -12,6 +12,9 @@ const Navbar: React.FC = () => {
       <Link to="/badges">Badges</Link>
       <Link to="/points">Points</Link>
       <Link to="/profile">Profile</Link>
+      {user && (user.is_superuser || user.user_type === 'admin') && (
+        <Link to="/admin">Admin Dashboard</Link>
+      )}
       {user ? (
         <button onClick={logout}>Logout</button>
       ) : (

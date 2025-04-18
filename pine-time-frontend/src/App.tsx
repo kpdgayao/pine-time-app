@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
@@ -13,6 +13,8 @@ import PointsPage from './pages/PointsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminOnly from './components/AdminOnly';
 
 function App() {
   return (
@@ -31,6 +33,7 @@ function App() {
             <Route path="/leaderboard" element={<PrivateRoute><LeaderboardPage /></PrivateRoute>} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/admin" element={<PrivateRoute><AdminOnly><AdminDashboardPage /></AdminOnly></PrivateRoute>} />
           </Routes>
         </div>
       </Router>

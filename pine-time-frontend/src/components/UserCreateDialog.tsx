@@ -1,13 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../api/client";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreate: (user: any) => void;
 }
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const UserCreateDialog: React.FC<Props> = ({ open, onClose, onCreate }) => {
   const [form, setForm] = useState({
@@ -23,30 +21,51 @@ const UserCreateDialog: React.FC<Props> = ({ open, onClose, onCreate }) => {
 
   const token = localStorage.getItem("admin_token");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
+  /**
+ * Handles input changes for both text/select and checkbox inputs.
+ * Ensures type safety for the 'checked' property.
+ */
+const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const { name, value } = e.target;
+  if (e.target instanceof HTMLInputElement && e.target.type === "checkbox") {
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: (e.target as HTMLInputElement).checked,
     }));
-  };
+  } else {
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+};
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.post(`${API_BASE}/users/`, form, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      onCreate(res.data);
-      onClose();
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Failed to create user.");
-    } finally {
-      setLoading(false);
+  /**
+ * Handles form submission for user creation.
+ * Uses the centralized API client and robust error handling.
+ */
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await api.post("/users/", form, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    onCreate(res.data);
+    onClose();
+  } catch (err: any) {
+    if (err.response && err.response.data && err.response.data.detail) {
+      setError(err.response.data.detail);
+    } else if (err.message) {
+      setError(err.message);
+    } else {
+      setError("Failed to create user.");
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (!open) return null;
 

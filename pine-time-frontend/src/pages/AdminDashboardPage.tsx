@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import TokenClaimsViewer from "../components/TokenClaimsViewer";
 
 // Simple placeholder components for each admin section
 const OverviewSection = () => <div>Overview (Key Stats, Analytics)</div>;
@@ -6,6 +7,7 @@ import AdminUsersSection from "../components/AdminUsersSection";
 const UsersSection = () => <AdminUsersSection />;
 import AdminEventsSection from "../components/AdminEventsSection";
 const EventsSection = () => <AdminEventsSection />;
+import PointsBadgesLeaderboard from "../components/PointsBadgesLeaderboard";
 const PointsSection = () => <div>Points Management (Award, Redeem, Leaderboard)</div>;
 const BadgesSection = () => <div>Badges Management (View, Assign)</div>;
 
@@ -22,6 +24,11 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div style={{ display: "flex", height: "100vh" }}>
+      <div style={{ padding: 32 }}>
+        <TokenClaimsViewer />
+        <h1>Admin Dashboard</h1>
+        <PointsBadgesLeaderboard />
+      </div>
       {/* Sidebar Navigation */}
       <nav
         style={{

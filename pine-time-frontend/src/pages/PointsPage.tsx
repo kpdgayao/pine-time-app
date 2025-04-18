@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api';
+import api from '../api/client';
 
 const PointsPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../api';
+import api from '../api/client';
 
 const RegisterPage: React.FC = () => {
   const [username, setUsername] = useState('');

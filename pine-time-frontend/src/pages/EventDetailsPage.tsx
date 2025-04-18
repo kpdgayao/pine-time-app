@@ -7,6 +7,7 @@ const EventDetailsPage: React.FC = () => {
   const [event, setEvent] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
   const [registering, setRegistering] = useState(false);
   const [registerMsg, setRegisterMsg] = useState('');
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);

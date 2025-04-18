@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../api/client";
 
 interface User {
   id: number;
@@ -46,7 +46,9 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
   const token = localStorage.getItem("admin_token");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
+    const target = e.target as HTMLInputElement | HTMLSelectElement;
+    const { name, value, type } = target;
+    const checked = (target instanceof HTMLInputElement) ? target.checked : undefined;
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -59,7 +61,7 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.put(`${API_BASE}/users/${user.id}`, form, {
+      const res = await api.put(`${API_BASE}/users/${user.id}`, form, {
         headers: { Authorization: `Bearer ${token}` },
       });
       onSave(res.data);

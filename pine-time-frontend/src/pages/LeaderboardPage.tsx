@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api';
+import api from '../api/client';
 
 const LeaderboardPage: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);

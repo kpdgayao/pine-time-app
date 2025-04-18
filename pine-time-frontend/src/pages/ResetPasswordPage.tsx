@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../api';
+import api from '../api/client';
 
 const ResetPasswordPage: React.FC = () => {
   const [token, setToken] = useState('');
