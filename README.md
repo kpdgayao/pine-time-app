@@ -156,6 +156,7 @@ The application implements a robust error handling system with multiple layers:
 - **Connection Utility Layer**: Connection verification with caching and fallback mechanisms
 - **User Interface Layer**: Graceful degradation with informative error messages
 - **Custom Exceptions**: Specialized exception classes for different error types (APIError, PostgreSQLError)
+- **User Points & Badges**: Endpoints and logic for awarding points, redeeming points, managing user badges, and providing detailed statistics, all with admin and user role checks
 - **Response Format Handling**: Support for both list and dictionary response formats from API endpoints
 
 ## PostgreSQL Integration
