@@ -11,6 +11,51 @@ from app.services.points_manager import PointsManager
 
 router = APIRouter()
 
+from fastapi import Path
+from app.schemas.event import EventStats
+from sqlalchemy import func
+import logging
+
+@router.get("/{event_id}/stats", response_model=EventStats)
+def get_event_stats(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    event_id: int = Path(..., gt=0),
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+) -> Any:
+    """
+    Get statistics for a specific event: registration count, total revenue, unique participants, etc.
+    """
+    logger = logging.getLogger("events.stats")
+    event = db.query(models.Event).filter(models.Event.id == event_id).first()
+    if not event:
+        logger.warning(f"Event stats requested for nonexistent event_id={event_id}")
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Only admins/business can see stats for inactive events
+    if not event.is_active and not (current_user.is_superuser or current_user.user_type in ["admin", "business"]):
+        logger.warning(f"Unauthorized stats access for inactive event_id={event_id} by user_id={current_user.id}")
+        raise HTTPException(status_code=403, detail="Not enough permissions to view stats for inactive event")
+
+    try:
+        registration_count = db.query(func.count(models.Registration.id)).filter(models.Registration.event_id == event_id).scalar() or 0
+        completed_count = db.query(func.count(models.Registration.id)).filter(
+            models.Registration.event_id == event_id,
+            models.Registration.payment_status == 'completed'
+        ).scalar() or 0
+        total_revenue = completed_count * (event.price or 0.0)
+        unique_participants = db.query(func.count(func.distinct(models.Registration.user_id))).filter(models.Registration.event_id == event_id).scalar() or 0
+    except Exception as e:
+        logger.error(f"DB error while fetching stats for event_id={event_id}: {e}")
+        raise HTTPException(status_code=500, detail="Database error while fetching event stats")
+
+    return EventStats(
+        event_id=event_id,
+        registration_count=registration_count,
+        total_revenue=total_revenue,
+        unique_participants=unique_participants
+    )
+
 
 @router.get("/", response_model=List[schemas.Event])
 def read_events(

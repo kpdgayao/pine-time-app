@@ -41,5 +41,19 @@ class EventInDBBase(EventBase):
 
 
 # Additional properties to return via API
+
+class EventStats(BaseModel):
+    """
+    Schema for event statistics returned by /events/{event_id}/stats endpoint.
+    """
+    event_id: int
+    registration_count: int
+    total_revenue: float
+    unique_participants: int
+    # Add more fields as needed for stats
+
+    class Config:
+        orm_mode = True
+
 class Event(EventInDBBase):
     pass
