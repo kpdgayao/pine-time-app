@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/client";
 import EventEditDialog from "./EventEditDialog";
 import EventRegistrationsDialog from "./EventRegistrationsDialog";
+import EventStatsChart from "./EventStatsChart";
 
 interface EventBase {
   title: string;
@@ -20,14 +21,15 @@ interface Event extends EventBase {
   id: number;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 const PAGE_SIZE = 10;
 
 const AdminEventsSection: React.FC = () => {
   // Registration dialog state
   const [regDialogOpen, setRegDialogOpen] = useState(false);
   const [regEventId, setRegEventId] = useState<number | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
+  // Stats for events
+  const [eventStats, setEventStats] = useState<Record<number, { registration_count: number; revenue: number }>>({});
+  const [events, setEvents] = useState<Event[]>([]); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -36,19 +38,31 @@ const AdminEventsSection: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const token = localStorage.getItem("admin_token");
-
   const fetchEvents = async (searchVal = search, pageVal = page) => {
     setLoading(true);
     setError(null);
     try {
       const params: any = { skip: (pageVal - 1) * PAGE_SIZE, limit: PAGE_SIZE };
       if (searchVal) params.q = searchVal;
-      const res = await axios.get(`${API_BASE}/events/`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await api.get('/events/', { params });
       setEvents(res.data);
+      // Fetch stats for each event
+      const stats: Record<number, { registration_count: number; revenue: number }> = {};
+      await Promise.all(
+        (res.data || []).map(async (event: Event) => {
+          try {
+            const statsRes = await api.get(`/events/${event.id}/stats`);
+            stats[event.id] = {
+              registration_count: statsRes.data.registration_count ?? 0,
+              revenue: statsRes.data.revenue ?? 0,
+            };
+          } catch (err) {
+            console.error(`Failed to fetch stats for event ${event.id}:`, err);
+            stats[event.id] = { registration_count: 0, revenue: 0 };
+          }
+        })
+      );
+      setEventStats(stats);
     } catch (err: any) {
       setError(
         err?.response?.data?.detail || "Failed to fetch events. Please try again."
@@ -68,17 +82,15 @@ const AdminEventsSection: React.FC = () => {
     setEditOpen(true);
   };
   const handleEditSave = (updated: Event) => {
-    setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    setEvents((prev: Event[]) => prev.map((e: Event) => (e.id === updated.id ? updated : e)));
   };
   const handleDelete = async (event: Event) => {
     if (!window.confirm(`Delete event '${event.title}'?`)) return;
     setLoading(true);
     setError(null);
     try {
-      await axios.delete(`${API_BASE}/events/${event.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setEvents((prev) => prev.filter((e) => e.id !== event.id));
+      await api.delete(`/events/${event.id}`);
+      setEvents((prev: Event[]) => prev.filter((e: Event) => e.id !== event.id));
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Failed to delete event.");
     } finally {
@@ -90,7 +102,7 @@ const AdminEventsSection: React.FC = () => {
     setCreateOpen(true);
   };
   const handleCreateSave = (created: Event) => {
-    setEvents((prev) => [created, ...prev]);
+    setEvents((prev: Event[]) => [created, ...prev]);
     setPage(1);
   };
   const handleSearch = (e: React.FormEvent) => {
@@ -103,17 +115,41 @@ const AdminEventsSection: React.FC = () => {
     fetchEvents(search, newPage);
   };
 
-  const filteredEvents = events.filter(
-    (e) =>
-      e.title.toLowerCase().includes(search.toLowerCase()) ||
-      e.description.toLowerCase().includes(search.toLowerCase()) ||
-      e.location.toLowerCase().includes(search.toLowerCase())
-  );
+  // Robust handling for API response formats (array, paginated dict, or unexpected)
+// Support flexible API response structure: array, paginated object, or null
+let eventsArray: Event[] = [];
+if (Array.isArray(events)) {
+  eventsArray = events;
+} else if (events && typeof (events as any) === 'object' && Array.isArray((events as any).items)) {
+  eventsArray = (events as any).items;
+} else if (events == null) {
+  eventsArray = [];
+} else {
+  // Unexpected format, log for debugging
+  console.error('Unexpected events data format:', events);
+  eventsArray = [];
+}
 
-  // Simple analytics
-  const totalEvents = events.length;
-  const activeEvents = events.filter((e) => e.is_active).length;
-  const totalParticipants = events.reduce((sum, e) => sum + (e.max_participants || 0), 0);
+const filteredEvents = eventsArray.filter(
+  (e) =>
+    e.title.toLowerCase().includes(search.toLowerCase()) ||
+    e.description.toLowerCase().includes(search.toLowerCase()) ||
+    e.location.toLowerCase().includes(search.toLowerCase())
+);
+
+// Analytics
+const totalEvents = eventsArray.length;
+const activeEvents = eventsArray.filter((e) => e.is_active).length;
+const totalParticipants = eventsArray.reduce((sum, e) => sum + (e.max_participants || 0), 0);
+const totalRegistrations = eventsArray.reduce((sum, e) => sum + (eventStats[e.id]?.registration_count || 0), 0);
+const totalRevenue = eventsArray.reduce((sum, e) => sum + (eventStats[e.id]?.revenue || 0), 0);
+
+// For chart component
+const eventsForChart = eventsArray.map((e) => ({
+  ...e,
+  registration_count: eventStats[e.id]?.registration_count || 0,
+  revenue: eventStats[e.id]?.revenue || 0,
+}));
 
   return (
     <div>
@@ -122,6 +158,11 @@ const AdminEventsSection: React.FC = () => {
         <div><strong>Total Events:</strong> {totalEvents}</div>
         <div><strong>Active Events:</strong> {activeEvents}</div>
         <div><strong>Max Total Participants:</strong> {totalParticipants}</div>
+        <div><strong>Total Registrations:</strong> {totalRegistrations}</div>
+        <div><strong>Total Revenue:</strong> {totalRevenue}</div>
+      </div>
+      <div style={{ marginBottom: 24 }}>
+        <EventStatsChart events={eventsForChart} />
       </div>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
         <form onSubmit={handleSearch} style={{ flex: 1 }}>

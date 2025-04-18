@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/client";
+import UserPointsBadgesDialog from "./UserPointsBadgesDialog";
 import UserEditDialog from "./UserEditDialog";
 import UserCreateDialog from "./UserCreateDialog";
 
@@ -13,11 +14,13 @@ interface User {
   user_type: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 const PAGE_SIZE = 10;
 
 const AdminUsersSection: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  // Points & badges dialog state
+  const [pbDialogOpen, setPbDialogOpen] = useState(false);
+  const [pbUserId, setPbUserId] = useState<number | null>(null);
+  const [users, setUsers] = useState<any>([]); // Accept any to allow for flexible API responses
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -25,7 +28,7 @@ const AdminUsersSection: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
+
 
   // TODO: Replace with secure token retrieval
   const token = localStorage.getItem("admin_token");
@@ -36,13 +39,8 @@ const AdminUsersSection: React.FC = () => {
     try {
       const params: any = { skip: (pageVal - 1) * PAGE_SIZE, limit: PAGE_SIZE };
       if (searchVal) params.q = searchVal;
-      const res = await axios.get(`${API_BASE}/users/`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params,
-      });
+      const res = await api.get('/users/', { params });
       setUsers(res.data);
-      // For demo: assume backend returns total count in header or add logic here
-      setTotal(res.data.length < PAGE_SIZE ? (pageVal - 1) * PAGE_SIZE + res.data.length : pageVal * PAGE_SIZE + 1);
     } catch (err: any) {
       setError(
         err?.response?.data?.detail || "Failed to fetch users. Please try again."
@@ -62,19 +60,18 @@ const AdminUsersSection: React.FC = () => {
     setEditOpen(true);
   };
   const handleEditSave = (updated: User) => {
-    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+    setUsers((prev: User[]) => prev.map((u: User) => (u.id === updated.id ? updated : u)));
   };
   const handleDeactivate = async (user: User) => {
     if (!window.confirm(`Deactivate user ${user.username}?`)) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.put(
-        `${API_BASE}/users/${user.id}`,
-        { ...user, is_active: false },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.put(
+        `/users/${user.id}`,
+        { ...user, is_active: false }
       );
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? res.data : u)));
+      setUsers((prev: User[]) => prev.map((u: User) => (u.id === user.id ? res.data : u)));
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Failed to deactivate user.");
     } finally {
@@ -82,7 +79,7 @@ const AdminUsersSection: React.FC = () => {
     }
   };
   const handleCreate = (user: User) => {
-    setUsers((prev) => [user, ...prev]);
+    setUsers((prev: User[]) => [user, ...prev]);
     setPage(1); // Show new user on first page
   };
   const handleSearch = (e: React.FormEvent) => {
@@ -96,12 +93,26 @@ const AdminUsersSection: React.FC = () => {
   };
 
   // Filter users client-side if backend search not implemented
-  const filteredUsers = users.filter(
-    (u) =>
-      u.username.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.full_name.toLowerCase().includes(search.toLowerCase())
-  );
+  // Robust handling for API response formats (array, paginated dict, or unexpected)
+let usersArray: User[] = [];
+if (Array.isArray(users)) {
+  usersArray = users;
+} else if (users && typeof users === 'object' && Array.isArray(users.items)) {
+  usersArray = users.items;
+} else if (users == null) {
+  usersArray = [];
+} else {
+  // Unexpected format, log for debugging
+  console.error('Unexpected users data format:', users);
+  usersArray = [];
+}
+
+const filteredUsers = usersArray.filter(
+  (u) =>
+    u.username.toLowerCase().includes(search.toLowerCase()) ||
+    u.email.toLowerCase().includes(search.toLowerCase()) ||
+    u.full_name.toLowerCase().includes(search.toLowerCase())
+);
 
   return (
     <div>
@@ -150,7 +161,8 @@ const AdminUsersSection: React.FC = () => {
               <td>{user.is_superuser ? "Yes" : "No"}</td>
               <td>
                 <button style={{ marginRight: 8 }} onClick={() => handleEdit(user)}>Edit</button>
-                <button onClick={() => handleDeactivate(user)} disabled={!user.is_active} style={{ color: user.is_active ? "#c62828" : "#aaa" }}>Deactivate</button>
+                <button style={{ marginRight: 8 }} onClick={() => { setPbUserId(user.id); setPbDialogOpen(true); }}>Points/Badges</button>
+                <button onClick={() => handleDeactivate(user)} style={{ color: "#c62828" }}>Deactivate</button>
               </td>
             </tr>
           ))}
@@ -173,6 +185,11 @@ const AdminUsersSection: React.FC = () => {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreate={handleCreate}
+      />
+      <UserPointsBadgesDialog
+        userId={pbUserId}
+        open={pbDialogOpen}
+        onClose={() => setPbDialogOpen(false)}
       />
     </div>
   );
