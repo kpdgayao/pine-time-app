@@ -119,7 +119,7 @@ const AdminUserBadgeManager: React.FC = () => {
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h6" gutterBottom>User Badge Management</Typography>
+      <Typography variant="h5" gutterBottom>User Badge Management</Typography>
       <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         <Paper sx={{ p: 2, minWidth: 320, maxHeight: 400, overflow: 'auto' }}>
           <Typography variant="subtitle1">Users</Typography>

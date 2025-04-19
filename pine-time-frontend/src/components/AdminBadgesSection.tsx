@@ -95,7 +95,7 @@ const AdminBadgesSection: React.FC = () => {
   return (
     <Paper sx={{ p: 2, mb: 2 }} elevation={2}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6">Badge Types</Typography>
+        <Typography variant="h5">Badge Types</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
           Add Badge
         </Button>

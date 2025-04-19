@@ -143,7 +143,22 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
   if (!open) return null;
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      scroll="body"
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          p: 0,
+          m: 0,
+          width: '100%',
+          maxWidth: 600,
+        }
+      }}
+    >
       <DialogContent>
         <form onSubmit={handleSubmit} autoComplete="off">
           <Stack spacing={2}>

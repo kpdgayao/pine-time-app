@@ -24,7 +24,6 @@ interface Props {
   onSave: (updated: User) => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
   // Handler functions for correct event typing
@@ -45,7 +44,7 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
     full_name: user?.full_name || "",
     email: user?.email || "",
     username: user?.username || "",
-    user_type: user?.user_type || "user",
+    user_type: user?.user_type || "regular",
     is_active: user?.is_active ?? true,
     is_superuser: user?.is_superuser ?? false,
   });
@@ -73,10 +72,22 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.put(`${API_BASE}/users/${user.id}`, form, {
+      // PATCH role/superuser
+      await api.patch(`/users/${user.id}/role`, {
+        user_type: form.user_type,
+        is_superuser: form.is_superuser,
+      }, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      onSave(res.data);
+      // PATCH status if changed
+      if (form.is_active !== user.is_active) {
+        await api.patch(`/users/${user.id}/status`, {
+          is_active: form.is_active,
+        }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      onSave({ ...user, ...form });
       onClose();
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Failed to update user.");
@@ -84,6 +95,7 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
       setLoading(false);
     }
   };
+
 
   if (!open || !user) return null;
 
@@ -132,7 +144,8 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
             disabled={loading}
             variant="outlined"
           >
-            <MenuItem value="user">User</MenuItem>
+            <MenuItem value="regular">Regular</MenuItem>
+            <MenuItem value="business">Business</MenuItem>
             <MenuItem value="admin">Admin</MenuItem>
           </Select>
           <FormControlLabel
