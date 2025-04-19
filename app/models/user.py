@@ -18,4 +18,13 @@ class User(Base):
     # Relationships
     registrations = relationship("Registration", back_populates="user")
     badges = relationship("Badge", back_populates="user")
-    points_transactions = relationship("PointsTransaction", back_populates="user")
+    points_transactions = relationship(
+        "PointsTransaction",
+        back_populates="user",
+        foreign_keys="PointsTransaction.user_id"
+    )
+    admin_points_transactions = relationship(
+        "PointsTransaction",
+        back_populates="admin",
+        foreign_keys="PointsTransaction.admin_id"
+    )

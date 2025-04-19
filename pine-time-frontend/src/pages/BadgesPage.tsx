@@ -33,7 +33,9 @@ const BadgesPage: React.FC = () => {
       <h2>Your Badges</h2>
       <ul>
         {badges.map((badge, idx) => (
-          <li key={idx}>{badge.name} - {badge.description}</li>
+          <li key={idx}>
+            {badge.badge_type_obj?.name || 'Unknown Badge'} - {badge.badge_type_obj?.description || ''}
+          </li>
         ))}
       </ul>
     </div>

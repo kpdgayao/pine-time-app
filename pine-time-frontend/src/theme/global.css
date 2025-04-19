@@ -1,0 +1,42 @@
+/* Global styles for Pine Time */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', Arial, sans-serif;
+  background-color: #F9F9F9;
+  color: #222;
+}
+
+a {
+  color: #2E7D32;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+a:hover {
+  color: #1b4d23;
+  text-decoration: underline;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.08);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+input, textarea, select {
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  font-size: 1rem;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background: #f0f0f0;
+}
+::-webkit-scrollbar-thumb {
+  background: #2E7D32;
+  border-radius: 8px;
+}

@@ -3,35 +3,42 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-# Shared properties
+from typing import Optional
+from datetime import datetime
+from pydantic import BaseModel
+from .badge_type import BadgeTypeOut
+
 class BadgeBase(BaseModel):
-    badge_type: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    image_url: Optional[str] = None
+    badge_type_id: int
+    level: Optional[str] = None
 
-
-# Properties to receive via API on creation
 class BadgeCreate(BadgeBase):
-    badge_type: str
-    name: str
-    description: str
+    user_id: int
+    level: Optional[str] = None
 
+class BadgeUpdate(BaseModel):
+    level: Optional[str] = None
 
-# Properties to receive via API on update
-class BadgeUpdate(BadgeBase):
-    pass
+class BadgeAssign(BaseModel):
+    user_id: int
+    badge_type_id: int
+    level: Optional[str] = None
 
+class BadgeRevoke(BaseModel):
+    user_id: int
+    badge_id: int
 
 class BadgeInDBBase(BadgeBase):
     id: int
     user_id: int
     earned_date: datetime
+    level: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
+from pydantic import ConfigDict
 
-# Additional properties to return via API
-class Badge(BadgeInDBBase):
-    pass
+class BadgeOut(BadgeInDBBase):
+    badge_type_obj: Optional[BadgeTypeOut]
+    model_config = ConfigDict(from_attributes=True)

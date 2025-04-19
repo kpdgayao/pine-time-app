@@ -1,5 +1,11 @@
 import React, { useState } from "react";
 import api from "../api/client";
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Button, Select, MenuItem, FormControlLabel, Checkbox, Alert, Stack
+} from "@mui/material";
+import { SelectChangeEvent } from '@mui/material/Select';
+// Removed FormDialog.css import; all styling is now via MUI theme and components.
 
 interface Props {
   open: boolean;
@@ -8,6 +14,7 @@ interface Props {
 }
 
 const UserCreateDialog: React.FC<Props> = ({ open, onClose, onCreate }) => {
+  if (!open) return null;
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -25,19 +32,19 @@ const UserCreateDialog: React.FC<Props> = ({ open, onClose, onCreate }) => {
  * Handles input changes for both text/select and checkbox inputs.
  * Ensures type safety for the 'checked' property.
  */
-const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
   const { name, value } = e.target;
-  if (e.target instanceof HTMLInputElement && e.target.type === "checkbox") {
-    setForm((prev) => ({
-      ...prev,
-      [name]: (e.target as HTMLInputElement).checked,
-    }));
-  } else {
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  }
+  setForm(prev => ({ ...prev, [name]: value }));
+};
+
+const handleSelectChange = (e: SelectChangeEvent) => {
+  const name = e.target.name as string;
+  setForm(prev => ({ ...prev, [name]: e.target.value }));
+};
+
+const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, checked } = e.target;
+  setForm(prev => ({ ...prev, [name]: checked }));
 };
 
   /**
@@ -67,39 +74,92 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 };
 
-  if (!open) return null;
-
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={handleSubmit} style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 320 }}>
-        <h3>Create New User</h3>
-        <label>Full Name<br />
-          <input name="full_name" value={form.full_name} onChange={handleChange} required style={{ width: "100%" }} />
-        </label><br /><br />
-        <label>Email<br />
-          <input name="email" value={form.email} onChange={handleChange} required style={{ width: "100%" }} />
-        </label><br /><br />
-        <label>Username<br />
-          <input name="username" value={form.username} onChange={handleChange} required style={{ width: "100%" }} />
-        </label><br /><br />
-        <label>Password<br />
-          <input name="password" type="password" value={form.password} onChange={handleChange} required style={{ width: "100%" }} />
-        </label><br /><br />
-        <label>User Type<br />
-          <select name="user_type" value={form.user_type} onChange={handleChange} style={{ width: "100%" }}>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-            <option value="business">Business</option>
-          </select>
-        </label><br /><br />
-        <label>
-          <input type="checkbox" name="is_superuser" checked={form.is_superuser} onChange={handleChange} /> Superuser
-        </label><br /><br />
-        {error && <div style={{ color: "red" }}>{error}</div>}
-        <button type="submit" disabled={loading} style={{ marginRight: 8 }}>Create</button>
-        <button type="button" onClick={onClose} disabled={loading}>Cancel</button>
-      </form>
-    </div>
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>Create New User</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2}>
+          <TextField
+            label="Full Name"
+            name="full_name"
+            value={form.full_name}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            disabled={loading}
+            variant="outlined"
+          />
+          <TextField
+            label="Email"
+            name="email"
+            value={form.email}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            disabled={loading}
+            variant="outlined"
+            type="email"
+          />
+          <TextField
+            label="Username"
+            name="username"
+            value={form.username}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            disabled={loading}
+            variant="outlined"
+          />
+          <TextField
+            label="Password"
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            disabled={loading}
+            variant="outlined"
+          />
+          <Select
+            label="User Type"
+            name="user_type"
+            value={form.user_type}
+            onChange={handleSelectChange}
+            fullWidth
+            disabled={loading}
+            variant="outlined"
+          >
+            <MenuItem value="user">User</MenuItem>
+            <MenuItem value="admin">Admin</MenuItem>
+          </Select>
+          <FormControlLabel
+            control={
+              <Checkbox
+                name="is_superuser"
+                checked={form.is_superuser}
+                onChange={handleCheckboxChange}
+                disabled={loading}
+              />
+            }
+            label="Superuser"
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 1, p: 2 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <Stack direction="row" spacing={2} justifyContent="flex-end">
+          <Button type="button" onClick={onClose} disabled={loading} variant="outlined">Cancel</Button>
+          <Button type="button" onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
+            {loading ? "Creating..." : "Create"}
+          </Button>
+        </Stack>
+      </DialogActions>
+    </Dialog>
   );
 };
 

@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/client";
 import UserPointsBadgesDialog from "./UserPointsBadgesDialog";
-import UserEditDialog from "./UserEditDialog";
-import UserCreateDialog from "./UserCreateDialog";
+
+import {
+  Table, TableHead, TableRow, TableCell, TableBody, TablePagination,
+  Paper, Stack, Button, CircularProgress, Alert, IconButton, Typography
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 
 interface User {
   id: number;
@@ -17,36 +21,28 @@ interface User {
 const PAGE_SIZE = 10;
 
 const AdminUsersSection: React.FC = () => {
-  // Points & badges dialog state
-  const [pbDialogOpen, setPbDialogOpen] = useState(false);
-  const [pbUserId, setPbUserId] = useState<number | null>(null);
-  const [users, setUsers] = useState<any>([]); // Accept any to allow for flexible API responses
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [editUser, setEditUser] = useState<User | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
   const [page, setPage] = useState(1);
 
-
   // TODO: Replace with secure token retrieval
-  const token = localStorage.getItem("admin_token");
+  const token: string | null = localStorage.getItem("admin_token");
 
-  const fetchUsers = async (searchVal = search, pageVal = page) => {
-    setLoading(true);
-    setError(null);
+  const fetchUsers = async (pageVal = page) => {
     try {
       const params: any = { skip: (pageVal - 1) * PAGE_SIZE, limit: PAGE_SIZE };
-      if (searchVal) params.q = searchVal;
-      const res = await api.get('/users/', { params });
-      setUsers(res.data);
+      const res = await api.get('/users/', {
+        params,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (Array.isArray(res.data)) {
+        setUsers(res.data);
+      } else if (res.data && Array.isArray(res.data.items)) {
+        setUsers(res.data.items);
+      } else {
+        setUsers([]);
+      }
     } catch (err: any) {
-      setError(
-        err?.response?.data?.detail || "Failed to fetch users. Please try again."
-      );
-    } finally {
-      setLoading(false);
+      console.error(err);
     }
   };
 
@@ -55,144 +51,54 @@ const AdminUsersSection: React.FC = () => {
     // eslint-disable-next-line
   }, [page]);
 
-  const handleEdit = (user: User) => {
-    setEditUser(user);
-    setEditOpen(true);
-  };
-  const handleEditSave = (updated: User) => {
-    setUsers((prev: User[]) => prev.map((u: User) => (u.id === updated.id ? updated : u)));
-  };
-  const handleDeactivate = async (user: User) => {
-    if (!window.confirm(`Deactivate user ${user.username}?`)) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.put(
-        `/users/${user.id}`,
-        { ...user, is_active: false }
-      );
-      setUsers((prev: User[]) => prev.map((u: User) => (u.id === user.id ? res.data : u)));
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Failed to deactivate user.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleCreate = (user: User) => {
-    setUsers((prev: User[]) => [user, ...prev]);
-    setPage(1); // Show new user on first page
-  };
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetchUsers(search, 1);
-  };
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    fetchUsers(search, newPage);
-  };
-
-  // Filter users client-side if backend search not implemented
-  // Robust handling for API response formats (array, paginated dict, or unexpected)
-let usersArray: User[] = [];
-if (Array.isArray(users)) {
-  usersArray = users;
-} else if (users && typeof users === 'object' && Array.isArray(users.items)) {
-  usersArray = users.items;
-} else if (users == null) {
-  usersArray = [];
-} else {
-  // Unexpected format, log for debugging
-  console.error('Unexpected users data format:', users);
-  usersArray = [];
-}
-
-const filteredUsers = usersArray.filter(
-  (u) =>
-    u.username.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.full_name.toLowerCase().includes(search.toLowerCase())
-);
-
   return (
-    <div>
-      <h2>User Management</h2>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
-        <form onSubmit={handleSearch} style={{ flex: 1 }}>
-          <input
-            placeholder="Search by username, email, or name"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ padding: 8, width: 260, marginRight: 8 }}
-          />
-          <button type="submit" style={{ padding: "8px 16px" }}>Search</button>
-        </form>
-        <button onClick={() => setCreateOpen(true)} style={{ marginLeft: 16, padding: "8px 16px", background: "#2E7D32", color: "white", border: "none", borderRadius: 4 }}>
-          + Create User
-        </button>
-      </div>
-      {loading && <div>Loading users...</div>}
-      {error && <div style={{ color: "red" }}>{error}</div>}
-      <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ background: "#e0e0e0" }}>
-            <th>ID</th>
-            <th>Email</th>
-            <th>Username</th>
-            <th>Full Name</th>
-            <th>Type</th>
-            <th>Active</th>
-            <th>Superuser</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredUsers.length === 0 && (
-            <tr><td colSpan={8} style={{ textAlign: "center", color: "#999" }}>No users found.</td></tr>
-          )}
-          {filteredUsers.map((user) => (
-            <tr key={user.id} style={{ borderBottom: "1px solid #ccc" }}>
-              <td>{user.id}</td>
-              <td>{user.email}</td>
-              <td>{user.username}</td>
-              <td>{user.full_name}</td>
-              <td>{user.user_type}</td>
-              <td>{user.is_active ? "Yes" : "No"}</td>
-              <td>{user.is_superuser ? "Yes" : "No"}</td>
-              <td>
-                <button style={{ marginRight: 8 }} onClick={() => handleEdit(user)}>Edit</button>
-                <button style={{ marginRight: 8 }} onClick={() => { setPbUserId(user.id); setPbDialogOpen(true); }}>Points/Badges</button>
-                <button onClick={() => handleDeactivate(user)} style={{ color: "#c62828" }}>Deactivate</button>
-              </td>
-            </tr>
+    <Paper sx={{ p: 2, mb: 2 }} elevation={2}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h6">Users</Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => fetchUsers(1)}>
+          Refresh Users
+        </Button>
+      </Stack>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Full Name</TableCell>
+            <TableCell>Email</TableCell>
+            <TableCell>Username</TableCell>
+            <TableCell>User Type</TableCell>
+            <TableCell>Active</TableCell>
+            <TableCell>Superuser</TableCell>
+            <TableCell align="right">Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {users.map(user => (
+            <TableRow key={user.id} hover>
+              <TableCell>{user.full_name}</TableCell>
+              <TableCell>{user.email}</TableCell>
+              <TableCell>{user.username}</TableCell>
+              <TableCell>{user.user_type}</TableCell>
+              <TableCell>{user.is_active ? 'Yes' : 'No'}</TableCell>
+              <TableCell>{user.is_superuser ? 'Yes' : 'No'}</TableCell>
+              <TableCell align="right">
+                <Button size="small" onClick={() => fetchUsers(1)}>
+                  Refresh
+                </Button>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      {/* Pagination */}
-      <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
-        <button onClick={() => handlePageChange(page - 1)} disabled={page === 1} style={{ marginRight: 8 }}>Prev</button>
-        <span>Page {page}</span>
-        <button onClick={() => handlePageChange(page + 1)} disabled={filteredUsers.length < PAGE_SIZE} style={{ marginLeft: 8 }}>Next</button>
-      </div>
-      {/* Dialogs */}
-      <UserEditDialog
-        user={editUser}
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        onSave={handleEditSave}
+        </TableBody>
+      </Table>
+      <TablePagination
+        component="div"
+        count={users.length}
+        page={page - 1}
+        onPageChange={(_, newPage) => setPage(newPage + 1)}
+        rowsPerPage={PAGE_SIZE}
+        rowsPerPageOptions={[PAGE_SIZE]}
       />
-      <UserCreateDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreate={handleCreate}
-      />
-      <UserPointsBadgesDialog
-        userId={pbUserId}
-        open={pbDialogOpen}
-        onClose={() => setPbDialogOpen(false)}
-      />
-    </div>
+    </Paper>
   );
-};
+}
 
 export default AdminUsersSection;

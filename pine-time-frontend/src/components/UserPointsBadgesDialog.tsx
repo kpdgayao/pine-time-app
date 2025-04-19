@@ -95,117 +95,138 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
       .catch((err) => setError(err?.response?.data?.detail || "Failed to assign badge."));
   };
 
-  if (!open) return null;
-
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 400, maxWidth: 600, maxHeight: 600, overflow: "auto" }}>
-        <h3>User Points & Badges</h3>
-        {/* Analytics */}
-        <div style={{ marginBottom: 12, display: "flex", gap: 24 }}>
-          <div><strong>Points:</strong> {points}</div>
-          <div><strong>Badges:</strong> {badges.length}</div>
-          {rank && <div><strong>Leaderboard Rank:</strong> {rank} / {totalUsers}</div>}
-        </div>
-        <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-          <button onClick={() => setHistoryOpen(true)}>View History</button>
-          <button onClick={() => setBulkOpen(true)}>Bulk Assign</button>
-        </div>
-        {/* History dialog */}
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>User Points & Badges</DialogTitle>
+      <DialogContent>
+        <Stack direction="row" spacing={3} sx={{ mb: 2 }}>
+          <Typography><strong>Points:</strong> {points}</Typography>
+          <Typography><strong>Badges:</strong> {badges.length}</Typography>
+          {rank && <Typography><strong>Leaderboard Rank:</strong> {rank} / {totalUsers}</Typography>}
+        </Stack>
+        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+          <Button onClick={() => setHistoryOpen(true)} variant="outlined" size="small">View History</Button>
+          <Button onClick={() => setBulkOpen(true)} variant="outlined" size="small">Bulk Assign</Button>
+        </Stack>
         <PointsBadgesHistoryDialog
           userId={userId}
           open={historyOpen}
           onClose={() => setHistoryOpen(false)}
         />
-        {/* Bulk assign modal */}
-        {bulkOpen && (
-          <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.3)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 400, maxWidth: 500 }}>
-              <h4>Bulk Points/Badge Assignment</h4>
-              <div style={{ marginBottom: 8 }}>
-                <label>User IDs (comma-separated): </label>
-                <input type="text" style={{ width: 320 }}
-                  value={bulkUserIds.join(",")}
-                  onChange={e => setBulkUserIds(e.target.value.split(",").map(v => Number(v.trim())).filter(Boolean))}
-                  placeholder="e.g. 1,2,3" />
-              </div>
-              <div style={{ marginBottom: 8, display: "flex", gap: 8 }}>
-                <input type="number" min={1} value={bulkPoints} onChange={e => setBulkPoints(Number(e.target.value))} placeholder="Points to award" style={{ width: 120 }} />
-                <button onClick={() => {
-                  setBulkMsg("");
-                  api.post(`${API_BASE}/points/award_bulk`, { user_ids: bulkUserIds, points: bulkPoints }, { headers: { Authorization: `Bearer ${token}` } })
-                    .then(() => setBulkMsg("Points awarded!"))
-                    .catch(err => setBulkMsg(err?.response?.data?.detail || "Failed to award points."));
-                }} disabled={bulkUserIds.length === 0 || bulkPoints <= 0}>Bulk Award Points</button>
-              </div>
-              <div style={{ marginBottom: 8, display: "flex", gap: 8 }}>
-                <select value={bulkBadgeId ?? ""} onChange={e => setBulkBadgeId(Number(e.target.value))}>
-                  <option value="">Select badge</option>
-                  {allBadges.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-                <button onClick={() => {
-                  setBulkMsg("");
-                  api.post(`${API_BASE}/badges/assign_bulk`, { user_ids: bulkUserIds, badge_id: bulkBadgeId }, { headers: { Authorization: `Bearer ${token}` } })
-                    .then(() => setBulkMsg("Badge assigned!"))
-                    .catch(err => setBulkMsg(err?.response?.data?.detail || "Failed to assign badge."));
-                }} disabled={bulkUserIds.length === 0 || !bulkBadgeId}>Bulk Assign Badge</button>
-              </div>
-              {bulkMsg && <div style={{ color: bulkMsg.includes("Failed") ? "red" : "green" }}>{bulkMsg}</div>}
-              <div style={{ marginTop: 12, textAlign: "right" }}>
-                <button onClick={() => setBulkOpen(false)}>Close</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-          <input
+        <Dialog open={bulkOpen} onClose={() => setBulkOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Bulk Points/Badge Assignment</DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ minWidth: 300 }}>
+              <TextField
+                label="User IDs (comma-separated)"
+                value={bulkUserIds.join(",")}
+                onChange={e => setBulkUserIds(e.target.value.split(",").map(v => Number(v.trim())).filter(Boolean))}
+                placeholder="e.g. 1,2,3"
+                fullWidth
+              />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TextField
+                  type="number"
+                  label="Points to award"
+                  value={bulkPoints}
+                  onChange={e => setBulkPoints(Number(e.target.value))}
+                  sx={{ width: 120 }}
+                  inputProps={{ min: 1 }}
+                />
+                <Button
+                  onClick={() => {
+                    setBulkMsg("");
+                    api.post(`${API_BASE}/points/award_bulk`, { user_ids: bulkUserIds, points: bulkPoints }, { headers: { Authorization: `Bearer ${token}` } })
+                      .then(() => setBulkMsg("Points awarded!"))
+                      .catch(err => setBulkMsg(err?.response?.data?.detail || "Failed to award points."));
+                  }}
+                  disabled={bulkUserIds.length === 0 || bulkPoints <= 0}
+                  variant="contained"
+                >Bulk Award Points</Button>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TextField
+                  select
+                  label="Badge"
+                  value={bulkBadgeId ?? ""}
+                  onChange={e => setBulkBadgeId(Number(e.target.value))}
+                  sx={{ minWidth: 120 }}
+                >
+                  <MenuItem value="">Select badge</MenuItem>
+                  {allBadges.map(b => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
+                </TextField>
+                <Button
+                  onClick={() => {
+                    setBulkMsg("");
+                    api.post(`${API_BASE}/badges/assign_bulk`, { user_ids: bulkUserIds, badge_id: bulkBadgeId }, { headers: { Authorization: `Bearer ${token}` } })
+                      .then(() => setBulkMsg("Badge assigned!"))
+                      .catch(err => setBulkMsg(err?.response?.data?.detail || "Failed to assign badge."));
+                  }}
+                  disabled={bulkUserIds.length === 0 || !bulkBadgeId}
+                  variant="contained"
+                >Bulk Assign Badge</Button>
+              </Stack>
+              {bulkMsg && <Alert severity={bulkMsg.includes("Failed") ? "error" : "success"}>{bulkMsg}</Alert>}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setBulkOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+        <Stack direction="row" spacing={2} sx={{ mb: 2, mt: 2 }} alignItems="center">
+          <TextField
             type="number"
+            label="Points to award"
             value={awardPoints}
-            min={1}
             onChange={e => setAwardPoints(Number(e.target.value))}
-            placeholder="Points to award"
-            style={{ width: 100 }}
+            sx={{ width: 100 }}
+            inputProps={{ min: 1 }}
           />
-          <button onClick={handleAwardPoints} disabled={awardPoints <= 0}>Award</button>
-          <input
+          <Button onClick={handleAwardPoints} disabled={awardPoints <= 0} variant="contained">Award</Button>
+          <TextField
             type="number"
+            label="Points to redeem"
             value={redeemPoints}
-            min={1}
             onChange={e => setRedeemPoints(Number(e.target.value))}
-            placeholder="Points to redeem"
-            style={{ width: 100 }}
+            sx={{ width: 100 }}
+            inputProps={{ min: 1 }}
           />
-          <button onClick={handleRedeemPoints} disabled={redeemPoints <= 0}>Redeem</button>
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <strong>Badges:</strong>
-          <ul>
-            {badges.length === 0 && <li>No badges.</li>}
+          <Button onClick={handleRedeemPoints} disabled={redeemPoints <= 0} variant="contained" color="secondary">Redeem</Button>
+        </Stack>
+        <Box sx={{ mb: 2 }}>
+          <Typography fontWeight={600}>Badges:</Typography>
+          <Stack component="ul" spacing={1} sx={{ pl: 2 }}>
+            {badges.length === 0 && <Typography component="li">No badges.</Typography>}
             {badges.map(badge => (
               <li key={badge.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {badge.icon_url && <img src={badge.icon_url} alt={badge.name} style={{ width: 24, height: 24 }} />}
                 {badge.name} - {badge.description}
               </li>
             ))}
-          </ul>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <select value={badgeToAssign ?? ""} onChange={e => setBadgeToAssign(Number(e.target.value))}>
-            <option value="">Select badge</option>
+          </Stack>
+        </Box>
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+          <TextField
+            select
+            label="Assign Badge"
+            value={badgeToAssign ?? ""}
+            onChange={e => setBadgeToAssign(Number(e.target.value))}
+            sx={{ minWidth: 120 }}
+          >
+            <MenuItem value="">Select badge</MenuItem>
             {allBadges.filter(b => !badges.some(ub => ub.id === b.id)).map(badge => (
-              <option key={badge.id} value={badge.id}>{badge.name}</option>
+              <MenuItem key={badge.id} value={badge.id}>{badge.name}</MenuItem>
             ))}
-          </select>
-          <button onClick={handleAssignBadge} disabled={!badgeToAssign}>Assign Badge</button>
-        </div>
-        {actionMsg && <div style={{ color: "green", marginBottom: 8 }}>{actionMsg}</div>}
-        <div style={{ marginTop: 16, textAlign: "right" }}>
-          <button onClick={onClose}>Close</button>
-        </div>
-      </div>
-    </div>
-  );
+          </TextField>
+          <Button onClick={handleAssignBadge} disabled={!badgeToAssign} variant="contained">Assign Badge</Button>
+        </Stack>
+        {actionMsg && <Alert severity="success" sx={{ mb: 2 }}>{actionMsg}</Alert>}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+
 };
 
 export default UserPointsBadgesDialog;

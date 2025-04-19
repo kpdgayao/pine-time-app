@@ -1,29 +1,41 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
 
   return (
-    <nav style={{ display: 'flex', gap: '1rem', padding: '1rem', borderBottom: '1px solid #eee' }}>
-      <Link to="/">Events</Link>
-      <Link to="/leaderboard">Leaderboard</Link>
-      <Link to="/badges">Badges</Link>
-      <Link to="/points">Points</Link>
-      <Link to="/profile">Profile</Link>
-      {user && (user.is_superuser || user.user_type === 'admin') && (
-        <Link to="/admin">Admin Dashboard</Link>
-      )}
-      {user ? (
-        <button onClick={logout}>Logout</button>
-      ) : (
-        <>
-          <Link to="/login">Login</Link>
-          <Link to="/register">Register</Link>
-        </>
-      )}
-    </nav>
+    <AppBar position="static" color="primary" elevation={1}>
+      <Toolbar>
+        <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          Pine Time
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button color="inherit" component={RouterLink} to="/">Events</Button>
+          <Button color="inherit" component={RouterLink} to="/leaderboard">Leaderboard</Button>
+          <Button color="inherit" component={RouterLink} to="/badges">Badges</Button>
+          <Button color="inherit" component={RouterLink} to="/points">Points</Button>
+          <Button color="inherit" component={RouterLink} to="/profile">Profile</Button>
+          {(user && (user.is_superuser || user.user_type === 'admin')) && (
+            <Button color="inherit" component={RouterLink} to="/admin">Admin Dashboard</Button>
+          )}
+          {user ? (
+            <Button color="inherit" onClick={logout}>Logout</Button>
+          ) : (
+            <>
+              <Button color="inherit" component={RouterLink} to="/login">Login</Button>
+              <Button color="inherit" component={RouterLink} to="/register">Register</Button>
+            </>
+          )}
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 };
 

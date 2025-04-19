@@ -1,71 +1,81 @@
 import React, { useState } from "react";
-import TokenClaimsViewer from "../components/TokenClaimsViewer";
+import {
+  Box,
+  CssBaseline,
+  Paper,
+  Tabs,
+  Tab,
+  Container,
+} from '@mui/material';
+
+
+import AdminUsersSection from "../components/AdminUsersSection";
+import AdminEventsSection from "../components/AdminEventsSection";
+import PointsBadgesLeaderboard from "../components/PointsBadgesLeaderboard";
+import { useAuth } from '../contexts/AuthContext';
 
 // Simple placeholder components for each admin section
 const OverviewSection = () => <div>Overview (Key Stats, Analytics)</div>;
-import AdminUsersSection from "../components/AdminUsersSection";
 const UsersSection = () => <AdminUsersSection />;
-import AdminEventsSection from "../components/AdminEventsSection";
 const EventsSection = () => <AdminEventsSection />;
-import PointsBadgesLeaderboard from "../components/PointsBadgesLeaderboard";
-const PointsSection = () => <div>Points Management (Award, Redeem, Leaderboard)</div>;
-const BadgesSection = () => <div>Badges Management (View, Assign)</div>;
+import AdminPointsTransactionsTable from "../components/AdminPointsTransactionsTable";
+
+const PointsSection = () => (
+  <>
+    <PointsBadgesLeaderboard />
+    <AdminPointsTransactionsTable />
+  </>
+);
+import AdminBadgesSection from "../components/AdminBadgesSection";
+const BadgesSection = () => <AdminBadgesSection />;
 
 const sections = [
-  { key: "overview", label: "Overview", component: <OverviewSection /> },
-  { key: "users", label: "Users", component: <UsersSection /> },
-  { key: "events", label: "Events", component: <EventsSection /> },
-  { key: "points", label: "Points", component: <PointsSection /> },
-  { key: "badges", label: "Badges", component: <BadgesSection /> },
+  { key: "overview", label: "Overview", component: OverviewSection },
+  { key: "users", label: "Users", component: UsersSection },
+  { key: "events", label: "Events", component: EventsSection },
+  { key: "points", label: "Points", component: PointsSection },
+  { key: "badges", label: "Badges", component: BadgesSection },
 ];
 
 const AdminDashboardPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState("overview");
 
+  // Section tab handler
+  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+    setActiveSection(newValue);
+  };
+
+  const sectionIndex = sections.findIndex((s) => s.key === activeSection);
+  const SectionComponent = sections[sectionIndex]?.component || (() => null);
+
   return (
-    <div style={{ display: "flex", height: "100vh" }}>
-      <div style={{ padding: 32 }}>
-        <TokenClaimsViewer />
-        <h1>Admin Dashboard</h1>
-        <PointsBadgesLeaderboard />
-      </div>
-      {/* Sidebar Navigation */}
-      <nav
-        style={{
-          width: 220,
-          background: "#2E7D32",
-          color: "white",
-          display: "flex",
-          flexDirection: "column",
-          padding: "2rem 0.5rem",
-        }}
-      >
-        <h2 style={{ margin: "0 0 2rem 0", textAlign: "center" }}>Admin</h2>
-        {sections.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setActiveSection(s.key)}
-            style={{
-              background: activeSection === s.key ? "#1B5E20" : "transparent",
-              color: "white",
-              border: "none",
-              padding: "1rem",
-              textAlign: "left",
-              cursor: "pointer",
-              fontWeight: activeSection === s.key ? "bold" : "normal",
-              borderRadius: 6,
-              marginBottom: 8,
-            }}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
-      {/* Main Content */}
-      <main style={{ flex: 1, padding: "2rem", background: "#f9f9f9" }}>
-        {sections.find((s) => s.key === activeSection)?.component}
-      </main>
-    </div>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <CssBaseline />
+
+      <Paper elevation={2} sx={{ width: '100%', p: 2, boxSizing: 'border-box', m: 0, borderRadius: 0 }}>
+        <Tabs
+          value={activeSection}
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ mb: 2 }}
+        >
+          {sections.map((section) => (
+            <Tab
+              key={section.key}
+              label={section.label}
+              value={section.key}
+              sx={{ fontWeight: 600 }}
+            />
+          ))}
+        </Tabs>
+        <Box sx={{ mt: 2 }}>
+          <SectionComponent />
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 

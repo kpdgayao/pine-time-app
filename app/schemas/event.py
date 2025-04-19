@@ -37,7 +37,7 @@ class EventInDBBase(EventBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Additional properties to return via API
@@ -53,7 +53,7 @@ class EventStats(BaseModel):
     # Add more fields as needed for stats
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Event(EventInDBBase):
     pass

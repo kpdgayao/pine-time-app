@@ -3,6 +3,13 @@ import api from "../api/client";
 import EventEditDialog from "./EventEditDialog";
 import EventRegistrationsDialog from "./EventRegistrationsDialog";
 import EventStatsChart from "./EventStatsChart";
+import {
+  Table, TableHead, TableRow, TableCell, TableBody, TablePagination,
+  Paper, Stack, Button, CircularProgress, Alert, IconButton, Dialog, DialogTitle, DialogActions, Typography
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface EventBase {
   title: string;
@@ -152,32 +159,80 @@ const eventsForChart = eventsArray.map((e) => ({
 }));
 
   return (
-    <div>
-      <h2>Event Management</h2>
-      <div style={{ marginBottom: 16, display: "flex", gap: 32 }}>
-        <div><strong>Total Events:</strong> {totalEvents}</div>
-        <div><strong>Active Events:</strong> {activeEvents}</div>
-        <div><strong>Max Total Participants:</strong> {totalParticipants}</div>
-        <div><strong>Total Registrations:</strong> {totalRegistrations}</div>
-        <div><strong>Total Revenue:</strong> {totalRevenue}</div>
-      </div>
-      <div style={{ marginBottom: 24 }}>
-        <EventStatsChart events={eventsForChart} />
-      </div>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
-        <form onSubmit={handleSearch} style={{ flex: 1 }}>
-          <input
-            placeholder="Search by title, description, or location"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ padding: 8, width: 260, marginRight: 8 }}
-          />
-          <button type="submit" style={{ padding: "8px 16px" }}>Search</button>
-        </form>
-        <button onClick={handleCreate} style={{ marginLeft: 16, padding: "8px 16px", background: "#2E7D32", color: "white", border: "none", borderRadius: 4 }}>
-          + Create Event
-        </button>
-      </div>
+    <Paper sx={{ p: 2, mb: 2 }} elevation={2}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h6">Event Management</Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
+          Add Event
+        </Button>
+      </Stack>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography><strong>Total Events:</strong> {totalEvents}</Typography>
+        <Typography><strong>Active Events:</strong> {activeEvents}</Typography>
+        <Typography><strong>Max Total Participants:</strong> {totalParticipants}</Typography>
+        <Typography><strong>Total Revenue:</strong> {totalRevenue}</Typography>
+      </Stack>
+      <EventStatsChart events={eventsForChart} />
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {loading ? (
+        <Stack alignItems="center" py={4}><CircularProgress /></Stack>
+      ) : (
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>Title</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Start</TableCell>
+              <TableCell>End</TableCell>
+              <TableCell>Location</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredEvents.map(event => (
+              <TableRow key={event.id} hover>
+                <TableCell>{event.id}</TableCell>
+                <TableCell>{event.title}</TableCell>
+                <TableCell>{event.event_type}</TableCell>
+                <TableCell>{new Date(event.start_time).toLocaleString()}</TableCell>
+                <TableCell>{new Date(event.end_time).toLocaleString()}</TableCell>
+                <TableCell>{event.location}</TableCell>
+                <TableCell>{event.is_active ? 'Active' : 'Inactive'}</TableCell>
+                <TableCell align="right">
+                  <IconButton color="primary" onClick={() => handleEdit(event)} size="small">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton color="error" onClick={() => handleDelete(event)} size="small">
+                    <DeleteIcon />
+                  </IconButton>
+                  <IconButton color="primary" onClick={() => { setRegEventId(event.id); setRegDialogOpen(true); }} size="small">
+                    Registrations
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      <TablePagination
+        rowsPerPageOptions={[10, 25, 50]}
+        component="div"
+        count={eventsArray.length}
+        rowsPerPage={PAGE_SIZE}
+        page={page - 1}
+        onPageChange={(e, newPage) => handlePageChange(newPage + 1)}
+      />
+      <form onSubmit={handleSearch} style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+        <input
+          placeholder="Search by title, description, or location"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ padding: 8, width: 260, marginRight: 8 }}
+        />
+        <button type="submit" style={{ padding: "8px 16px" }}>Search</button>
+      </form>
       {loading && <div>Loading events...</div>}
       {error && <div style={{ color: "red" }}>{error}</div>}
       <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse" }}>
@@ -242,7 +297,7 @@ const eventsForChart = eventsArray.map((e) => ({
         open={regDialogOpen}
         onClose={() => setRegDialogOpen(false)}
       />
-    </div>
+    </Paper>
   );
 };
 

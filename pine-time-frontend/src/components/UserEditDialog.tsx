@@ -1,5 +1,11 @@
 import React, { useState } from "react";
 import api from "../api/client";
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Button, Stack, Select, MenuItem, FormControlLabel, Checkbox, Alert
+} from "@mui/material";
+import { SelectChangeEvent } from "@mui/material/Select";
+// Removed custom CSS; all styling is now via MUI theme and components.
 
 interface User {
   id: number;
@@ -21,9 +27,24 @@ interface Props {
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
+  // Handler functions for correct event typing
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  }
+  function handleSelectChange(e: SelectChangeEvent) {
+    const name = e.target.name as string;
+    setForm(prev => ({ ...prev, [name]: e.target.value }));
+  }
+  function handleCheckboxChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const { name, checked } = e.target;
+    setForm(prev => ({ ...prev, [name]: checked }));
+  }
+
   const [form, setForm] = useState({
     full_name: user?.full_name || "",
     email: user?.email || "",
+    username: user?.username || "",
     user_type: user?.user_type || "user",
     is_active: user?.is_active ?? true,
     is_superuser: user?.is_superuser ?? false,
@@ -36,6 +57,7 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
       setForm({
         full_name: user.full_name,
         email: user.email,
+        username: user.username,
         user_type: user.user_type,
         is_active: user.is_active,
         is_superuser: user.is_superuser,
@@ -44,16 +66,6 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
   }, [user]);
 
   const token = localStorage.getItem("admin_token");
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const target = e.target as HTMLInputElement | HTMLSelectElement;
-    const { name, value, type } = target;
-    const checked = (target instanceof HTMLInputElement) ? target.checked : undefined;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,34 +88,93 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
   if (!open || !user) return null;
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={handleSubmit} style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 320 }}>
-        <h3>Edit User</h3>
-        <label>Full Name<br />
-          <input name="full_name" value={form.full_name} onChange={handleChange} required style={{ width: "100%" }} />
-        </label><br /><br />
-        <label>Email<br />
-          <input name="email" value={form.email} onChange={handleChange} required style={{ width: "100%" }} />
-        </label><br /><br />
-        <label>User Type<br />
-          <select name="user_type" value={form.user_type} onChange={handleChange} style={{ width: "100%" }}>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-            <option value="business">Business</option>
-          </select>
-        </label><br /><br />
-        <label>
-          <input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange} /> Active
-        </label>
-        <label style={{ marginLeft: 16 }}>
-          <input type="checkbox" name="is_superuser" checked={form.is_superuser} onChange={handleChange} /> Superuser
-        </label><br /><br />
-        {error && <div style={{ color: "red" }}>{error}</div>}
-        <button type="submit" disabled={loading} style={{ marginRight: 8 }}>Save</button>
-        <button type="button" onClick={onClose} disabled={loading}>Cancel</button>
-      </form>
-    </div>
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>Edit User</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2}>
+          <TextField
+            label="Full Name"
+            name="full_name"
+            value={form.full_name}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            disabled={loading}
+            variant="outlined"
+          />
+          <TextField
+            label="Email"
+            name="email"
+            value={form.email}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            disabled={loading}
+            variant="outlined"
+            type="email"
+          />
+          <TextField
+            label="Username"
+            name="username"
+            value={form.username}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            disabled={loading}
+            variant="outlined"
+          />
+          <Select
+            label="User Type"
+            name="user_type"
+            value={form.user_type}
+            onChange={handleSelectChange}
+            fullWidth
+            disabled={loading}
+            variant="outlined"
+          >
+            <MenuItem value="user">User</MenuItem>
+            <MenuItem value="admin">Admin</MenuItem>
+          </Select>
+          <FormControlLabel
+            control={
+              <Checkbox
+                name="is_active"
+                checked={form.is_active}
+                onChange={handleCheckboxChange}
+                disabled={loading}
+              />
+            }
+            label="Active"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                name="is_superuser"
+                checked={form.is_superuser}
+                onChange={handleCheckboxChange}
+                disabled={loading}
+              />
+            }
+            label="Superuser"
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 1, p: 2 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        <Stack direction="row" spacing={2} justifyContent="flex-end">
+          <Button type="button" onClick={onClose} disabled={loading} variant="outlined">Cancel</Button>
+          <Button type="button" onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
+            {loading ? "Saving..." : "Save"}
+          </Button>
+        </Stack>
+      </DialogActions>
+    </Dialog>
   );
 };
+
 
 export default UserEditDialog;

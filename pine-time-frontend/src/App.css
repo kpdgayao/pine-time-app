@@ -3,6 +3,8 @@
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .logo {
@@ -12,7 +14,7 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em var(--color-link, #646cffaa));
 }
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
@@ -35,8 +37,13 @@
 
 .card {
   padding: 2em;
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  border-radius: 12px;
+  box-shadow: var(--color-card-shadow);
+  border: 1px solid var(--color-border);
 }
 
 .read-the-docs {
-  color: #888;
+  color: var(--color-link-hover, #888);
 }

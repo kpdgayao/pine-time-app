@@ -20,6 +20,10 @@ engine = create_engine(
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Define Base for SQLAlchemy models
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
 # Dependency to get DB session
 def get_db():
     """

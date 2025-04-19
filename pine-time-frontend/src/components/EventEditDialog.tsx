@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/client";
+import { Dialog, DialogContent, DialogActions, TextField, Stack, Button, Alert, MenuItem, Checkbox, FormControlLabel } from "@mui/material";
+// Removed FormDialog.css; all styling is now via MUI theme and components.
 
 interface EventBase {
   title: string;
@@ -141,76 +143,174 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
   if (!open) return null;
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={handleSubmit} style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 350, maxWidth: 500 }}>
-        <h3>{isCreate ? "Create Event" : "Edit Event"}</h3>
-        <label>Title<br />
-          <input name="title" value={form.title} onChange={handleChange} required style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        {validationErrors["title"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["title"]}</div>}
-        <br />
-        <label>Description<br />
-          <textarea name="description" value={form.description} onChange={handleChange} required style={{ width: "100%" }} rows={3} disabled={loading}/>
-        </label>
-        {validationErrors["description"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["description"]}</div>}
-        <br />
-        <label>Event Type<br />
-          <select name="event_type" value={form.event_type} onChange={handleChange} style={{ width: "100%" }} disabled={loading}>
-            <option value="general">General</option>
-            <option value="trivia">Trivia</option>
-            <option value="game">Game</option>
-            <option value="mystery">Murder Mystery</option>
-            <option value="workshop">Workshop</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <br />
-        <label>Location<br />
-          <input name="location" value={form.location} onChange={handleChange} required style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        {validationErrors["location"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["location"]}</div>}
-        <br />
-        <label>Start Time<br />
-          <input name="start_time" type="datetime-local" value={form.start_time.slice(0,16)} onChange={handleChange} required style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        {validationErrors["start_time"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["start_time"]}</div>}
-        <br />
-        <label>End Time<br />
-          <input name="end_time" type="datetime-local" value={form.end_time.slice(0,16)} onChange={handleChange} required style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        {validationErrors["end_time"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["end_time"]}</div>}
-        <br />
-        <label>Max Participants<br />
-          <input name="max_participants" type="number" min={1} value={form.max_participants} onChange={handleChange} required style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        {validationErrors["max_participants"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["max_participants"]}</div>}
-        <br />
-        <label>Points Reward<br />
-          <input name="points_reward" type="number" min={0} value={form.points_reward} onChange={handleChange} required style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        {validationErrors["points_reward"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["points_reward"]}</div>}
-        <br />
-        <label>Image URL<br />
-          <input name="image_url" value={form.image_url || ""} onChange={handleChange} style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        <br />
-        <label>Price<br />
-          <input name="price" type="number" min={0} value={form.price || 0} onChange={handleChange} style={{ width: "100%" }} disabled={loading}/>
-        </label>
-        {validationErrors["price"] && <div style={{ color: "#d32f2f", fontSize: 13 }}>{validationErrors["price"]}</div>}
-        <br />
-        <label>
-          <input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange} disabled={loading}/> Active
-        </label>
-        <br /><br />
-        {error && <div style={{ color: "#d32f2f", marginBottom: 8 }}>{error}</div>}
-        {success && <div style={{ color: "#388e3c", marginBottom: 8 }}>{success}</div>}
-        <button type="submit" disabled={loading} style={{ marginRight: 8, minWidth: 90 }}>
-          {loading ? (isCreate ? "Creating..." : "Saving...") : (isCreate ? "Create" : "Save")}
-        </button>
-        <button type="button" onClick={onClose} disabled={loading}>Cancel</button>
-      </form>
-    </div>
+    <Dialog open={open} onClose={onClose}>
+      <DialogContent>
+        <form onSubmit={handleSubmit} autoComplete="off">
+          <Stack spacing={2}>
+            <TextField
+              label="Title"
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              fullWidth
+              required
+              disabled={loading}
+              variant="outlined"
+              error={!!validationErrors["title"]}
+              helperText={validationErrors["title"] || ''}
+            />
+            <TextField
+              label="Description"
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              fullWidth
+              multiline
+              minRows={2}
+              required
+              disabled={loading}
+              variant="outlined"
+              error={!!validationErrors["description"]}
+              helperText={validationErrors["description"] || ''}
+            />
+            <TextField
+              label="Event Type"
+              name="event_type"
+              value={form.event_type}
+              onChange={handleChange}
+              fullWidth
+              required
+              disabled={loading}
+              select
+              variant="outlined"
+            >
+              <MenuItem value="general">General</MenuItem>
+              <MenuItem value="trivia">Trivia</MenuItem>
+              <MenuItem value="game">Game</MenuItem>
+              <MenuItem value="mystery">Murder Mystery</MenuItem>
+              <MenuItem value="workshop">Workshop</MenuItem>
+              <MenuItem value="other">Other</MenuItem>
+            </TextField>
+            <TextField
+              label="Location"
+              name="location"
+              value={form.location}
+              onChange={handleChange}
+              fullWidth
+              required
+              disabled={loading}
+              variant="outlined"
+              error={!!validationErrors["location"]}
+              helperText={validationErrors["location"] || ''}
+            />
+            <TextField
+              label="Start Time"
+              name="start_time"
+              type="datetime-local"
+              value={form.start_time}
+              onChange={handleChange}
+              fullWidth
+              required
+              disabled={loading}
+              InputLabelProps={{ shrink: true }}
+              variant="outlined"
+              error={!!validationErrors["start_time"]}
+              helperText={validationErrors["start_time"] || ''}
+            />
+            <TextField
+              label="End Time"
+              name="end_time"
+              type="datetime-local"
+              value={form.end_time}
+              onChange={handleChange}
+              fullWidth
+              required
+              disabled={loading}
+              InputLabelProps={{ shrink: true }}
+              variant="outlined"
+              error={!!validationErrors["end_time"]}
+              helperText={validationErrors["end_time"] || ''}
+            />
+            <TextField
+              label="Max Participants"
+              name="max_participants"
+              type="number"
+              value={form.max_participants}
+              onChange={handleChange}
+              fullWidth
+              required
+              disabled={loading}
+              variant="outlined"
+              error={!!validationErrors["max_participants"]}
+              helperText={validationErrors["max_participants"] || ''}
+            />
+            <TextField
+              label="Points Reward"
+              name="points_reward"
+              type="number"
+              value={form.points_reward}
+              onChange={handleChange}
+              fullWidth
+              required
+              disabled={loading}
+              variant="outlined"
+              error={!!validationErrors["points_reward"]}
+              helperText={validationErrors["points_reward"] || ''}
+            />
+            <TextField
+              label="Image URL"
+              name="image_url"
+              value={form.image_url || ""}
+              onChange={handleChange}
+              fullWidth
+              disabled={loading}
+              variant="outlined"
+            />
+            <TextField
+              label="Price"
+              name="price"
+              type="number"
+              value={form.price || 0}
+              onChange={handleChange}
+              fullWidth
+              disabled={loading}
+              variant="outlined"
+              error={!!validationErrors["price"]}
+              helperText={validationErrors["price"] || ''}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  name="is_active"
+                  checked={form.is_active}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              }
+              label="Active"
+            />
+          </Stack>
+        </form>
+      </DialogContent>
+      <DialogActions sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 1, p: 2 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
+        <Stack direction="row" spacing={2} justifyContent="flex-end">
+          <Button onClick={onClose} disabled={loading} variant="outlined">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
+            {isCreate ? "Create" : loading ? "Saving..." : "Save"}
+          </Button>
+        </Stack>
+      </DialogActions>
+    </Dialog>
   );
 };
 

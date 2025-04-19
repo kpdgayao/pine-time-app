@@ -190,7 +190,7 @@ def read_badges(
     return available_badges[skip:skip+limit]
 
 
-@router.get("/me", response_model=List[schemas.Badge])
+@router.get("/me", response_model=List[schemas.BadgeOut])
 def read_user_badges(
     db: Session = Depends(dependencies.get_db),
     current_user: models.User = Depends(dependencies.get_current_active_user),
@@ -204,6 +204,20 @@ def read_user_badges(
         models.Badge.user_id == current_user.id
     ).all()
     
+    return badges
+
+@router.get("/users/{user_id}", response_model=List[schemas.BadgeOut])
+def read_badges_for_user(
+    user_id: int,
+    db: Session = Depends(dependencies.get_db),
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+) -> Any:
+    """
+    Get all badges for a specific user (admin only).
+    """
+    if not (current_user.is_superuser or getattr(current_user, 'user_type', None) == "admin"):
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    badges = db.query(models.Badge).filter(models.Badge.user_id == user_id).all()
     return badges
 
 
@@ -317,7 +331,7 @@ def read_user_badges_detailed(
     return badge_categories
 
 
-@router.get("/{badge_id}", response_model=schemas.Badge)
+@router.get("/{badge_id}", response_model=schemas.BadgeOut)
 def read_badge(
     *,
     db: Session = Depends(dependencies.get_db),

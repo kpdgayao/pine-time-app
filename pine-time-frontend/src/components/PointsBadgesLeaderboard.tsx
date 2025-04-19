@@ -19,11 +19,12 @@ const PointsBadgesLeaderboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<'all_time' | 'weekly' | 'monthly'>('all_time');
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    api.get('/points/leaderboard')
+    api.get(`/points/leaderboard?time_period=${timePeriod}`)
       .then(res => {
         // Support both array and object (paginated) formats
         if (Array.isArray(res.data)) {
@@ -36,7 +37,7 @@ const PointsBadgesLeaderboard: React.FC = () => {
       })
       .catch(err => setError(err?.response?.data?.detail || "Failed to fetch leaderboard."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [timePeriod]);
 
   const filtered = users.filter(u =>
     (u.full_name || u.username).toLowerCase().includes(search.toLowerCase()) ||
@@ -59,7 +60,18 @@ const PointsBadgesLeaderboard: React.FC = () => {
   return (
     <div style={{ marginBottom: 32 }}>
       <h3>Points & Badges Leaderboard</h3>
-      <div style={{ display: "flex", gap: 16, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 16, marginBottom: 8, alignItems: 'center' }}>
+        <label htmlFor="leaderboard-time-period">Time Period: </label>
+        <select
+          id="leaderboard-time-period"
+          value={timePeriod}
+          onChange={e => setTimePeriod(e.target.value as 'all_time' | 'weekly' | 'monthly')}
+          style={{ padding: 4 }}
+        >
+          <option value="all_time">All Time</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
         <input
           type="text"
           value={search}

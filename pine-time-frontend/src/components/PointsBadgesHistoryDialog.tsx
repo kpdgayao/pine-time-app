@@ -60,53 +60,58 @@ const PointsBadgesHistoryDialog: React.FC<Props> = ({ userId, open, onClose }) =
   if (!open) return null;
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 400, maxWidth: 700, maxHeight: 600, overflow: "auto" }}>
-        <h3>Points & Badges History</h3>
-        <div style={{ display: "flex", gap: 16, marginBottom: 8 }}>
-          <input
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>Points & Badges History</DialogTitle>
+      <DialogContent>
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }} alignItems="center">
+          <TextField
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by type, admin, badge"
-            style={{ padding: 4, width: 220 }}
+            size="small"
+            sx={{ width: 220 }}
           />
-          <button onClick={handleExport} disabled={exporting || filtered.length === 0}>
+          <Button onClick={handleExport} disabled={exporting || filtered.length === 0} variant="outlined" size="small">
             {exporting ? "Exporting..." : "Export CSV"}
-          </button>
-        </div>
-        {loading && <div>Loading...</div>}
-        {error && <div style={{ color: "red" }}>{error}</div>}
-        <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#e0e0e0" }}>
-              <th>Time</th>
-              <th>Type</th>
-              <th>Points</th>
-              <th>Badge</th>
-              <th>Admin</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: "center", color: "#999" }}>No history found.</td></tr>
-            )}
-            {filtered.map(entry => (
-              <tr key={entry.id} style={{ borderBottom: "1px solid #ccc" }}>
-                <td>{new Date(entry.timestamp).toLocaleString()}</td>
-                <td>{entry.type.replace("_", " ")}</td>
-                <td>{entry.points ?? "-"}</td>
-                <td>{entry.badge_name ?? "-"}</td>
-                <td>{entry.admin_name ?? "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 16, textAlign: "right" }}>
-          <button onClick={onClose}>Close</button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Stack>
+        {loading && <Typography>Loading...</Typography>}
+        {error && <Alert severity="error">{error}</Alert>}
+        <Box sx={{ overflowX: 'auto', mt: 2 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Time</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Points</TableCell>
+                <TableCell>Badge</TableCell>
+                <TableCell>Admin</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} sx={{ textAlign: "center", color: "#999" }}>No history found.</TableCell>
+                </TableRow>
+              )}
+              {filtered.map(entry => (
+                <TableRow key={entry.id}>
+                  <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
+                  <TableCell>{entry.type.replace("_", " ")}</TableCell>
+                  <TableCell>{entry.points ?? "-"}</TableCell>
+                  <TableCell>{entry.badge_name ?? "-"}</TableCell>
+                  <TableCell>{entry.admin_name ?? "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

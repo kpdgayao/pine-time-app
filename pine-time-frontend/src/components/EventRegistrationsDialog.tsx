@@ -1,6 +1,22 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/client";
 import { exportToCsv } from "./exportToCsv";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Button,
+  Stack,
+  Alert,
+  Typography,
+  CircularProgress
+} from "@mui/material";
 
 interface Registration {
   id: number;
@@ -89,65 +105,81 @@ const EventRegistrationsDialog: React.FC<Props> = ({ eventId, open, onClose }) =
   if (!open) return null;
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "white", padding: 24, borderRadius: 8, minWidth: 400, maxWidth: 700, maxHeight: 600, overflow: "auto" }}>
-        <h3>Event Registrations</h3>
-        <div style={{ marginBottom: 12, display: "flex", gap: 32 }}>
-          <div><strong>Total Registrations:</strong> {registrationCount}</div>
-          <div><strong>Approved:</strong> {approvedCount}</div>
-          <div><strong>Attendance Rate:</strong> {attendanceRate}%</div>
-          <div><strong>Revenue:</strong> {totalRevenue}</div>
-        </div>
-        <div style={{ marginBottom: 12, textAlign: "right" }}>
-          <button onClick={handleExport} disabled={exporting || registrations.length === 0}>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>Event Registrations</DialogTitle>
+      <DialogContent sx={{ minWidth: 400, maxWidth: 700, maxHeight: 600 }}>
+        <Stack direction="row" spacing={4} sx={{ mb: 2 }}>
+          <Typography variant="body2"><strong>Total Registrations:</strong> {registrationCount}</Typography>
+          <Typography variant="body2"><strong>Approved:</strong> {approvedCount}</Typography>
+          <Typography variant="body2"><strong>Attendance Rate:</strong> {attendanceRate}%</Typography>
+          <Typography variant="body2"><strong>Revenue:</strong> {totalRevenue}</Typography>
+        </Stack>
+        <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
+          <Button onClick={handleExport} disabled={exporting || registrations.length === 0} variant="outlined">
             {exporting ? "Exporting..." : "Export CSV"}
-          </button>
-        </div>
-        {loading && <div>Loading registrations...</div>}
-        {error && <div style={{ color: "red" }}>{error}</div>}
-        <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#e0e0e0" }}>
-              <th>ID</th>
-              <th>User</th>
-              <th>Status</th>
-              <th>Payment</th>
-              <th>Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {registrations.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: "center", color: "#999" }}>No registrations found.</td></tr>
+          </Button>
+        </Stack>
+        {loading && (
+          <Stack alignItems="center" sx={{ my: 3 }}>
+            <CircularProgress size={32} />
+            <Typography variant="body2" sx={{ mt: 1 }}>Loading registrations...</Typography>
+          </Stack>
+        )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        )}
+        <Table size="small" sx={{ mt: 1 }}>
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>User</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Payment</TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {registrations.length === 0 && !loading && (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ color: '#999' }}>
+                  No registrations found.
+                </TableCell>
+              </TableRow>
             )}
             {registrations.map((reg) => (
-              <tr key={reg.id} style={{ borderBottom: "1px solid #ccc" }}>
-                <td>{reg.id}</td>
-                <td>{reg.user ? `${reg.user.full_name} (${reg.user.email})` : reg.user_id}</td>
-                <td>{reg.status}</td>
-                <td>{reg.payment_status}</td>
-                <td>{new Date(reg.registration_date).toLocaleString()}</td>
-                <td>
-                  {statusActions.map((action) => (
-                    <button
-                      key={action.next}
-                      style={{ marginRight: 6, padding: "2px 8px", fontSize: 13 }}
-                      disabled={actionLoading === reg.id || reg.status === action.next}
-                      onClick={() => handleStatusChange(reg.id, action.next)}
-                    >
-                      {action.label}
-                    </button>
-                  ))}
-                </td>
-              </tr>
+              <TableRow key={reg.id}>
+                <TableCell>{reg.id}</TableCell>
+                <TableCell>{reg.user ? `${reg.user.full_name} (${reg.user.email})` : reg.user_id}</TableCell>
+                <TableCell>{reg.status}</TableCell>
+                <TableCell>{reg.payment_status}</TableCell>
+                <TableCell>{new Date(reg.registration_date).toLocaleString()}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    {statusActions.map((action) => (
+                      <Button
+                        key={action.next}
+                        size="small"
+                        variant="contained"
+                        color={action.next === "approved" ? "success" : action.next === "rejected" ? "error" : "warning"}
+                        disabled={actionLoading === reg.id || reg.status === action.next}
+                        onClick={() => handleStatusChange(reg.id, action.next)}
+                        sx={{ minWidth: 0, px: 1, fontSize: 13 }}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </Stack>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 16, textAlign: "right" }}>
-          <button onClick={onClose}>Close</button>
-        </div>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </DialogContent>
+      <DialogActions sx={{ justifyContent: "flex-end" }}>
+        <Button onClick={onClose} variant="outlined">Close</Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
