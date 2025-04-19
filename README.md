@@ -1,5 +1,9 @@
 # Pine Time Experience Baguio
 
+> **Migration Note (April 2025):**
+>
+> The Pine Time application now features a modern React frontend (Vite + TypeScript) for end users, in addition to the legacy Streamlit admin dashboard. All new user-facing features are being developed in React. See below for updated setup instructions and project structure.
+
 A web application for Pine Time Experience Baguio, a community that hosts trivia nights, murder mysteries, and game nights in Baguio City. The app connects locals with local businesses and artisans.
 
 ## Features
@@ -20,7 +24,7 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 
 ```
 pine-time-app/
-├── admin_dashboard/       # Streamlit frontend applications
+├── admin_dashboard/       # Streamlit admin dashboard (legacy/admin)
 │   ├── pages/             # Dashboard page components
 │   ├── utils/             # Utility modules (auth, API, DB, connection)
 │   ├── app.py             # Admin dashboard entry point
@@ -33,6 +37,11 @@ pine-time-app/
 │   ├── schemas/           # Pydantic schemas
 │   ├── services/          # Business logic
 │   └── main.py            # Backend entry point
+├── pine-time-frontend/    # React frontend (Vite + TypeScript)
+│   ├── src/               # React source code (components, pages, hooks, types, utils)
+│   ├── public/            # Static assets
+│   ├── package.json       # React frontend dependencies
+│   └── ...
 ├── tests/                 # Comprehensive test suite
 │   ├── api/               # API tests
 │   ├── frontend/          # Frontend tests
@@ -42,11 +51,15 @@ pine-time-app/
 └── requirements.txt       # Backend dependencies
 ```
 
+**Note:** The project now supports both a modern React frontend (for users) and a Streamlit-based admin dashboard. The React frontend is located in `pine-time-frontend/` and is the recommended UI for end users.
+
 ## Tech Stack
 
 - **Backend**: FastAPI with SQLAlchemy ORM
 - **Database**: PostgreSQL 17.4 (primary), SQLite (development)
-- **Frontend**: Streamlit
+- **Frontend**: React (Vite + TypeScript) and Streamlit (legacy/admin)
+- **React Frontend**: Modern UI, uses axios, react-router-dom, jwt-decode, and custom hooks
+- **Admin Dashboard**: Streamlit-based admin tools
 - **Authentication**: JWT-based auth system with token refresh
 - **Styling**: Custom CSS with Pine Time green theme (#2E7D32)
 - **Testing**: Pytest with demo mode support
@@ -87,16 +100,32 @@ pine-time-app/
 
 ### Frontend Setup
 
+#### React Frontend (Recommended)
+
+1. Navigate to the React frontend directory:
+   ```bash
+   cd pine-time-frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+#### Streamlit Admin Dashboard (Legacy/Admin)
+
 1. Navigate to the admin_dashboard directory:
    ```bash
-   cd admin_dashboard
+   cd ../admin_dashboard
    ```
-
 2. Run the admin dashboard:
    ```bash
    streamlit run app.py
    ```
-
 3. Run the user interface with PostgreSQL support:
    ```bash
    streamlit run user_app_postgres.py
