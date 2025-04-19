@@ -1,0 +1,38 @@
+# Python
+pycache/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+# Virtual Environment
+venv/
+ENV/
+# Local development
+.env
+.idea/
+.vscode/
+# Git
+.git/
+.gitignore
+# Test files
+tests/
+test_*.py
+# Elastic Beanstalk
+.elasticbeanstalk/*
+!.elasticbeanstalk/.cfg.yml
+!.elasticbeanstalk/.global.yml

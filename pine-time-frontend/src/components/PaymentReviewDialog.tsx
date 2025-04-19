@@ -33,7 +33,13 @@ const PaymentReviewDialog: React.FC<PaymentReviewDialogProps> = ({ registrationI
     setError("");
     api.get(`/payments/payments/by_registration/${registrationId}`)
       .then(res => setPayment(res.data))
-      .catch(err => setError("Failed to fetch payment details."))
+      .catch((err) => {
+        if (err.response && err.response.status === 404) {
+          setError("No payment found for this registration yet.");
+        } else {
+          setError("Failed to fetch payment details.");
+        }
+      })
       .finally(() => setLoading(false));
   }, [open, registrationId]);
 

@@ -1,0 +1,51 @@
+name: Deploy Backend to AWS Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - '.ebextensions/**'
+      - 'Procfile'
+      - 'requirements.txt'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install awsebcli
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: Initialize EB CLI
+        run: |
+          mkdir -p ~/.aws
+          
+      - name: Deploy to Elastic Beanstalk
+        run: |
+          # Initialize Elastic Beanstalk if not already initialized
+          if [ ! -d .elasticbeanstalk ]; then
+            eb init pine-time --platform "Python 3.10" --region ${{ secrets.AWS_REGION }}
+          fi
+          
+          # Deploy to Elastic Beanstalk
+          eb deploy pine-time-production || eb create pine-time-production --instance-type t2.micro --single

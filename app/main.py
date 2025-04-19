@@ -1,5 +1,32 @@
 import logging
-logging.basicConfig(level=logging.INFO)
+from logging.handlers import RotatingFileHandler
+import os
+
+# Ensure logs directory exists
+os.makedirs("logs", exist_ok=True)
+
+# Set up rotating file handler
+file_handler = RotatingFileHandler(
+    "logs/app.log", maxBytes=2_000_000, backupCount=5, encoding="utf-8"
+)
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter(
+    "%(asctime)s %(levelname)s %(name)s %(message)s"
+))
+
+# Get root logger and add handler
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(file_handler)
+
+# Optional: also log to console (default in uvicorn, but explicit here)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter(
+    "%(asctime)s %(levelname)s %(name)s %(message)s"
+))
+root_logger.addHandler(console_handler)
+
 logging.getLogger("event_registrations_debug").setLevel(logging.INFO)
 
 from fastapi import FastAPI

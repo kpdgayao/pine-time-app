@@ -96,8 +96,13 @@ def get_payment_by_registration(registration_id: int):
             "payment_channel": row[5],
             "payment_date": row[6]
         }
+    except HTTPException:
+        # Re-raise FastAPI HTTPExceptions so they propagate correctly (e.g., 404 for not found)
+        raise
     except Exception as e:
-        logging.error(f"Failed to fetch payment for registration {registration_id}: {e}")
+        # Log the full traceback for robust debugging
+        logging.exception(f"Failed to fetch payment for registration {registration_id}")
+        # Only unexpected errors should return 500
         raise HTTPException(status_code=500, detail="Failed to fetch payment details.")
     finally:
         if conn:

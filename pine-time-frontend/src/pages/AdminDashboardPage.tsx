@@ -105,7 +105,7 @@ const AdminDashboardPage: React.FC = () => {
   ];
 
   // Section tab handler
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+  const handleTabChange = (_: React.SyntheticEvent, newValue: string) => {
     setActiveSection(newValue);
   };
 

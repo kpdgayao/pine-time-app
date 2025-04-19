@@ -439,6 +439,22 @@ const EventsPage: React.FC = () => {
       <Dialog open={showPaymentDialog} onClose={handleClosePaymentDialog} maxWidth="xs" fullWidth>
         <DialogTitle>Submit Payment</DialogTitle>
         <DialogContent>
+          {/* QR Code for InstaPay Payment */}
+          <Stack alignItems="center" spacing={1} sx={{ mb: 2 }}>
+            <img
+              src="/instapay-qr.jpg"
+              alt="InstaPay QR Code"
+              style={{ width: 180, height: 180, borderRadius: 8, border: '1px solid #ccc', marginBottom: 4 }}
+            />
+            <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center' }}>
+              Scan this QR code to pay via InstaPay.<br />
+              <span style={{ fontWeight: 'bold', color: '#2E7D32', letterSpacing: 2 }}>
+                KE**N PH***P G.
+              </span>
+              <br />
+              <span style={{ fontSize: 12, color: '#888' }}>Transfer fees may apply.</span>
+            </Typography>
+          </Stack>
           <Stack spacing={2} mt={1}>
             <Typography variant="subtitle1">
               Event: <b>{paymentModalEvent?.title}</b>
