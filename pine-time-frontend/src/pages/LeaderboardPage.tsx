@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Typography } from '@mui/material';
 import api from '../api/client';
 
 const LeaderboardPage: React.FC = () => {
@@ -30,7 +31,7 @@ const LeaderboardPage: React.FC = () => {
 
   return (
     <div>
-      <h2>Leaderboard</h2>
+      <Typography variant="h5">Leaderboard</Typography>
       <ol>
         {leaderboard.map((entry, idx) => (
           <li key={idx}>{entry.username} - {entry.current_balance} pts</li>

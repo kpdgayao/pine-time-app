@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Typography } from '@mui/material';
 import { api } from '../api';
 
 const BadgesPage: React.FC = () => {
@@ -30,7 +31,7 @@ const BadgesPage: React.FC = () => {
 
   return (
     <div>
-      <h2>Your Badges</h2>
+      <Typography variant="h5">Your Badges</Typography>
       <ul>
         {badges.map((badge, idx) => (
           <li key={idx}>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Typography } from '@mui/material';
 import api from '../api/client';
 
 const PointsPage: React.FC = () => {
@@ -30,7 +31,7 @@ const PointsPage: React.FC = () => {
 
   return (
     <div>
-      <h2>Your Points</h2>
+      <Typography variant="h5">Your Points</Typography>
       <p>Current Balance: {stats.current_balance}</p>
       <p>Total Earned: {stats.total_earned}</p>
       <p>Total Redeemed: {stats.total_redeemed}</p>

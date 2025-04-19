@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { Typography } from '@mui/material';
 import api from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -47,7 +48,7 @@ const LoginPage: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>Login</h2>
+      <Typography variant="h5">Login</Typography>
       <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username or Email" required />
       <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required />
       <button type="submit" disabled={loading}>{loading ? 'Logging in...' : 'Login'}</button>

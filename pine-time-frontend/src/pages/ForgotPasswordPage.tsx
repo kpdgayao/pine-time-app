@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Typography } from '@mui/material';
 import api from '../api/client';
 
 const ForgotPasswordPage: React.FC = () => {
@@ -26,7 +27,7 @@ const ForgotPasswordPage: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>Forgot Password</h2>
+      <Typography variant="h5">Forgot Password</Typography>
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email" type="email" required />
       <button type="submit">Send Reset Link</button>
       <div>{msg}</div>

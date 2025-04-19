@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
 
@@ -63,7 +64,7 @@ const EventDetailsPage: React.FC = () => {
 
   return (
     <div>
-      <h2>{event.title}</h2>
+      <Typography variant="h5">{event.title}</Typography>
       <p>Type: {event.event_type}</p>
       <p>Description: {event.description}</p>
       <p>Location: {event.location}</p>

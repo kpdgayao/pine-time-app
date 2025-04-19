@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Typography } from '@mui/material';
 import api from '../api/client';
 
 const ProfilePage: React.FC = () => {
@@ -30,7 +31,7 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div>
-      <h2>Profile</h2>
+      <Typography variant="h5">Profile</Typography>
       <p>Username: {profile.username}</p>
       <p>Email: {profile.email}</p>
       {/* Add badges, points, and registration history here */}

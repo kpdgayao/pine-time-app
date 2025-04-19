@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Typography } from '@mui/material';
 import api from '../api/client';
 
 const ResetPasswordPage: React.FC = () => {
@@ -27,7 +28,7 @@ const ResetPasswordPage: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>Reset Password</h2>
+      <Typography variant="h5">Reset Password</Typography>
       <input value={token} onChange={e => setToken(e.target.value)} placeholder="Reset token" required />
       <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="New password" type="password" required />
       <button type="submit">Reset Password</button>

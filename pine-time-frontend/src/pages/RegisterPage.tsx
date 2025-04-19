@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Typography } from '@mui/material';
 import api from '../api/client';
 
 const RegisterPage: React.FC = () => {
@@ -28,7 +29,7 @@ const RegisterPage: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>Register</h2>
+      <Typography variant="h5">Register</Typography>
       <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required />
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" required />
       <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" type="password" required />
