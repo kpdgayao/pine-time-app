@@ -6,7 +6,8 @@ from pydantic import BaseModel
 # Shared properties
 class RegistrationBase(BaseModel):
     event_id: Optional[int] = None
-    status: Optional[str] = "registered"
+    # status: 'pending', 'approved', 'rejected', 'cancelled', etc.
+    status: Optional[str] = "pending"
     payment_status: Optional[str] = "pending"
 
 
@@ -25,6 +26,8 @@ class RegistrationInDBBase(RegistrationBase):
     id: int
     user_id: int
     registration_date: datetime
+    user: Optional['User'] = None
+    event: Optional['Event'] = None
 
     class Config:
         from_attributes = True
@@ -33,3 +36,9 @@ class RegistrationInDBBase(RegistrationBase):
 # Additional properties to return via API
 class Registration(RegistrationInDBBase):
     pass
+
+from app.schemas.user import User
+from app.schemas.event import Event
+
+RegistrationInDBBase.update_forward_refs()
+Registration.update_forward_refs()

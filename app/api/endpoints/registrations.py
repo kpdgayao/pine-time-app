@@ -9,6 +9,45 @@ from app.services.points_manager import PointsManager
 
 router = APIRouter()
 
+# Admin dependency for approval endpoints
+from fastapi import Request
+
+def get_current_active_admin(current_user: models.User = Depends(dependencies.get_current_user)) -> models.User:
+    if not (current_user.is_superuser or getattr(current_user, "user_type", None) == "admin"):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return current_user
+
+from fastapi import status
+import logging
+
+# This endpoint matches GET /api/v1/registrations (no trailing slash) due to router prefix
+@router.get("", response_model=List[schemas.Registration], status_code=status.HTTP_200_OK)
+def get_all_registrations(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    current_user: models.User = Depends(get_current_active_admin),
+) -> List[schemas.Registration]:
+    """
+    Get all registrations (admin only).
+    Returns all registration records with user and event info.
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        registrations = db.query(models.Registration).all()
+        logger.info(f"Admin {current_user.id} fetched all registrations. Count: {len(registrations)}")
+        return registrations
+    except Exception as e:
+        logger.error(f"Failed to fetch registrations: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch registrations.")
+
+# Admin dependency for approval endpoints
+from fastapi import Request
+
+def get_current_active_admin(current_user: models.User = Depends(dependencies.get_current_user)) -> models.User:
+    if not (current_user.is_superuser or getattr(current_user, "user_type", None) == "admin"):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return current_user
+
 # This is a duplicate endpoint to support both registration patterns
 @router.post("/events/{event_id}/register", response_model=schemas.Registration)
 def register_for_event_by_path(
@@ -87,16 +126,28 @@ def register_for_event(
                 
             raise HTTPException(status_code=400, detail=detail)
         
-        # Check if user is already registered
+        # Check for existing registration for this user/event
         existing_registration = db.query(models.Registration).filter(
             models.Registration.user_id == user_id,
-            models.Registration.event_id == event_id,
-            models.Registration.status != "cancelled"
-        ).first()
-        
+            models.Registration.event_id == event_id
+        ).order_by(models.Registration.id.desc()).first()
+
         if existing_registration:
-            raise HTTPException(status_code=400, detail="User already registered for this event")
-        
+            if existing_registration.status in ["pending", "approved"]:
+                raise HTTPException(status_code=400, detail="User already registered for this event")
+            elif existing_registration.status in ["cancelled", "rejected"]:
+                # Allow re-registration by updating the existing record
+                existing_registration.status = "pending"
+                # Reset payment_status if needed
+                if event.price > 0:
+                    existing_registration.payment_status = "pending"
+                else:
+                    existing_registration.payment_status = "not_required"
+                db.commit()
+                db.refresh(existing_registration)
+                return existing_registration
+        # Otherwise, create a new registration as before
+
         # Check if event is at capacity
         if event.max_participants:
             current_registrations = db.query(models.Registration).filter(
@@ -111,7 +162,7 @@ def register_for_event(
         registration = models.Registration(
             user_id=user_id,
             event_id=event_id,
-            status="registered",
+            status="pending",
             payment_status="pending" if event.price > 0 else "not_required"
         )
         
@@ -131,33 +182,81 @@ def register_for_event(
         raise HTTPException(status_code=500, detail=f"Registration error: {str(e)}")
 
 
-@router.get("/events/{event_id}/registrations", response_model=List[schemas.Registration])
+from fastapi import Query
+
+@router.get("/events/{event_id}/registrations", response_model=Any)
 def get_event_registrations(
     *,
     db: Session = Depends(dependencies.get_db),
     event_id: int = Path(..., gt=0),
+    page: int = Query(1, ge=1, description="Page number for pagination"),
+    size: int = Query(20, ge=1, le=100, description="Items per page"),
     current_user: models.User = Depends(dependencies.get_current_active_user),
 ) -> Any:
     """
-    Get all registrations for an event (admin only).
+    Get paginated registrations and summary stats for an event (admin/business/superuser only).
+    Returns: dict with items, total, approved, attendance_rate, revenue, page, size.
     """
-    # Check if user has admin privileges
+    import logging
+    logger = logging.getLogger("event_registrations_debug")
+    logger.info(f"[DEBUG] Called get_event_registrations with event_id={event_id}, user_id={current_user.id}, user_type={getattr(current_user, 'user_type', None)}, is_superuser={getattr(current_user, 'is_superuser', None)}")
+
+    # Permission check
     if not (current_user.is_superuser or current_user.user_type in ["admin", "business"]):
-        raise HTTPException(
-            status_code=403,
-            detail="Not enough permissions to view all registrations",
-        )
-    
-    # Check if event exists
-    event = db.query(models.Event).filter(models.Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    
-    registrations = db.query(models.Registration).filter(
-        models.Registration.event_id == event_id
-    ).all()
-    
-    return registrations
+        logger.warning(f"[DEBUG] User {current_user.id} lacks permission to view registrations for event {event_id}")
+        raise HTTPException(status_code=403, detail="Not enough permissions to view all registrations")
+
+    try:
+        # Check if event exists
+        event = db.query(models.Event).filter(models.Event.id == event_id).first()
+        logger.info(f"[DEBUG] Event query for id={event_id} returned: {event}")
+        if not event:
+            logger.error(f"[DEBUG] Event not found for id={event_id}")
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        # Query registrations for this event
+        base_query = db.query(models.Registration).filter(models.Registration.event_id == event_id)
+        total = base_query.count()
+        approved_count = base_query.filter(models.Registration.status.in_(["approved", "attended", "checked_in"])) .count()
+        paid_count = base_query.filter(models.Registration.payment_status == "completed").count()
+        revenue = paid_count * (event.price or 0.0)
+        attendance_rate = (approved_count / total) if total > 0 else 0.0
+
+        # Pagination
+        items = base_query.order_by(models.Registration.registration_date.desc()) \
+            .offset((page - 1) * size).limit(size).all()
+
+        # Compose response
+        response = {
+            "items": [schemas.Registration.from_orm(r) for r in items],
+            "total": total,
+            "approved": approved_count,
+            "attendance_rate": round(attendance_rate * 100, 1),
+            "revenue": revenue,
+            "page": page,
+            "size": size
+        }
+        logger.info(f"[DEBUG] Returning {len(items)} registrations (page {page}, size {size}) for event_id={event_id}")
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ERROR] Exception in get_event_registrations: {str(e)}")
+        # DEMO_MODE fallback if enabled
+        import os
+        if os.getenv("DEMO_MODE", "false").lower() == "true":
+            logger.warning("[DEBUG] DEMO_MODE enabled: returning sample data")
+            return {
+                "items": [],
+                "total": 0,
+                "approved": 0,
+                "attendance_rate": 0.0,
+                "revenue": 0.0,
+                "page": page,
+                "size": size
+            }
+        raise HTTPException(status_code=500, detail="Failed to fetch event registrations")
+
 
 
 @router.get("/users/me/registrations", response_model=List[schemas.Registration])

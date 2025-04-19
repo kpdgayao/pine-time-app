@@ -57,6 +57,106 @@ def create_user(
     db.refresh(user)
     return user
 
+# --- NEW USER MANAGEMENT ENDPOINTS ---
+from fastapi import status
+import logging
+from typing import List, Any
+
+@router.patch("/{user_id}/status", response_model=schemas.User)
+def update_user_status(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    is_active: bool = Body(..., embed=True),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Activate or deactivate a user.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for status update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change status of self.")
+    user.is_active = is_active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} status updated to {is_active} by admin {current_user.id}")
+    return user
+
+@router.patch("/{user_id}/role", response_model=schemas.User)
+def update_user_role(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    user_type: str = Body(...),
+    is_superuser: bool = Body(...),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Change user type or superuser status.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for role update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change role of self.")
+    if user_type not in ["regular", "business", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid user_type.")
+    user.user_type = user_type
+    user.is_superuser = is_superuser
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} role updated to {user_type}, superuser={is_superuser} by admin {current_user.id}")
+    return user
+
+@router.post("/bulk_update", response_model=List[schemas.User])
+def bulk_update_users(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_ids: List[int] = Body(...),
+    action: str = Body(...),
+    value: Any = Body(None),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Bulk update users (activate, deactivate, delete, promote, demote).
+    """
+    allowed_actions = ["activate", "deactivate", "delete", "promote", "demote"]
+    if action not in allowed_actions:
+        raise HTTPException(status_code=400, detail="Invalid bulk action.")
+    users = db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found for bulk update.")
+    updated_users = []
+    for user in users:
+        if user.id == current_user.id:
+            continue  # skip self
+        if action == "activate":
+            user.is_active = True
+        elif action == "deactivate":
+            user.is_active = False
+        elif action == "delete":
+            db.delete(user)
+            continue
+        elif action == "promote":
+            user.user_type = "admin"
+            user.is_superuser = True
+        elif action == "demote":
+            user.user_type = "regular"
+            user.is_superuser = False
+        db.add(user)
+        updated_users.append(user)
+    db.commit()
+    for user in updated_users:
+        db.refresh(user)
+    logging.info(f"Bulk action '{action}' performed on users {user_ids} by admin {current_user.id}")
+    return updated_users
+
 
 @router.put("/me", response_model=schemas.User)
 def update_user_me(
@@ -90,6 +190,106 @@ def update_user_me(
     db.refresh(user)
     return user
 
+# --- NEW USER MANAGEMENT ENDPOINTS ---
+from fastapi import status
+import logging
+from typing import List, Any
+
+@router.patch("/{user_id}/status", response_model=schemas.User)
+def update_user_status(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    is_active: bool = Body(..., embed=True),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Activate or deactivate a user.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for status update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change status of self.")
+    user.is_active = is_active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} status updated to {is_active} by admin {current_user.id}")
+    return user
+
+@router.patch("/{user_id}/role", response_model=schemas.User)
+def update_user_role(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    user_type: str = Body(...),
+    is_superuser: bool = Body(...),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Change user type or superuser status.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for role update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change role of self.")
+    if user_type not in ["regular", "business", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid user_type.")
+    user.user_type = user_type
+    user.is_superuser = is_superuser
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} role updated to {user_type}, superuser={is_superuser} by admin {current_user.id}")
+    return user
+
+@router.post("/bulk_update", response_model=List[schemas.User])
+def bulk_update_users(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_ids: List[int] = Body(...),
+    action: str = Body(...),
+    value: Any = Body(None),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Bulk update users (activate, deactivate, delete, promote, demote).
+    """
+    allowed_actions = ["activate", "deactivate", "delete", "promote", "demote"]
+    if action not in allowed_actions:
+        raise HTTPException(status_code=400, detail="Invalid bulk action.")
+    users = db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found for bulk update.")
+    updated_users = []
+    for user in users:
+        if user.id == current_user.id:
+            continue  # skip self
+        if action == "activate":
+            user.is_active = True
+        elif action == "deactivate":
+            user.is_active = False
+        elif action == "delete":
+            db.delete(user)
+            continue
+        elif action == "promote":
+            user.user_type = "admin"
+            user.is_superuser = True
+        elif action == "demote":
+            user.user_type = "regular"
+            user.is_superuser = False
+        db.add(user)
+        updated_users.append(user)
+    db.commit()
+    for user in updated_users:
+        db.refresh(user)
+    logging.info(f"Bulk action '{action}' performed on users {user_ids} by admin {current_user.id}")
+    return updated_users
+
 
 @router.get("/me", response_model=schemas.User)
 def read_user_me(
@@ -113,11 +313,211 @@ def read_user_by_id(
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user == current_user:
         return user
+
+# --- NEW USER MANAGEMENT ENDPOINTS ---
+from fastapi import status
+import logging
+from typing import List, Any
+
+@router.patch("/{user_id}/status", response_model=schemas.User)
+def update_user_status(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    is_active: bool = Body(..., embed=True),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Activate or deactivate a user.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for status update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change status of self.")
+    user.is_active = is_active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} status updated to {is_active} by admin {current_user.id}")
+    return user
+
+@router.patch("/{user_id}/role", response_model=schemas.User)
+def update_user_role(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    user_type: str = Body(...),
+    is_superuser: bool = Body(...),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Change user type or superuser status.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for role update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change role of self.")
+    if user_type not in ["regular", "business", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid user_type.")
+    user.user_type = user_type
+    user.is_superuser = is_superuser
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} role updated to {user_type}, superuser={is_superuser} by admin {current_user.id}")
+    return user
+
+@router.post("/bulk_update", response_model=List[schemas.User])
+def bulk_update_users(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_ids: List[int] = Body(...),
+    action: str = Body(...),
+    value: Any = Body(None),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Bulk update users (activate, deactivate, delete, promote, demote).
+    """
+    allowed_actions = ["activate", "deactivate", "delete", "promote", "demote"]
+    if action not in allowed_actions:
+        raise HTTPException(status_code=400, detail="Invalid bulk action.")
+    users = db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found for bulk update.")
+    updated_users = []
+    for user in users:
+        if user.id == current_user.id:
+            continue  # skip self
+        if action == "activate":
+            user.is_active = True
+        elif action == "deactivate":
+            user.is_active = False
+        elif action == "delete":
+            db.delete(user)
+            continue
+        elif action == "promote":
+            user.user_type = "admin"
+            user.is_superuser = True
+        elif action == "demote":
+            user.user_type = "regular"
+            user.is_superuser = False
+        db.add(user)
+        updated_users.append(user)
+    db.commit()
+    for user in updated_users:
+        db.refresh(user)
+    logging.info(f"Bulk action '{action}' performed on users {user_ids} by admin {current_user.id}")
+    return updated_users
     if not current_user.is_superuser:
         raise HTTPException(
             status_code=400, detail="The user doesn't have enough privileges"
         )
     return user
+
+# --- NEW USER MANAGEMENT ENDPOINTS ---
+from fastapi import status
+import logging
+from typing import List, Any
+
+@router.patch("/{user_id}/status", response_model=schemas.User)
+def update_user_status(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    is_active: bool = Body(..., embed=True),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Activate or deactivate a user.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for status update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change status of self.")
+    user.is_active = is_active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} status updated to {is_active} by admin {current_user.id}")
+    return user
+
+@router.patch("/{user_id}/role", response_model=schemas.User)
+def update_user_role(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    user_type: str = Body(...),
+    is_superuser: bool = Body(...),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Change user type or superuser status.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for role update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change role of self.")
+    if user_type not in ["regular", "business", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid user_type.")
+    user.user_type = user_type
+    user.is_superuser = is_superuser
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} role updated to {user_type}, superuser={is_superuser} by admin {current_user.id}")
+    return user
+
+@router.post("/bulk_update", response_model=List[schemas.User])
+def bulk_update_users(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_ids: List[int] = Body(...),
+    action: str = Body(...),
+    value: Any = Body(None),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Bulk update users (activate, deactivate, delete, promote, demote).
+    """
+    allowed_actions = ["activate", "deactivate", "delete", "promote", "demote"]
+    if action not in allowed_actions:
+        raise HTTPException(status_code=400, detail="Invalid bulk action.")
+    users = db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found for bulk update.")
+    updated_users = []
+    for user in users:
+        if user.id == current_user.id:
+            continue  # skip self
+        if action == "activate":
+            user.is_active = True
+        elif action == "deactivate":
+            user.is_active = False
+        elif action == "delete":
+            db.delete(user)
+            continue
+        elif action == "promote":
+            user.user_type = "admin"
+            user.is_superuser = True
+        elif action == "demote":
+            user.user_type = "regular"
+            user.is_superuser = False
+        db.add(user)
+        updated_users.append(user)
+    db.commit()
+    for user in updated_users:
+        db.refresh(user)
+    logging.info(f"Bulk action '{action}' performed on users {user_ids} by admin {current_user.id}")
+    return updated_users
 
 
 @router.put("/{user_id}", response_model=schemas.User)
@@ -148,6 +548,106 @@ def update_user(
     db.commit()
     db.refresh(user)
     return user
+
+# --- NEW USER MANAGEMENT ENDPOINTS ---
+from fastapi import status
+import logging
+from typing import List, Any
+
+@router.patch("/{user_id}/status", response_model=schemas.User)
+def update_user_status(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    is_active: bool = Body(..., embed=True),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Activate or deactivate a user.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for status update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change status of self.")
+    user.is_active = is_active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} status updated to {is_active} by admin {current_user.id}")
+    return user
+
+@router.patch("/{user_id}/role", response_model=schemas.User)
+def update_user_role(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_id: int,
+    user_type: str = Body(...),
+    is_superuser: bool = Body(...),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Change user type or superuser status.
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        logging.error(f"User with id {user_id} not found for role update.")
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot change role of self.")
+    if user_type not in ["regular", "business", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid user_type.")
+    user.user_type = user_type
+    user.is_superuser = is_superuser
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    logging.info(f"User {user_id} role updated to {user_type}, superuser={is_superuser} by admin {current_user.id}")
+    return user
+
+@router.post("/bulk_update", response_model=List[schemas.User])
+def bulk_update_users(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    user_ids: List[int] = Body(...),
+    action: str = Body(...),
+    value: Any = Body(None),
+    current_user: models.User = Depends(dependencies.get_current_active_superuser),
+) -> Any:
+    """
+    Bulk update users (activate, deactivate, delete, promote, demote).
+    """
+    allowed_actions = ["activate", "deactivate", "delete", "promote", "demote"]
+    if action not in allowed_actions:
+        raise HTTPException(status_code=400, detail="Invalid bulk action.")
+    users = db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found for bulk update.")
+    updated_users = []
+    for user in users:
+        if user.id == current_user.id:
+            continue  # skip self
+        if action == "activate":
+            user.is_active = True
+        elif action == "deactivate":
+            user.is_active = False
+        elif action == "delete":
+            db.delete(user)
+            continue
+        elif action == "promote":
+            user.user_type = "admin"
+            user.is_superuser = True
+        elif action == "demote":
+            user.user_type = "regular"
+            user.is_superuser = False
+        db.add(user)
+        updated_users.append(user)
+    db.commit()
+    for user in updated_users:
+        db.refresh(user)
+    logging.info(f"Bulk action '{action}' performed on users {user_ids} by admin {current_user.id}")
+    return updated_users
 
 
 @router.post("/register", response_model=schemas.User)
