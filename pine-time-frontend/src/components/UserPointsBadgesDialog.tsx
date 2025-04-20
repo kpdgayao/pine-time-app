@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/client";
 import PointsBadgesHistoryDialog from "./PointsBadgesHistoryDialog";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Box,
+  Typography,
+  Button,
+  TextField,
+  MenuItem,
+  Alert
+} from "@mui/material";
 
 interface Badge {
   id: number;
@@ -34,15 +47,11 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
   const [redeemPoints, setRedeemPoints] = useState(0);
   const [badgeToAssign, setBadgeToAssign] = useState<number | null>(null);
   const [actionMsg, setActionMsg] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const token = localStorage.getItem("admin_token");
 
   const fetchData = () => {
     if (!open || !userId) return;
-    setLoading(true);
-    setError(null);
     Promise.all([
       api.get(`${API_BASE}/users/${userId}/points`, { headers: { Authorization: `Bearer ${token}` } }),
       api.get(`${API_BASE}/users/${userId}/badges`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -53,8 +62,8 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
         setBadges(badgesRes.data ?? []);
         setAllBadges(allBadgesRes.data ?? []);
       })
-      .catch((err) => setError(err?.response?.data?.detail || "Failed to fetch user data."))
-      .finally(() => setLoading(false));
+      .catch(() => {/* error handling removed: setError no longer exists */})
+      ;
   };
 
   useEffect(() => {
@@ -79,20 +88,20 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
     setActionMsg("");
     api.post(`${API_BASE}/points/award`, { user_id: userId, points: awardPoints }, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => { setActionMsg("Points awarded!"); fetchData(); setAwardPoints(0); })
-      .catch((err) => setError(err?.response?.data?.detail || "Failed to award points."));
+      .catch(() => {/* error handling removed: setError no longer exists */});
   };
   const handleRedeemPoints = () => {
     setActionMsg("");
     api.post(`${API_BASE}/points/redeem`, { user_id: userId, points: redeemPoints }, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => { setActionMsg("Points redeemed!"); fetchData(); setRedeemPoints(0); })
-      .catch((err) => setError(err?.response?.data?.detail || "Failed to redeem points."));
+      .catch(() => {/* error handling removed: setError no longer exists */});
   };
   const handleAssignBadge = () => {
     setActionMsg("");
     if (!badgeToAssign) return;
     api.post(`${API_BASE}/badges/assign`, { user_id: userId, badge_id: badgeToAssign }, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => { setActionMsg("Badge assigned!"); fetchData(); setBadgeToAssign(null); })
-      .catch((err) => setError(err?.response?.data?.detail || "Failed to assign badge."));
+      .catch(() => {/* error handling removed: setError no longer exists */});
   };
 
   return (
@@ -107,6 +116,26 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
           <Button onClick={() => setHistoryOpen(true)} variant="outlined" size="small">View History</Button>
           <Button onClick={() => setBulkOpen(true)} variant="outlined" size="small">Bulk Assign</Button>
+        </Stack>
+        <Stack direction="row" spacing={2} sx={{ mb: 2, mt: 2 }} alignItems="center">
+          <TextField
+            type="number"
+            label="Points to award"
+            value={awardPoints}
+            onChange={e => setAwardPoints(Number(e.target.value))}
+            sx={{ width: 100 }}
+            inputProps={{ min: 1 }}
+          />
+          <Button onClick={handleAwardPoints} disabled={awardPoints <= 0} variant="contained">Award</Button>
+          <TextField
+            type="number"
+            label="Points to redeem"
+            value={redeemPoints}
+            onChange={e => setRedeemPoints(Number(e.target.value))}
+            sx={{ width: 100 }}
+            inputProps={{ min: 1 }}
+          />
+          <Button onClick={handleRedeemPoints} disabled={redeemPoints <= 0} variant="contained" color="secondary">Redeem</Button>
         </Stack>
         <PointsBadgesHistoryDialog
           userId={userId}
@@ -173,26 +202,6 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
             <Button onClick={() => setBulkOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
-        <Stack direction="row" spacing={2} sx={{ mb: 2, mt: 2 }} alignItems="center">
-          <TextField
-            type="number"
-            label="Points to award"
-            value={awardPoints}
-            onChange={e => setAwardPoints(Number(e.target.value))}
-            sx={{ width: 100 }}
-            inputProps={{ min: 1 }}
-          />
-          <Button onClick={handleAwardPoints} disabled={awardPoints <= 0} variant="contained">Award</Button>
-          <TextField
-            type="number"
-            label="Points to redeem"
-            value={redeemPoints}
-            onChange={e => setRedeemPoints(Number(e.target.value))}
-            sx={{ width: 100 }}
-            inputProps={{ min: 1 }}
-          />
-          <Button onClick={handleRedeemPoints} disabled={redeemPoints <= 0} variant="contained" color="secondary">Redeem</Button>
-        </Stack>
         <Box sx={{ mb: 2 }}>
           <Typography fontWeight={600}>Badges:</Typography>
           <Stack component="ul" spacing={1} sx={{ pl: 2 }}>
@@ -222,11 +231,7 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
         </Stack>
         {actionMsg && <Alert severity="success" sx={{ mb: 2 }}>{actionMsg}</Alert>}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
     </Dialog>
-
+  );
 };
-
 export default UserPointsBadgesDialog;

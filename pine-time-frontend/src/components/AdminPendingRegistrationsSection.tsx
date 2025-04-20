@@ -3,7 +3,7 @@ import api from "../api/client";
 import PaymentReviewDialog from "./PaymentReviewDialog";
 import {
   Table, TableHead, TableRow, TableCell, TableBody,
-  Button, CircularProgress, Alert, Typography, Box, Stack, Tooltip, Snackbar
+  Button, CircularProgress, Alert, Typography, Box, Snackbar, Stack, Tooltip
 } from "@mui/material";
 
 interface Registration {
@@ -26,13 +26,19 @@ interface Registration {
 
 const AdminPendingRegistrationsSection: React.FC = () => {
   // All hooks must be declared before any conditional return
+  
   const [pending, setPending] = useState<Registration[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [reviewRegistrationId, setReviewRegistrationId] = useState<number | null>(null);
+const [loading, setLoading] = useState(false);
+const [actionLoading, setActionLoading] = useState<number | null>(null);
+const [statusFilter, setStatusFilter] = useState<string>('All');
+const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+const [reviewRegistrationId, setReviewRegistrationId] = useState<number | null>(null);
+  
+  
+  
+  
+  
   const token = localStorage.getItem("admin_token");
 
   // Fetch all registrations, not just pending
@@ -60,6 +66,7 @@ const AdminPendingRegistrationsSection: React.FC = () => {
   // All hooks declared above; safe to use conditional returns now
   if (loading) return <Box p={2}><CircularProgress /></Box>;
 
+  // Approve handler
   const handleApprove = async (id: number) => {
     setActionLoading(id);
     try {
@@ -76,21 +83,9 @@ const AdminPendingRegistrationsSection: React.FC = () => {
   };
 
   // Unregister handler for admin (if applicable)
-  const handleUnregister = async (id: number) => {
-    setActionLoading(id);
-    try {
-      await api.post(`/registrations/${id}/unregister`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSnackbar({ open: true, message: 'User unregistered from event.', severity: 'success' });
-      fetchAll();
-    } catch (err: any) {
-      setSnackbar({ open: true, message: 'Failed to unregister user.', severity: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  
 
+  // Reject handler
   const handleReject = async (id: number) => {
     setActionLoading(id);
     try {
@@ -106,28 +101,29 @@ const AdminPendingRegistrationsSection: React.FC = () => {
     }
   };
 
-  if (loading) return <Box p={2}><CircularProgress /></Box>;
-  // Sort registrations by registration_date (most recent first)
-  const sorted = [...pending].sort((a, b) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime());
-  // Filter by status
-  const filtered = statusFilter === 'All' ? sorted : sorted.filter(reg => reg.status === statusFilter.toLowerCase());
-
-
-
+  // Review dialog open
   const handleOpenReviewDialog = (registrationId: number) => {
     setReviewRegistrationId(registrationId);
     setReviewDialogOpen(true);
   };
+
+  // Review dialog close
   const handleCloseReviewDialog = () => {
     setReviewDialogOpen(false);
     setReviewRegistrationId(null);
   };
+
+  // Payment action handler
   const handlePaymentAction = (action: "approved" | "rejected") => {
     setReviewDialogOpen(false);
     setReviewRegistrationId(null);
     fetchAll();
     setSnackbar({ open: true, message: `Payment ${action}.`, severity: action === 'approved' ? 'success' : 'error' });
   };
+
+  // Sort and filter logic
+  const sorted = [...pending].sort((a, b) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime());
+  const filtered = statusFilter === 'All' ? sorted : sorted.filter(reg => reg.status === statusFilter.toLowerCase());
 
   return (
     <Box p={2}>
@@ -178,7 +174,7 @@ const AdminPendingRegistrationsSection: React.FC = () => {
   </TableRow>
 </TableHead>
 <TableBody>
-  {filtered.map(reg => (
+  {filtered.map((reg: Registration) => (
     <TableRow key={reg.id}>
       <TableCell>
         {reg.event?.title || reg.event_id}
@@ -237,6 +233,6 @@ const AdminPendingRegistrationsSection: React.FC = () => {
       )}
     </Box>
   );
-};
+}
 
 export default AdminPendingRegistrationsSection;

@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/client";
 import { exportToCsv } from "./exportToCsv";
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Stack, TextField, Button, Typography, Alert, Box,
+  Table, TableHead, TableRow, TableCell, TableBody
+} from '@mui/material';
 
 interface HistoryEntry {
   id: number;

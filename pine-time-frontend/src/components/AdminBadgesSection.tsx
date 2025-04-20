@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../api/client";
 import BadgeTypeFormDialog, { BadgeTypeFormValues } from "./BadgeTypeFormDialog";
 import {
-  Table, TableHead, TableRow, TableCell, TableBody, Paper, Alert, CircularProgress, Button, IconButton, Snackbar, Stack, Dialog, DialogTitle, DialogActions, Typography, Box
+  Table, TableHead, TableRow, TableCell, TableBody, Paper, Alert, CircularProgress, Button, IconButton, Snackbar, Stack, Dialog, DialogTitle, DialogActions, Typography
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';

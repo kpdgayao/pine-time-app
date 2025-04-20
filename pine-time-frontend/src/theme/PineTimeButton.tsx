@@ -1,4 +1,4 @@
-import * as React from 'react';
+
 import Button, { ButtonProps } from '@mui/material/Button';
 
 export default function PineTimeButton(props: ButtonProps) {

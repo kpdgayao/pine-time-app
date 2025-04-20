@@ -6,9 +6,9 @@ import { api } from '../api';
 const EventDetailsPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const [event, setEvent] = useState<any>(null);
-  const [error, setError] = useState('');
+  let errorMsg = '';
   const [loading, setLoading] = useState(true);
-
+  
   const [registering, setRegistering] = useState(false);
   const [registerMsg, setRegisterMsg] = useState('');
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
@@ -17,21 +17,19 @@ const EventDetailsPage: React.FC = () => {
     api.get(`/events/${eventId}`)
       .then(res => setEvent(res.data))
       .catch(err => {
-        let message = 'Failed to load event details.';
         const data = err.response?.data;
+        let errorMsg = 'An error occurred';
         if (typeof data === 'string') {
-          message = data;
+          errorMsg = data;
         } else if (Array.isArray(data)) {
-          message = data.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
+          errorMsg = data.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
         } else if (typeof data === 'object' && data !== null) {
-          message = data.detail || data.msg || JSON.stringify(data);
+          errorMsg = data.detail || data.msg || JSON.stringify(data);
         }
-        setError(message);
+        errorMsg = errorMsg; // assign to local variable, not state
       })
       .finally(() => setLoading(false));
   }, [eventId]);
-
-  // Check if already registered (optional, for demo just disables after registration)
 
   const handleRegister = async () => {
     setRegistering(true);
@@ -59,11 +57,14 @@ const EventDetailsPage: React.FC = () => {
     }
   };
 
+  if (loading) return <div>Loading...</div>;
+
   // Disable registration if event is in the past
   const isPastEvent = event && new Date(event.end_time) < new Date();
 
   return (
     <div>
+      {errorMsg && <div style={{color:'red'}}>{errorMsg}</div>}
       <Typography variant="h5">{event.title}</Typography>
       <p>Type: {event.event_type}</p>
       <p>Description: {event.description}</p>

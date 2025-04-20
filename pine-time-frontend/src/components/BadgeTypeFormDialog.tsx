@@ -19,6 +19,7 @@ interface BadgeTypeFormDialogProps {
   onSubmit: (values: BadgeTypeFormValues) => void;
   initialValues?: Partial<BadgeTypeFormValues>;
   isEdit?: boolean;
+  loading: boolean;
 }
 
 const BadgeTypeFormDialog: React.FC<BadgeTypeFormDialogProps> = ({
