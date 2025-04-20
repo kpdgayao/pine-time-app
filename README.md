@@ -39,6 +39,17 @@ pine-time-app/
 │   └── main.py            # Backend entry point
 ├── pine-time-frontend/    # React frontend (Vite + TypeScript)
 │   ├── src/               # React source code (components, pages, hooks, types, utils)
+
+
+## Development Environment
+
+- The `.venv/` directory is used for your local Python virtual environment. It should **never** be committed to Git and is now included in `.gitignore` by default.
+- Always use `requirements.txt` (or `pyproject.toml`) to share dependencies, not the full environment.
+- To set up a new environment, run:
+  ```bash
+  python -m venv .venv
+  pip install -r requirements.txt
+  ```
 │   ├── public/            # Static assets
 │   ├── package.json       # React frontend dependencies
 │   └── ...
