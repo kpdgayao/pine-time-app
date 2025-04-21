@@ -48,6 +48,10 @@ node_modules/
 # Streamlit
 .streamlit/
 
+# Deployment artifacts
+pine-time-deploy/
+pine-time-deploy.zip
+
 # Cache
 __pycache__/
 
