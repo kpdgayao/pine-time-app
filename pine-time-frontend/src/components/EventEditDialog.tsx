@@ -113,9 +113,9 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
         timeout: 10000, // 10s timeout
       };
       if (isCreate) {
-        res = await api.post(`${API_BASE}/events/`, form, axiosConfig);
+        res = await api.post('/events/', form, axiosConfig);
       } else if (event && 'id' in event) {
-        res = await api.put(`${API_BASE}/events/${event.id}`, form, axiosConfig);
+        res = await api.put(`/events/${event.id}`, form, axiosConfig);
       }
       if (res) {
         onSave(res.data);

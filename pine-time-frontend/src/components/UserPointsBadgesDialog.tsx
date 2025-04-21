@@ -76,7 +76,7 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
   const [totalUsers, setTotalUsers] = useState(0);
   useEffect(() => {
     if (!open || !userId) return;
-    api.get(`${API_BASE}/leaderboard`, { headers: { Authorization: `Bearer ${token}` } })
+    api.get('/leaderboard', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         setTotalUsers(res.data.length);
         const idx = res.data.findIndex((u: any) => u.id === userId);
@@ -86,20 +86,20 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
 
   const handleAwardPoints = () => {
     setActionMsg("");
-    api.post(`${API_BASE}/points/award`, { user_id: userId, points: awardPoints }, { headers: { Authorization: `Bearer ${token}` } })
+    api.post('/points/award', { user_id: userId, points: awardPoints }, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => { setActionMsg("Points awarded!"); fetchData(); setAwardPoints(0); })
       .catch(() => {/* error handling removed: setError no longer exists */});
   };
   const handleRedeemPoints = () => {
     setActionMsg("");
-    api.post(`${API_BASE}/points/redeem`, { user_id: userId, points: redeemPoints }, { headers: { Authorization: `Bearer ${token}` } })
+    api.post('/points/redeem', { user_id: userId, points: redeemPoints }, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => { setActionMsg("Points redeemed!"); fetchData(); setRedeemPoints(0); })
       .catch(() => {/* error handling removed: setError no longer exists */});
   };
   const handleAssignBadge = () => {
     setActionMsg("");
     if (!badgeToAssign) return;
-    api.post(`${API_BASE}/badges/assign`, { user_id: userId, badge_id: badgeToAssign }, { headers: { Authorization: `Bearer ${token}` } })
+    api.post('/badges/assign', { user_id: userId, badge_id: badgeToAssign }, { headers: { Authorization: `Bearer ${token}` } })
       .then(() => { setActionMsg("Badge assigned!"); fetchData(); setBadgeToAssign(null); })
       .catch(() => {/* error handling removed: setError no longer exists */});
   };
@@ -165,7 +165,7 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
                 <Button
                   onClick={() => {
                     setBulkMsg("");
-                    api.post(`${API_BASE}/points/award_bulk`, { user_ids: bulkUserIds, points: bulkPoints }, { headers: { Authorization: `Bearer ${token}` } })
+                    api.post('/points/award_bulk', { user_ids: bulkUserIds, points: bulkPoints }, { headers: { Authorization: `Bearer ${token}` } })
                       .then(() => setBulkMsg("Points awarded!"))
                       .catch(err => setBulkMsg(err?.response?.data?.detail || "Failed to award points."));
                   }}
@@ -187,7 +187,7 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
                 <Button
                   onClick={() => {
                     setBulkMsg("");
-                    api.post(`${API_BASE}/badges/assign_bulk`, { user_ids: bulkUserIds, badge_id: bulkBadgeId }, { headers: { Authorization: `Bearer ${token}` } })
+                    api.post('/badges/assign_bulk', { user_ids: bulkUserIds, badge_id: bulkBadgeId }, { headers: { Authorization: `Bearer ${token}` } })
                       .then(() => setBulkMsg("Badge assigned!"))
                       .catch(err => setBulkMsg(err?.response?.data?.detail || "Failed to assign badge."));
                   }}
