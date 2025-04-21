@@ -89,3 +89,26 @@ app.include_router(
 @app.get("/")
 def root():
     return {"message": "Welcome to Pine Time Experience Baguio API"}
+
+
+@app.get("/health", include_in_schema=False)
+async def health_check() -> dict:
+    """
+    Health check endpoint that verifies database connectivity.
+    Returns status and database connection status.
+    Not included in OpenAPI schema.
+    """
+    import logging
+    from sqlalchemy.exc import SQLAlchemyError
+
+    try:
+        # Attempt to connect and execute a simple query
+        with engine.connect() as connection:
+            connection.execute("SELECT 1")
+        return {"status": "healthy", "database": "connected"}
+    except SQLAlchemyError as e:
+        logging.error(f"Health check DB error: {e}")
+        return {"status": "unhealthy", "database": str(e)}
+    except Exception as e:
+        logging.error(f"Health check unknown error: {e}")
+        return {"status": "unhealthy", "database": str(e)}
