@@ -19,13 +19,56 @@ jobs:
     
     - name: Create Deployment Package
       run: |
-        mkdir deployment-package
+        # Create deployment directory and required subfolders
+        mkdir -p deployment-package
+        mkdir -p deployment-package/.platform/hooks/predeploy
+
+        # Copy application files
         cp -r app/ deployment-package/
-        cp -r .ebextensions/ deployment-package/
+
+        # Create or ensure .ebextensions exists
+        mkdir -p deployment-package/.ebextensions
+
+        # Create WSGI configuration
+        cat > deployment-package/.ebextensions/01_wsgi.config << 'EOF'
+        option_settings:
+          aws:elasticbeanstalk:container:python:
+            WSGIPath: app.main:app
+          aws:elasticbeanstalk:application:environment:
+            PYTHONPATH: "/var/app:/var/app/app"
+        EOF
+
+        # Create health check configuration
+        cat > deployment-package/.ebextensions/02_healthcheck.config << 'EOF'
+        option_settings:
+          aws:elasticbeanstalk:application:
+            Application Healthcheck URL: /
+          aws:elasticbeanstalk:environment:process:default:
+            HealthCheckPath: /
+            MatcherHTTPCode: 200
+        EOF
+
+        # Create predeploy script
+        cat > deployment-package/.platform/hooks/predeploy/01_setup.sh << 'EOF'
+        #!/bin/bash
+        cd /var/app/staging/
+        echo "Starting deployment $(date)" >> /var/log/deploy.log
+        echo "Python path: $(which python)" >> /var/log/deploy.log
+        echo "Python version: $(python --version)" >> /var/log/deploy.log
+        pip install -r requirements.txt
+        echo "Finished setup $(date)" >> /var/log/deploy.log
+        EOF
+
+        # Make script executable
+        chmod +x deployment-package/.platform/hooks/predeploy/01_setup.sh
+
+        # Copy other necessary files
         cp Procfile deployment-package/
         cp requirements.txt deployment-package/
+
+        # Create deployment package
         cd deployment-package
-        zip -r ../deploy.zip .
+        zip -r ../deploy.zip *
     
     - name: Deploy to Elastic Beanstalk
       uses: einaregilsson/beanstalk-deploy@v21
