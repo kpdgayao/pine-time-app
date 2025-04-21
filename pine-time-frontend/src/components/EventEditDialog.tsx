@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../api/client";
+import api from "../utils/api";
 import { Dialog, DialogContent, DialogActions, TextField, Stack, Button, Alert, MenuItem, Checkbox, FormControlLabel } from "@mui/material";
 // Removed FormDialog.css; all styling is now via MUI theme and components.
 
@@ -30,7 +30,7 @@ interface Props {
   isCreate?: boolean;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+
 
 const defaultForm: EventBase = {
   title: "",
