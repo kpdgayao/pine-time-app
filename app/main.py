@@ -47,15 +47,22 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# Set all CORS enabled origins
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# --- CORS Configuration for Amplify/Elastic Beanstalk ---
+# Get origins from environment variable BACKEND_CORS_ORIGINS
+# Example: https://your-amplify-domain.amplifyapp.com,http://localhost:5173
+origins = os.getenv(
+    "BACKEND_CORS_ORIGINS",
+    "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com/,http://localhost:5173,http://localhost:3000"
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in origins],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# --- End CORS Configuration ---
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
