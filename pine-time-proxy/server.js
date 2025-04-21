@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 
 // Configure CORS specifically for your Amplify domain
 app.use(cors({
-  origin: 'https://master.dq3hhwbwgg2a3.amplifyapp.com',
+  origin: 'https://master.dq3hhwbwgg2a3.amplifyapp.com', // Exact frontend domain, no trailing slash, protocol included
   credentials: true
 }));
 
