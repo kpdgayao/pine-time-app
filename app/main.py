@@ -1,6 +1,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import os
+import json
 
 # Ensure logs directory exists
 os.makedirs("logs", exist_ok=True)
