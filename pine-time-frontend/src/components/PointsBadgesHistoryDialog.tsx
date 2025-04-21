@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../api/client";
+import api from "../utils/api";
 import { exportToCsv } from "./exportToCsv";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -23,7 +23,7 @@ interface Props {
   onClose: () => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+
 
 const PointsBadgesHistoryDialog: React.FC<Props> = ({ userId, open, onClose }) => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -37,7 +37,7 @@ const PointsBadgesHistoryDialog: React.FC<Props> = ({ userId, open, onClose }) =
     if (!open || !userId) return;
     setLoading(true);
     setError(null);
-    api.get(`${API_BASE}/users/${userId}/points_badges_history`, { headers: { Authorization: `Bearer ${token}` } })
+    api.get(`/users/${userId}/points_badges_history`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setHistory(res.data))
       .catch(err => setError(err?.response?.data?.detail || "Failed to fetch history."))
       .finally(() => setLoading(false));

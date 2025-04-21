@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../api/client";
+import api from "../utils/api";
 import PointsBadgesHistoryDialog from "./PointsBadgesHistoryDialog";
 import {
   Dialog,
@@ -28,7 +28,7 @@ interface Props {
   onClose: () => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+
 
 const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
   // Analytics/history dialog state
@@ -53,9 +53,9 @@ const UserPointsBadgesDialog: React.FC<Props> = ({ userId, open, onClose }) => {
   const fetchData = () => {
     if (!open || !userId) return;
     Promise.all([
-      api.get(`${API_BASE}/users/${userId}/points`, { headers: { Authorization: `Bearer ${token}` } }),
-      api.get(`${API_BASE}/users/${userId}/badges`, { headers: { Authorization: `Bearer ${token}` } }),
-      api.get(`${API_BASE}/badges/`, { headers: { Authorization: `Bearer ${token}` } }),
+      api.get(`/users/${userId}/points`, { headers: { Authorization: `Bearer ${token}` } }),
+      api.get(`/users/${userId}/badges`, { headers: { Authorization: `Bearer ${token}` } }),
+      api.get(`/badges/`, { headers: { Authorization: `Bearer ${token}` } }),
     ])
       .then(([pointsRes, badgesRes, allBadgesRes]) => {
         setPoints(pointsRes.data.points ?? 0);
