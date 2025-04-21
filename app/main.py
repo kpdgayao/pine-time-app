@@ -48,16 +48,26 @@ app = FastAPI(
 )
 
 # --- CORS Configuration for Amplify/Elastic Beanstalk ---
-# Get origins from environment variable BACKEND_CORS_ORIGINS
-# Example: https://your-amplify-domain.amplifyapp.com,http://localhost:5173
-origins = os.getenv(
+# Parse CORS origins from environment variable (should be a JSON array)
+origins_str = os.getenv(
     "BACKEND_CORS_ORIGINS",
-    "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com/,http://localhost:5173,http://localhost:3000"
-).split(",")
+    '["http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com","http://localhost:5173","http://localhost:3000"]'
+)
+
+try:
+    # Parse as JSON array
+    origins = json.loads(origins_str)
+    logging.info(f"CORS origins loaded: {origins}")
+except json.JSONDecodeError as e:
+    # Fallback in case JSON parsing fails
+    logging.error(f"Failed to parse CORS origins as JSON: {origins_str}. Error: {str(e)}")
+    # Split by comma as fallback
+    origins = [origin.strip() for origin in origins_str.split(",")]
+    logging.info(f"CORS origins (fallback method): {origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in origins],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
