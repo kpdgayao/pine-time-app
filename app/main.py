@@ -103,8 +103,9 @@ async def health_check() -> dict:
 
     try:
         # Attempt to connect and execute a simple query
+        from sqlalchemy import text
         with engine.connect() as connection:
-            connection.execute("SELECT 1")
+            connection.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except SQLAlchemyError as e:
         logging.error(f"Health check DB error: {e}")
