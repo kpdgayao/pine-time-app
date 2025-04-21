@@ -1,0 +1,21 @@
+{
+  "name": "pine-time-proxy",
+  "version": "1.0.0",
+  "description": "A simple Express proxy for Pine Time backend.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "proxy",
+    "express",
+    "pine-time"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "http-proxy-middleware": "^2.0.9"
+  }
+}
