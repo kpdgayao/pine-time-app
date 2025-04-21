@@ -52,7 +52,7 @@ app = FastAPI(
 # Parse CORS origins from environment variable (should be a JSON array)
 origins_str = os.getenv(
     "BACKEND_CORS_ORIGINS",
-    '["http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com","http://localhost:5173","http://localhost:3000"]'
+    '["https://master.dq3hhwbwgg2a3.amplifyapp.com/","http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com","http://localhost:5173","http://localhost:3000"]'
 )
 
 try:
