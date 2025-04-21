@@ -8,7 +8,7 @@ from pydantic import BaseModel, condecimal
 from typing import Optional
 import logging
 import psycopg2
-from admin_dashboard.utils import db
+from app.utils import db
 
 router = APIRouter()
 
