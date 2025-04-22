@@ -26,6 +26,7 @@ API_ENDPOINTS = {
         "points": f"{API_BASE_URL}{API_V1_STR}/users/{{user_id}}/points",
         "badges": f"{API_BASE_URL}{API_V1_STR}/users/{{user_id}}/badges",
         "events": f"{API_BASE_URL}{API_V1_STR}/users/{{user_id}}/events",
+        "stats": f"{API_BASE_URL}{API_V1_STR}/users/{{user_id}}/stats",
         "profile": f"{API_BASE_URL}{API_V1_STR}/users/me",
         "register": f"{API_BASE_URL}{API_V1_STR}/users/register",
     },

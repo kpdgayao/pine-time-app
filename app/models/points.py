@@ -6,14 +6,14 @@ from app.db.base_class import Base
 
 
 class PointsTransaction(Base):
-    __tablename__ = "points_transaction"
+    __tablename__ = "points_transaction"  # Using singular table name to match existing database
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     points = Column(Integer, nullable=False)
     transaction_type = Column(String, nullable=False)  # earned, redeemed, expired, awarded
     description = Column(Text, nullable=False)
     event_id = Column(Integer, ForeignKey("event.id"), nullable=True)
-    admin_id = Column(Integer, ForeignKey("user.id"), nullable=True)  # For admin actions
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # For admin actions
     transaction_date = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

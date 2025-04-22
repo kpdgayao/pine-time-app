@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Stack, CircularProgress, Alert } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Typography, Stack, CircularProgress, Alert } from '@mui/material';
+import PineTimeButton from './PineTimeButton';
 import api from "../api/client";
 
 interface PaymentReviewDialogProps {
@@ -96,9 +97,9 @@ const PaymentReviewDialog: React.FC<PaymentReviewDialogProps> = ({ registrationI
         {actionMsg && <Alert severity={actionMsg.includes('approved') ? 'success' : 'error'} sx={{ mt: 2 }}>{actionMsg}</Alert>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={actionLoading}>Close</Button>
-        <Button onClick={handleReject} color="error" variant="contained" disabled={actionLoading || !payment}>Reject</Button>
-        <Button onClick={handleApprove} color="success" variant="contained" disabled={actionLoading || !payment}>Approve</Button>
+        <PineTimeButton onClick={onClose} disabled={actionLoading}>Close</PineTimeButton>
+        <PineTimeButton onClick={handleReject} color="error" variant="contained" disabled={actionLoading || !payment}>Reject</PineTimeButton>
+        <PineTimeButton onClick={handleApprove} color="success" variant="contained" disabled={actionLoading || !payment}>Approve</PineTimeButton>
       </DialogActions>
     </Dialog>
   );

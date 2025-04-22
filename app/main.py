@@ -49,30 +49,128 @@ app = FastAPI(
 )
 
 # --- CORS Configuration for Amplify/Elastic Beanstalk ---
+# Define default origins to always include
+default_origins = [
+    "http://localhost",
+    "http://localhost:5173", 
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:8501",
+    "https://master.dq3hhwbwgg2a3.amplifyapp.com",
+    "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com"
+]
+
 # Parse CORS origins from environment variable (should be a JSON array)
 origins_str = os.getenv(
     "BACKEND_CORS_ORIGINS",
-    '["https://master.dq3hhwbwgg2a3.amplifyapp.com/","http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com","http://localhost:5173","http://localhost:3000"]'
+    '["https://master.dq3hhwbwgg2a3.amplifyapp.com","http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com","http://localhost:5173","http://localhost:3000"]'
 )
 
 try:
     # Parse as JSON array
     origins = json.loads(origins_str)
+    # Add default origins
+    for origin in default_origins:
+        if origin not in origins:
+            origins.append(origin)
     logging.info(f"CORS origins loaded: {origins}")
 except json.JSONDecodeError as e:
     # Fallback in case JSON parsing fails
     logging.error(f"Failed to parse CORS origins as JSON: {origins_str}. Error: {str(e)}")
-    # Split by comma as fallback
-    origins = [origin.strip() for origin in origins_str.split(",")]
+    # Use default origins as fallback
+    origins = default_origins
     logging.info(f"CORS origins (fallback method): {origins}")
 
+# Hard-coded CORS origins for local/dev/prod
+CORS_ORIGINS = [
+    "http://localhost",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "https://master.dq3hhwbwgg2a3.amplifyapp.com",
+    "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com"
+]
+
+# Note: When allow_credentials=True, allow_origins cannot be ['*']
+# We need to specify exact origins
+
+# Define all possible origins to support
+all_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8501",
+    "http://127.0.0.1:8501",
+    "https://master.dq3hhwbwgg2a3.amplifyapp.com",
+    "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com"
+]
+
+# Create a middleware to handle CORS with proper error handling
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+import logging
+
+class CustomCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Get the origin from the request headers
+        origin = request.headers.get("origin", "")
+        
+        # Log the incoming request for debugging
+        logging.info(f"Incoming request from origin: {origin}")
+        
+        # Handle preflight OPTIONS requests specially
+        if request.method == "OPTIONS":
+            # Create a response with appropriate CORS headers
+            response = Response()
+            if origin in all_origins:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+                response.headers["Access-Control-Allow-Headers"] = "*"
+                response.headers["Access-Control-Max-Age"] = "600"
+            return response
+        
+        # For non-OPTIONS requests, proceed with normal processing
+        try:
+            response = await call_next(request)
+            
+            # Add CORS headers to the response
+            if origin in all_origins:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                
+            return response
+        except Exception as e:
+            logging.error(f"Error processing request: {str(e)}")
+            # Create a response for the error case
+            response = Response(status_code=500)
+            if origin in all_origins:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+            return response
+
+# Add the custom CORS middleware
+app.add_middleware(CustomCORSMiddleware)
+
+# Also keep the standard CORS middleware for compatibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=all_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allow_headers=["*"],  # Allow all headers for simplicity
+    expose_headers=["Content-Length", "Content-Type", "Authorization"],
+    max_age=600  # Cache preflight requests for 10 minutes
 )
+
 # --- End CORS Configuration ---
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

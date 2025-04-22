@@ -1,4 +1,16 @@
 import React, { useState } from "react";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import CircularProgress from '@mui/material/CircularProgress';
+import { useTheme } from '@mui/material/styles';
 import { useAdminEventRegistrations } from "../hooks/useAdminEventRegistrations";
 
 interface Props {
@@ -10,6 +22,7 @@ interface Props {
 const PAGE_SIZE = 10;
 
 const AdminEventRegistrationsModal: React.FC<Props> = ({ eventId, open, onClose }) => {
+  const theme = useTheme();
   const [page, setPage] = useState(1);
   const { items, total, approved, attendance_rate, revenue, loading, error, refetch } = useAdminEventRegistrations(eventId, page, PAGE_SIZE);
 
@@ -18,119 +31,92 @@ const AdminEventRegistrationsModal: React.FC<Props> = ({ eventId, open, onClose 
   if (!open) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h2>Event Registrations</h2>
-        <div className="summary-row">
-          <span><b>Total Registrations:</b> {total ?? 0}</span>
-          <span><b>Approved:</b> {approved ?? 0}</span>
-          <span><b>Attendance Rate:</b> {attendance_rate ?? 0}%</span>
-          <span><b>Revenue:</b> ₱{revenue?.toLocaleString() ?? 0}</span>
-        </div>
-        {loading && <div className="loading">Loading...</div>}
-        {error && <div className="error">{error}</div>}
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        bgcolor: theme.palette.action.disabledBackground,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+    >
+      <Box
+        sx={{
+          bgcolor: theme.palette.background.paper,
+          borderRadius: 2,
+          maxWidth: 800,
+          width: '90vw',
+          p: 4,
+          boxShadow: theme.shadows[2],
+        }}
+      >
+        <Typography variant="h5" mb={2}>Event Registrations</Typography>
+        <Box sx={{ display: 'flex', gap: 4, mb: 2 }}>
+          <Typography><b>Total Registrations:</b> {total ?? 0}</Typography>
+          <Typography><b>Approved:</b> {approved ?? 0}</Typography>
+          <Typography><b>Attendance Rate:</b> {attendance_rate ?? 0}%</Typography>
+          <Typography><b>Revenue:</b> ₱{revenue?.toLocaleString() ?? 0}</Typography>
+        </Box>
+        {loading && (
+          <Box sx={{ textAlign: 'center', my: 4 }}><CircularProgress /></Box>
+        )}
+        {error && (
+          <Typography sx={{ color: theme.palette.error.main, mb: 2 }}>{error}</Typography>
+        )}
         {!loading && !error && (
           <>
-            <table className="registrations-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>User</th>
-                  <th>Status</th>
-                  <th>Payment</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items && items.length > 0 ? (
-                  items.map((reg) => (
-                    <tr key={reg.id}>
-                      <td>{reg.id}</td>
-                      <td>{reg.user?.full_name || reg.user_id}</td>
-                      <td>{reg.status}</td>
-                      <td>{reg.payment_status}</td>
-                      <td>{new Date(reg.registration_date).toLocaleString()}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center" }}>
-                      No registrations found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            <div className="pagination-row">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
-              <span>Page {page} of {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next</button>
-            </div>
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ background: theme.palette.grey[100] }}>
+                    <TableCell>ID</TableCell>
+                    <TableCell>User</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Payment</TableCell>
+                    <TableCell>Date</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {items && items.length > 0 ? (
+                    items.map((reg) => (
+                      <TableRow key={reg.id}>
+                        <TableCell>{reg.id}</TableCell>
+                        <TableCell>{reg.user?.full_name || reg.user_id}</TableCell>
+                        <TableCell>{reg.status}</TableCell>
+                        <TableCell>{reg.payment_status}</TableCell>
+                        <TableCell>{new Date(reg.registration_date).toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        No registrations found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', mb: 2 }}>
+              <Button variant="outlined" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Prev</Button>
+              <Typography>Page {page} of {totalPages}</Typography>
+              <Button variant="outlined" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next</Button>
+            </Box>
           </>
         )}
-        <div className="modal-actions">
-          <button onClick={refetch}>Refresh</button>
-          <button onClick={onClose}>Close</button>
-        </div>
-      </div>
-      <style>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-        .modal-content {
-          background: #fff;
-          border-radius: 8px;
-          max-width: 800px;
-          width: 90vw;
-          padding: 2rem;
-          box-shadow: 0 2px 16px rgba(0,0,0,0.15);
-        }
-        .summary-row {
-          display: flex;
-          gap: 2rem;
-          margin-bottom: 1rem;
-        }
-        .registrations-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 1rem;
-        }
-        .registrations-table th, .registrations-table td {
-          border: 1px solid #ddd;
-          padding: 0.5rem 0.75rem;
-        }
-        .registrations-table th {
-          background: #f6f6f6;
-        }
-        .loading {
-          text-align: center;
-          margin: 2rem 0;
-        }
-        .error {
-          color: #c00;
-          margin-bottom: 1rem;
-        }
-        .pagination-row {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          justify-content: center;
-          margin-bottom: 1rem;
-        }
-        .modal-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 1rem;
-        }
-      `}</style>
-    </div>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+          <Button variant="contained" onClick={refetch}>Refresh</Button>
+          <Button variant="contained" color="secondary" onClick={onClose}>Close</Button>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
 export default AdminEventRegistrationsModal;
+

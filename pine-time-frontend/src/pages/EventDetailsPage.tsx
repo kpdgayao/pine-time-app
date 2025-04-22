@@ -1,19 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { Typography } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { Typography, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const EventDetailsPage: React.FC = () => {
+  const { showToast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [showAuthPrompt, setShowAuthPrompt] = useState(!user);
   const { eventId } = useParams<{ eventId: string }>();
   const [event, setEvent] = useState<any>(null);
-  let errorMsg = '';
   const [loading, setLoading] = useState(true);
   
   const [registering, setRegistering] = useState(false);
-  const [registerMsg, setRegisterMsg] = useState('');
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
     api.get(`/events/${eventId}`)
       .then(res => setEvent(res.data))
       .catch(err => {
@@ -29,14 +34,17 @@ const EventDetailsPage: React.FC = () => {
         errorMsg = errorMsg; // assign to local variable, not state
       })
       .finally(() => setLoading(false));
-  }, [eventId]);
+  }, [eventId, user]);
 
   const handleRegister = async () => {
+    if (!user) {
+      setShowAuthPrompt(true);
+      return;
+    }
     setRegistering(true);
-    setRegisterMsg('');
     try {
       await api.post(`/registrations/events/${eventId}/register`);
-      setRegisterMsg('Registration successful!');
+      showToast('✅ Registration successful! 🌲', 'success');
       setAlreadyRegistered(true);
     } catch (err: any) {
       let message = 'Registration failed.';
@@ -48,14 +56,36 @@ const EventDetailsPage: React.FC = () => {
       } else if (typeof data === 'object' && data !== null) {
         message = data.detail || data.msg || JSON.stringify(data);
       }
-      setRegisterMsg(message);
+      let emoji = '❌';
       if (message.toLowerCase().includes('already registered')) {
+        emoji = '⚠️';
         setAlreadyRegistered(true);
       }
+      if (message.toLowerCase().includes('full')) emoji = '⚠️';
+      if (message.toLowerCase().includes('past')) emoji = '⏰';
+      showToast(`${emoji} ${message}`, 'error');
     } finally {
       setRegistering(false);
     }
   };
+
+  if (!user) {
+    return (
+      <Dialog open={showAuthPrompt} onClose={() => navigate('/')} maxWidth="xs" fullWidth>
+        <DialogTitle>Login or Register Required</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Please log in or register to view event details and register for events.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button href="/login" variant="contained" color="primary">Login</Button>
+          <Button href="/register" variant="outlined" color="primary">Register</Button>
+          <Button onClick={() => navigate('/')}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
 
   if (loading) return <div>Loading...</div>;
 
@@ -64,7 +94,6 @@ const EventDetailsPage: React.FC = () => {
 
   return (
     <div>
-      {errorMsg && <div style={{color:'red'}}>{errorMsg}</div>}
       <Typography variant="h5">{event.title}</Typography>
       <p>Type: {event.event_type}</p>
       <p>Description: {event.description}</p>
@@ -78,7 +107,6 @@ const EventDetailsPage: React.FC = () => {
       >
         {alreadyRegistered ? 'Already Registered' : isPastEvent ? 'Event Ended' : registering ? 'Registering...' : 'Register for Event'}
       </button>
-      {registerMsg && <div style={{ marginTop: '0.5rem', color: registerMsg.includes('success') ? 'green' : 'red' }}>{registerMsg}</div>}
     </div>
   );
 };

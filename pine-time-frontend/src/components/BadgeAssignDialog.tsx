@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from "react";
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, MenuItem, Select, InputLabel, FormControl, CircularProgress, Alert
-} from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Stack, FormControl, CircularProgress, Alert, InputLabel, Select, MenuItem } from '@mui/material';
+import PineTimeButton from './PineTimeButton';
 import api from "../api/client";
-import Stack from '@mui/material/Stack';
+
 interface BadgeType {
   id: number;
   name: string;
@@ -79,10 +77,10 @@ const BadgeAssignDialog: React.FC<BadgeAssignDialogProps> = ({ open, onClose, on
   </Stack>
 </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={submitting}>Cancel</Button>
-        <Button onClick={handleAssign} variant="contained" disabled={!selectedBadgeType || submitting}>
+        <PineTimeButton onClick={onClose} disabled={submitting}>Cancel</PineTimeButton>
+        <PineTimeButton onClick={handleAssign} variant="contained" disabled={!selectedBadgeType || submitting}>
           Assign
-        </Button>
+        </PineTimeButton>
       </DialogActions>
     </Dialog>
   );

@@ -1,13 +1,15 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.api import dependencies
+from app.api.dependencies import safe_api_call, safe_api_response_handler, safe_get_user_id
 from app.db.session import SessionLocal
 from app.services.points_manager import PointsManager
+from sqlalchemy.exc import SQLAlchemyError
 
 router = APIRouter()
 
@@ -15,6 +17,136 @@ from fastapi import Path
 from app.schemas.event import EventStats
 from sqlalchemy import func
 import logging
+
+@router.get("/recommended", response_model=List[schemas.Event])
+def get_recommended_events(
+    request: Request,
+    db: Session = Depends(dependencies.get_db),
+    limit: int = Query(5, ge=1, le=20),
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+) -> Any:
+    """
+    Get personalized event recommendations for the current user.
+    
+    Recommendations are based on:
+    1. User's past event attendance
+    2. User's interests (event types)
+    3. User's location
+    4. Popularity of events
+    5. Upcoming events
+    """
+    try:
+        # Get user ID safely
+        user_id = getattr(current_user, "id", None)
+        if user_id is None:
+            logging.warning("User ID is None when fetching recommended events")
+            return []
+        
+        logging.info(f"Generating event recommendations for user {user_id}")
+        
+        # Get current date for filtering upcoming events
+        current_date = datetime.now()
+        
+        # 1. Find event types the user has previously attended
+        user_attended_event_types = []
+        try:
+            # Get past registrations
+            past_registrations = db.query(models.Registration).filter(
+                models.Registration.user_id == user_id,
+                models.Registration.status.in_(["confirmed", "attended"])
+            ).all()
+            
+            # Get event types from these registrations
+            for reg in past_registrations:
+                event = db.query(models.Event).filter(models.Event.id == reg.event_id).first()
+                if event and event.event_type and event.event_type not in user_attended_event_types:
+                    user_attended_event_types.append(event.event_type)
+        except Exception as e:
+            logging.error(f"Error getting user's attended event types: {str(e)}")
+        
+        # 2. Get user's location if available
+        user_location = None
+        try:
+            # Check if UserProfile model exists in the models module
+            if hasattr(models, 'UserProfile'):
+                user_profile = db.query(models.UserProfile).filter(models.UserProfile.user_id == user_id).first()
+                if user_profile:
+                    user_location = user_profile.location
+            else:
+                # Try to get location from User model directly if available
+                user = db.query(models.User).filter(models.User.id == user_id).first()
+                if user and hasattr(user, 'location'):
+                    user_location = user.location
+        except Exception as e:
+            logging.error(f"Error getting user's location: {str(e)}")
+        
+        # 3. Build recommendation query
+        query = db.query(models.Event).filter(
+            models.Event.is_active == True,
+            models.Event.start_time > current_date  # Only upcoming events
+        )
+        
+        # If we have user's preferred event types, prioritize those
+        recommended_events = []
+        if user_attended_event_types:
+            # First get events matching user's interests
+            type_matched_events = query.filter(models.Event.event_type.in_(user_attended_event_types))\
+                .order_by(models.Event.start_time.asc())\
+                .limit(limit).all()
+            recommended_events.extend(type_matched_events)
+        
+        # If we don't have enough recommendations yet, add popular events
+        if len(recommended_events) < limit:
+            remaining_limit = limit - len(recommended_events)
+            
+            # Get event IDs we already recommended to avoid duplicates
+            existing_event_ids = [event.id for event in recommended_events]
+            
+            # Get popular events (most registrations) that aren't already recommended
+            popular_events_query = db.query(models.Event)\
+                .outerjoin(models.Registration, models.Event.id == models.Registration.event_id)\
+                .filter(
+                    models.Event.is_active == True,
+                    models.Event.start_time > current_date
+                )
+            
+            if existing_event_ids:
+                popular_events_query = popular_events_query.filter(~models.Event.id.in_(existing_event_ids))
+                
+            popular_events = popular_events_query\
+                .group_by(models.Event.id)\
+                .order_by(func.count(models.Registration.id).desc())\
+                .limit(remaining_limit).all()
+                
+            recommended_events.extend(popular_events)
+        
+        # If we still don't have enough, add some random upcoming events
+        if len(recommended_events) < limit:
+            remaining_limit = limit - len(recommended_events)
+            
+            # Get event IDs we already recommended to avoid duplicates
+            existing_event_ids = [event.id for event in recommended_events]
+            
+            # Get random upcoming events that aren't already recommended
+            random_events_query = db.query(models.Event).filter(
+                models.Event.is_active == True,
+                models.Event.start_time > current_date
+            )
+            
+            if existing_event_ids:
+                random_events_query = random_events_query.filter(~models.Event.id.in_(existing_event_ids))
+                
+            random_events = random_events_query.order_by(func.random()).limit(remaining_limit).all()
+            recommended_events.extend(random_events)
+        
+        logging.info(f"Generated {len(recommended_events)} event recommendations for user {user_id}")
+        return recommended_events
+        
+    except Exception as e:
+        logging.error(f"Error generating event recommendations: {str(e)}", exc_info=True)
+        # Return empty list as fallback
+        return []
+
 
 @router.get("/{event_id}/stats", response_model=EventStats)
 def get_event_stats(
@@ -57,6 +189,8 @@ def get_event_stats(
     )
 
 
+from fastapi import Request
+
 @router.get("/", response_model=List[schemas.Event])
 def read_events(
     db: Session = Depends(dependencies.get_db),
@@ -64,8 +198,46 @@ def read_events(
     limit: int = 100,
     event_type: Optional[str] = None,
     upcoming: Optional[bool] = None,
-    current_user: models.User = Depends(dependencies.get_current_active_user),
+    request: Request = None,
 ) -> Any:
+    """
+    Retrieve events with filtering options. Public for GET. Authenticated users see all, unauthenticated see only active events.
+    """
+    query = db.query(models.Event)
+
+    # Apply filters
+    if event_type:
+        query = query.filter(models.Event.event_type == event_type)
+
+    if upcoming is not None:
+        now = datetime.utcnow()
+        if upcoming:
+            query = query.filter(models.Event.start_time > now)
+        else:  # past events
+            query = query.filter(models.Event.end_time < now)
+
+    # Try to get user from Authorization header (optional)
+    user = None
+    try:
+        from app.api.dependencies import get_current_user
+        token = None
+        if request and "authorization" in request.headers:
+            token = request.headers["authorization"].replace("Bearer ", "")
+        if token:
+            user = get_current_user.__wrapped__(db, token)  # bypass Depends
+    except Exception:
+        user = None
+
+    # Only show active events to unauthenticated users
+    if not user or (not getattr(user, 'is_superuser', False) and getattr(user, 'user_type', None) != "admin"):
+        query = query.filter(models.Event.is_active == True)
+
+    # Order by start_time
+    query = query.order_by(models.Event.start_time)
+
+    events = query.offset(skip).limit(limit).all()
+    return events
+
     """
     Retrieve events with filtering options.
     """

@@ -5,6 +5,7 @@ from app.db.base_class import Base
 
 
 class Event(Base):
+    __tablename__ = "event"  # Using singular table name to match existing database
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=False)
@@ -20,3 +21,4 @@ class Event(Base):
     
     # Relationships
     registrations = relationship("Registration", back_populates="event")
+    attendees = relationship("EventAttendee", back_populates="event")

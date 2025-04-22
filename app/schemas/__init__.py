@@ -9,6 +9,8 @@ from app.schemas.event import Event, EventCreate, EventUpdate
 from app.schemas.badge import BadgeOut, BadgeCreate, BadgeUpdate
 from app.schemas.points import PointsTransaction, PointsTransactionCreate, PointsTransactionAdmin
 from app.schemas.registration import Registration, RegistrationCreate
+from app.schemas.user_points import UserPoints, UserActivity, UserStats
+from app.schemas.user_badge import UserBadgeWithProgress
 
 __all__ = [
     "User", "UserCreate", "UserUpdate",
@@ -16,5 +18,7 @@ __all__ = [
     "Event", "EventCreate", "EventUpdate",
     "BadgeOut", "BadgeCreate", "BadgeUpdate",
     "PointsTransaction", "PointsTransactionCreate",
-    "Registration", "RegistrationCreate"
+    "Registration", "RegistrationCreate",
+    "UserPoints", "UserActivity", "UserStats",
+    "UserBadgeWithProgress"
 ]

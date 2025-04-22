@@ -6,15 +6,16 @@ from app.db.base_class import Base
 
 
 class Badge(Base):
+    __tablename__ = "badges"  # Using plural table name to match existing database
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     badge_type_id = Column(Integer, ForeignKey("badge_types.id"), nullable=False)  # FK to BadgeType
-    badge_type = Column(String, nullable=False)  # event_master, trivia_champion, etc.
     name = Column(String, nullable=False)
     description = Column(Text, nullable=False)
-    image_url = Column(String, nullable=True)
-    earned_date = Column(DateTime, default=datetime.utcnow)
+    icon_url = Column(String, nullable=True)
+    category = Column(String, nullable=True)  # events, social, achievements, etc.
+    max_level = Column(Integer, default=5, nullable=False)
+    created_date = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
-    user = relationship("User", back_populates="badges")
     badge_type_obj = relationship("BadgeType", back_populates="badges")
+    user_badges = relationship("UserBadge", back_populates="badge")

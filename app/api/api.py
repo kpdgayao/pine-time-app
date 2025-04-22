@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.endpoints import login, users, events, registrations, badges, points, auth, badges_admin, admin_points, registrations_admin, payment
+from app.api.endpoints import login, users, events, registrations, badges, points, auth, badges_admin, admin_points, registrations_admin, payment, gamification
 
 api_router = APIRouter()
 api_router.include_router(login.router, tags=["login"])
@@ -14,3 +14,4 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(badges_admin.router, prefix="/badges_admin", tags=["badges_admin"])
 api_router.include_router(admin_points.router, prefix="/admin", tags=["admin-points"])
 api_router.include_router(payment.router, prefix="/payments", tags=["payments"])
+api_router.include_router(gamification.router, tags=["gamification"])

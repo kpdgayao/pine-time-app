@@ -6,6 +6,7 @@ from app.db.base_class import Base
 
 
 class User(Base):
+    __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     username = Column(String, unique=True, index=True, nullable=False)
@@ -17,7 +18,7 @@ class User(Base):
     
     # Relationships
     registrations = relationship("Registration", back_populates="user")
-    badges = relationship("Badge", back_populates="user")
+    badges = relationship("UserBadge", back_populates="user")
     points_transactions = relationship(
         "PointsTransaction",
         back_populates="user",
@@ -28,3 +29,4 @@ class User(Base):
         back_populates="admin",
         foreign_keys="PointsTransaction.admin_id"
     )
+    attended_events = relationship("EventAttendee", back_populates="user")

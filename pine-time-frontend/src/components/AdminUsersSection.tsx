@@ -3,8 +3,11 @@ import api from "../api/client";
 import UserEditDialog from "./UserEditDialog";
 import {
   Table, TableHead, TableRow, TableCell, TableBody, TablePagination,
-  Paper, Stack, Button, Alert, Typography
+  Stack, Alert, Typography
 } from '@mui/material';
+import PineTimeButton from './PineTimeButton';
+import PineTimeCard from './PineTimeCard';
+import { useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 
 interface User {
@@ -20,6 +23,7 @@ interface User {
 const PAGE_SIZE = 10;
 
 const AdminUsersSection: React.FC = () => {
+  const theme = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [page, setPage] = useState(1);
 
@@ -108,20 +112,20 @@ const AdminUsersSection: React.FC = () => {
   };
 
   return (
-    <Paper sx={{ p: 2, mb: 2 }} elevation={2}>
+    <PineTimeCard sx={{ p: 2, mb: 2 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h5">Users</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => fetchUsers(1)}>
+        <PineTimeButton variantType="primary" startIcon={<AddIcon />} onClick={() => fetchUsers(1)}>
           Refresh Users
-        </Button>
+        </PineTimeButton>
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Stack direction="row" spacing={2} mb={2}>
-        <Button size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('activate')}>Bulk Activate</Button>
-        <Button size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('deactivate')}>Bulk Deactivate</Button>
-        <Button size="small" color="error" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('delete')}>Bulk Delete</Button>
-        <Button size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('promote')}>Bulk Promote</Button>
-        <Button size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('demote')}>Bulk Demote</Button>
+        <PineTimeButton size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('activate')}>Bulk Activate</PineTimeButton>
+        <PineTimeButton size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('deactivate')}>Bulk Deactivate</PineTimeButton>
+        <PineTimeButton size="small" color="error" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('delete')}>Bulk Delete</PineTimeButton>
+        <PineTimeButton size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('promote')}>Bulk Promote</PineTimeButton>
+        <PineTimeButton size="small" disabled={bulkLoading || !selectedIds.length} onClick={() => handleBulkAction('demote')}>Bulk Demote</PineTimeButton>
       </Stack>
       <Table size="small">
         <TableHead>
@@ -161,23 +165,24 @@ const AdminUsersSection: React.FC = () => {
               <TableCell>{user.is_active ? 'Yes' : 'No'}</TableCell>
               <TableCell>{user.is_superuser ? 'Yes' : 'No'}</TableCell>
               <TableCell align="right">
-                <Button
+                <PineTimeButton
                   size="small"
-                  variant={user.is_active ? 'outlined' : 'contained'}
+                  variantType={user.is_active ? 'text' : 'primary'}
                   color={user.is_active ? 'warning' : 'success'}
                   disabled={!!actionLoading[user.id]}
                   onClick={() => handleActivateToggle(user)}
+                  sx={{ minWidth: 90 }}
                 >
                   {actionLoading[user.id] ? '...' : user.is_active ? 'Deactivate' : 'Activate'}
-                </Button>
-                <Button
+                </PineTimeButton>
+                <PineTimeButton
                   size="small"
-                  sx={{ ml: 1 }}
-                  variant="outlined"
+                  variantType="text"
+                  sx={{ ml: 1, minWidth: 90 }}
                   onClick={() => handleEditRole(user)}
                 >
                   Edit Role
-                </Button>
+                </PineTimeButton>
               </TableCell>
             </TableRow>
           ))}
@@ -197,7 +202,7 @@ const AdminUsersSection: React.FC = () => {
         onClose={() => { setEditDialogOpen(false); setSelectedUser(null); }}
         onSave={handleEditDialogSave}
       />
-    </Paper>
+    </PineTimeCard>
   );
 }
 

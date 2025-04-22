@@ -30,7 +30,7 @@ pine-time-app/
 │   ├── app.py             # Admin dashboard entry point
 │   └── user_app_postgres.py # User interface entry point with PostgreSQL support
 ├── app/                   # FastAPI backend
-│   ├── api/               # API endpoints
+│   ├── api/               # API endpoints (all backend routes are prefixed with /api)
 │   ├── core/              # Core functionality
 │   ├── db/                # Database setup
 │   ├── models/            # SQLAlchemy models
@@ -39,6 +39,47 @@ pine-time-app/
 │   └── main.py            # Backend entry point
 ├── pine-time-frontend/    # React frontend (Vite + TypeScript)
 │   ├── src/               # React source code (components, pages, hooks, types, utils)
+├── pine-time-proxy/       # Vercel proxy configuration for frontend-backend integration
+│   └── vercel.json        # Proxy and CORS rules for API requests
+```
+
+---
+
+## Vercel Proxy Configuration
+
+The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely connect the React frontend with the FastAPI backend, handling authentication and CORS headers correctly. **This is critical for production deployments and local development using Vercel.**
+
+**Sample vercel.json:**
+```json
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" }
+      ]
+    }
+  ]
+}
+```
+
+**Key Points:**
+- The `destination` must match your backend route structure (do not add or omit `/api` unless your backend expects it).
+- Explicit CORS headers are required to support JWT authentication and cross-origin requests.
+- All frontend API calls should use `/api/...` as the base path.
+- If you change your backend URL or route prefix, update `vercel.json` accordingly.
+
+---
 
 
 ## Development Environment
@@ -66,14 +107,15 @@ pine-time-app/
 
 ## Tech Stack
 
-- **Backend**: FastAPI with SQLAlchemy ORM
-- **Database**: PostgreSQL 17.4 (primary), SQLite (development)
-- **Frontend**: React (Vite + TypeScript) and Streamlit (legacy/admin)
-- **React Frontend**: Modern UI, uses axios, react-router-dom, jwt-decode, and custom hooks
+- **Backend**: FastAPI (with all routes under `/api`) and SQLAlchemy ORM
+- **Database**: PostgreSQL 17.4 (production), SQLite (development/testing)
+- **Frontend**: React (Vite + TypeScript) for users, Streamlit (legacy/admin)
+- **Proxy**: Vercel proxy for frontend-backend integration and CORS handling
+- **React Frontend**: Uses axios (with JWT auth), react-router-dom, jwt-decode, custom hooks, robust error handling
 - **Admin Dashboard**: Streamlit-based admin tools
-- **Authentication**: JWT-based auth system with token refresh
+- **Authentication**: JWT-based auth system with refresh token logic (frontend and backend)
 - **Styling**: Custom CSS with Pine Time green theme (#2E7D32)
-- **Testing**: Pytest with demo mode support
+- **Testing**: Pytest (backend), React Testing Library/Jest (frontend), demo mode support
 
 ## Setup Instructions
 
@@ -192,7 +234,8 @@ The application includes an enhanced demo mode for testing without backend conne
 
 The application implements a robust error handling system with multiple layers:
 
-- **API Client Layer**: Enhanced error handling with specific error messages for different status codes
+- **API Client Layer**: Centralized error handling for all API requests (see `safe_api_call` and axios interceptors)
+- **Token Management**: Secure JWT storage, token refresh logic, and session expiry warnings
 - **Connection Utility Layer**: Connection verification with caching and fallback mechanisms
 - **User Interface Layer**: Graceful degradation with informative error messages
 - **Custom Exceptions**: Specialized exception classes for different error types (APIError, PostgreSQLError)
@@ -218,6 +261,7 @@ The application includes a comprehensive test suite:
 - **API Tests**: Test API endpoints and error handling
 - **Load Tests**: Evaluate performance under load
 - **Demo Mode Tests**: Test without backend connection
+- **Proxy/CORS Tests**: Ensure frontend-backend connectivity via Vercel proxy (see troubleshooting section)
 
 Run the test suite with:
 ```bash
@@ -228,6 +272,17 @@ Or run specific test categories:
 ```bash
 python run_demo_tests.py  # Run tests in demo mode
 ```
+
+---
+
+## Troubleshooting Frontend-Backend Connectivity
+
+- If your frontend cannot reach the backend or authentication fails, check your `pine-time-proxy/vercel.json`:
+  - The `destination` must match your backend route structure (add or remove `/api` as needed).
+  - CORS headers must allow credentials and the Authorization header.
+- For authentication issues, ensure your axios client uses the correct token key (`access_token`) and always uses the shared API instance.
+- If you deploy to a new domain, add it to your backend's CORS origins (see `BACKEND_CORS_ORIGINS` in your environment variables).
+- For more advanced proxy needs, see the sample `api/[...path].js` handler in the documentation or ask for help.
 
 ## Contributing
 

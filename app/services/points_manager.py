@@ -1,6 +1,7 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from datetime import datetime
+import logging
 
 from app import models
 
@@ -12,6 +13,159 @@ class PointsManager:
     
     def __init__(self, db: Session):
         self.db = db
+        
+    def get_user_points_balance(self, user_id: int) -> int:
+        """
+        Get the current points balance for a user.
+        
+        Args:
+            user_id: ID of the user
+            
+        Returns:
+            Current points balance
+        """
+        # Get all transactions for the user
+        transactions = self.db.query(models.PointsTransaction).filter(
+            models.PointsTransaction.user_id == user_id
+        ).all()
+        
+        # Sum up the points
+        balance = sum(tx.points for tx in transactions)
+        
+        return balance
+    
+    def get_user_rank(self, user_id: int) -> int:
+        """
+        Get the user's rank in the leaderboard.
+        
+        Args:
+            user_id: ID of the user
+            
+        Returns:
+            User's rank (1-based)
+        """
+        # Get all users with their point totals
+        users_with_points = []
+        all_users = self.db.query(models.User).filter(models.User.is_active == True).all()
+        
+        for user in all_users:
+            points = self.get_user_points_balance(user.id)
+            users_with_points.append((user.id, points))
+        
+        # Sort by points (descending)
+        users_with_points.sort(key=lambda x: x[1], reverse=True)
+        
+        # Find the user's position
+        for i, (uid, _) in enumerate(users_with_points):
+            if uid == user_id:
+                return i + 1  # 1-based rank
+                
+        return len(users_with_points) + 1  # If user not found, return last place
+    
+    def get_user_badges(self, user_id: int) -> List:
+        """
+        Get all badges earned by a user.
+        
+        Args:
+            user_id: ID of the user
+            
+        Returns:
+            List of badge objects with badge details
+        """
+        try:
+            # Check if the UserBadge model exists in the database
+            user_badges = self.db.query(models.UserBadge).filter(
+                models.UserBadge.user_id == user_id
+            ).all()
+            
+            if not user_badges:
+                return []
+                
+            # Get badge details for each user badge
+            badges_with_details = []
+            for user_badge in user_badges:
+                badge = self.db.query(models.Badge).filter(
+                    models.Badge.id == user_badge.badge_id
+                ).first()
+                
+                if badge:
+                    badge_info = {
+                        "id": badge.id,
+                        "name": badge.name,
+                        "description": badge.description,
+                        "badge_type": badge.badge_type if hasattr(badge, 'badge_type') else None,
+                        "level": user_badge.level if hasattr(user_badge, 'level') else 1,
+                        "earned_date": user_badge.earned_date.isoformat() if hasattr(user_badge, 'earned_date') and user_badge.earned_date else None,
+                        "image_url": badge.image_url if hasattr(badge, 'image_url') else None
+                    }
+                    badges_with_details.append(badge_info)
+            
+            return badges_with_details
+            
+        except Exception as e:
+            logging.error(f"Error in get_user_badges: {str(e)}")
+            return []
+        
+        # User not found
+        return len(users_with_points) + 1
+    
+    def get_user_streak(self, user_id: int) -> int:
+        """
+        Get the user's current streak count.
+        
+        Args:
+            user_id: ID of the user
+            
+        Returns:
+            Current streak count (in weeks)
+        """
+        try:
+            # In a real implementation, this would check for consecutive weeks of activity
+            # For now, we'll use a simple algorithm based on recent transactions
+            
+            # Get transactions from the last 8 weeks
+            now = datetime.utcnow()
+            eight_weeks_ago = now - timedelta(days=56)  # Exactly 8 weeks
+            
+            recent_transactions = self.db.query(models.PointsTransaction).filter(
+                models.PointsTransaction.user_id == user_id,
+                models.PointsTransaction.transaction_date >= eight_weeks_ago
+            ).order_by(models.PointsTransaction.transaction_date.desc()).all()
+            
+            if not recent_transactions:
+                return 0
+            
+            # Group transactions by week
+            weeks_with_activity = set()
+            for tx in recent_transactions:
+                # Get the ISO week number
+                year, week, _ = tx.transaction_date.isocalendar()
+                weeks_with_activity.add((year, week))
+            
+            # Sort weeks chronologically
+            weeks_with_activity = sorted(weeks_with_activity, reverse=True)
+            
+            # Count consecutive weeks
+            streak = 1  # Start with current week
+            current_year, current_week = weeks_with_activity[0]
+            
+            for i in range(1, len(weeks_with_activity)):
+                year, week = weeks_with_activity[i]
+                
+                # Check if this is the previous week
+                if (year == current_year and week == current_week - 1) or \
+                   (year == current_year - 1 and current_week == 1 and week == 52):
+                    streak += 1
+                    current_year, current_week = year, week
+                else:
+                    break
+            
+            return streak
+        except Exception as e:
+            # Log the error and return a default value
+            import logging
+            logging.error(f"Error calculating user streak for user {user_id}: {str(e)}")
+            return 0
     
     def award_points(
         self, 

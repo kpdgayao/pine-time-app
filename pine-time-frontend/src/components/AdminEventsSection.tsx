@@ -8,8 +8,12 @@ import StatusBadge from "./StatusBadge";
 import { formatDate, formatRelativeTime, isPast } from "./dateUtils";
 import {
   Table, TableHead, TableRow, TableCell, TableBody, TablePagination,
-  Paper, Stack, Button, CircularProgress, Alert, IconButton, Tooltip, Checkbox, Snackbar, Typography, Dialog, DialogTitle, DialogActions
+  Stack, CircularProgress, Alert, IconButton, Tooltip, Checkbox, Snackbar, Typography, Dialog, DialogTitle, DialogActions
 } from '@mui/material';
+import PineTimeButton from './PineTimeButton';
+import PineTimeCard from './PineTimeCard';
+import PineTimeTextField from './PineTimeTextField';
+import { useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -35,6 +39,7 @@ interface Event extends EventBase {
 const PAGE_SIZE = 10;
 
 const AdminEventsSection: React.FC = () => {
+  const theme = useTheme();
   // Registration dialog state
   const [regDialogOpen, setRegDialogOpen] = useState(false);
   const [regEventId, setRegEventId] = useState<number | undefined>(undefined);
@@ -176,12 +181,12 @@ const filteredEvents = eventsArray.filter(
 
 
   return (
-    <Paper sx={{ p: 2, mb: 2 }} elevation={2}>
+    <PineTimeCard sx={{ p: 2, mb: 2 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h5">Event Management</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
+        <PineTimeButton variantType="primary" startIcon={<AddIcon />} onClick={handleCreate}>
           Add Event
-        </Button>
+        </PineTimeButton>
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
@@ -253,15 +258,16 @@ const filteredEvents = eventsArray.filter(
         page={page - 1}
         onPageChange={(_, newPage) => handlePageChange(newPage + 1)}
       />
-      <form onSubmit={handleSearch} style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
-        <input
+      <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: theme.spacing(2) }}>
+        <PineTimeTextField
           placeholder="Search by title, description, or location"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: 8, width: 260, marginRight: 8 }}
           aria-label="Search events"
+          size="small"
+          sx={{ width: 260 }}
         />
-        <button type="submit" style={{ padding: "8px 16px" }}>Search</button>
+        <PineTimeButton type="submit" variantType="primary">Search</PineTimeButton>
       </form>
       <Snackbar
         open={snackbar.open}
@@ -274,8 +280,8 @@ const filteredEvents = eventsArray.filter(
         <DialogTitle>Delete Event</DialogTitle>
         <Typography sx={{ px: 3, pt: 1 }}>Are you sure you want to delete event '{eventToDelete?.title}'?</Typography>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">Cancel</Button>
-          <Button onClick={confirmDelete} color="error">Delete</Button>
+          <PineTimeButton onClick={() => setDeleteDialogOpen(false)} variantType="text">Cancel</PineTimeButton>
+          <PineTimeButton onClick={confirmDelete} color="error" variantType="secondary">Delete</PineTimeButton>
         </DialogActions>
       </Dialog>
       <EventEditDialog
@@ -297,7 +303,7 @@ const filteredEvents = eventsArray.filter(
         open={regDialogOpen}
         onClose={() => setRegDialogOpen(false)}
       />
-    </Paper>
+    </PineTimeCard>
   );
 };
 

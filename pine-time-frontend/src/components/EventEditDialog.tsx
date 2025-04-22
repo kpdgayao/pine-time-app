@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import api from "../utils/api";
-import { Dialog, DialogContent, DialogActions, TextField, Stack, Button, Alert, MenuItem, Checkbox, FormControlLabel } from "@mui/material";
+import { Dialog, DialogContent, DialogActions, Stack, MenuItem, FormControlLabel, Checkbox, Alert } from '@mui/material';
+import PineTimeTextField from './PineTimeTextField';
+import PineTimeButton from './PineTimeButton';
 // Removed FormDialog.css; all styling is now via MUI theme and components.
 
 interface EventBase {
@@ -162,7 +164,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
       <DialogContent>
         <form onSubmit={handleSubmit} autoComplete="off">
           <Stack spacing={2}>
-            <TextField
+            <PineTimeTextField
               label="Title"
               name="title"
               value={form.title}
@@ -174,7 +176,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               error={!!validationErrors["title"]}
               helperText={validationErrors["title"] || ''}
             />
-            <TextField
+            <PineTimeTextField
               label="Description"
               name="description"
               value={form.description}
@@ -188,7 +190,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               error={!!validationErrors["description"]}
               helperText={validationErrors["description"] || ''}
             />
-            <TextField
+            <PineTimeTextField
               label="Event Type"
               name="event_type"
               value={form.event_type}
@@ -205,8 +207,8 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               <MenuItem value="mystery">Murder Mystery</MenuItem>
               <MenuItem value="workshop">Workshop</MenuItem>
               <MenuItem value="other">Other</MenuItem>
-            </TextField>
-            <TextField
+            </PineTimeTextField>
+            <PineTimeTextField
               label="Location"
               name="location"
               value={form.location}
@@ -218,7 +220,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               error={!!validationErrors["location"]}
               helperText={validationErrors["location"] || ''}
             />
-            <TextField
+            <PineTimeTextField
               label="Start Time"
               name="start_time"
               type="datetime-local"
@@ -232,7 +234,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               error={!!validationErrors["start_time"]}
               helperText={validationErrors["start_time"] || ''}
             />
-            <TextField
+            <PineTimeTextField
               label="End Time"
               name="end_time"
               type="datetime-local"
@@ -246,7 +248,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               error={!!validationErrors["end_time"]}
               helperText={validationErrors["end_time"] || ''}
             />
-            <TextField
+            <PineTimeTextField
               label="Max Participants"
               name="max_participants"
               type="number"
@@ -259,7 +261,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               error={!!validationErrors["max_participants"]}
               helperText={validationErrors["max_participants"] || ''}
             />
-            <TextField
+            <PineTimeTextField
               label="Points Reward"
               name="points_reward"
               type="number"
@@ -272,7 +274,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               error={!!validationErrors["points_reward"]}
               helperText={validationErrors["points_reward"] || ''}
             />
-            <TextField
+            <PineTimeTextField
               label="Image URL"
               name="image_url"
               value={form.image_url || ""}
@@ -281,7 +283,7 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
               disabled={loading}
               variant="outlined"
             />
-            <TextField
+            <PineTimeTextField
               label="Price"
               name="price"
               type="number"
@@ -319,10 +321,10 @@ const EventEditDialog: React.FC<Props> = ({ event, open, onClose, onSave, isCrea
           </Alert>
         )}
         <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button onClick={onClose} disabled={loading} variant="outlined">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
+          <PineTimeButton onClick={onClose} disabled={loading} variant="outlined">Cancel</PineTimeButton>
+          <PineTimeButton onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
             {isCreate ? "Create" : loading ? "Saving..." : "Save"}
-          </Button>
+          </PineTimeButton>
         </Stack>
       </DialogActions>
     </Dialog>

@@ -1,10 +1,14 @@
-from typing import Generator
+from typing import Generator, Callable, Any, TypeVar, Dict, List, Union, Optional
+from functools import wraps
+import logging
+import time
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import models, schemas
 from app.core import security
@@ -63,3 +67,151 @@ def get_current_active_superuser(
             status_code=400, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+
+# Type variable for generic function return type
+T = TypeVar('T')
+
+
+def safe_api_call(func: Callable[..., T]) -> Callable[..., T]:
+    """
+    Decorator for safely handling API calls with proper error handling.
+    Wraps API endpoint functions to catch and handle exceptions gracefully.
+    
+    Args:
+        func: The API endpoint function to wrap
+        
+    Returns:
+        Wrapped function with error handling
+    """
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> T:
+        try:
+            # Get the request object if available in kwargs
+            request = kwargs.get('request', None)
+            endpoint = func.__name__
+            
+            if request:
+                client_info = f"{request.client.host}:{request.client.port}" if request.client else "Unknown"
+                logging.info(f"API call to {endpoint} from {client_info}")
+            
+            # Add timing for performance monitoring
+            start_time = time.time()
+            result = await func(*args, **kwargs) if callable(getattr(func, '__await__', None)) else func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            
+            if elapsed > 1.0:  # Log slow API calls
+                logging.warning(f"Slow API call: {endpoint} took {elapsed:.2f}s")
+            else:
+                logging.debug(f"API call to {endpoint} completed in {elapsed:.2f}s")
+                
+            return result
+            
+        except HTTPException as e:
+            # Re-raise HTTP exceptions as they're already properly formatted
+            logging.warning(f"HTTP error in {func.__name__}: {e.status_code} - {e.detail}")
+            raise
+            
+        except SQLAlchemyError as e:
+            # Handle database errors
+            logging.error(f"Database error in {func.__name__}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error occurred. Please try again later."
+            )
+            
+        except ValidationError as e:
+            # Handle validation errors
+            logging.error(f"Validation error in {func.__name__}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Validation error: {str(e)}"
+            )
+            
+        except Exception as e:
+            # Catch all other exceptions
+            logging.error(f"Unexpected error in {func.__name__}: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="An unexpected error occurred. Please try again later."
+            )
+            
+    return wrapper
+
+
+def safe_api_response_handler(response: Union[Dict, List, Any]) -> Union[Dict, List, Any]:
+    """
+    Safely process API responses, handling different formats consistently.
+    
+    Args:
+        response: The API response to process
+        
+    Returns:
+        Processed response in a consistent format
+    """
+    try:
+        if response is None:
+            return {"data": [], "message": "No data found"}
+            
+        # Handle paginated responses (dictionary with 'items' key)
+        if isinstance(response, dict) and "items" in response:
+            return response
+            
+        # Handle list responses
+        if isinstance(response, list):
+            return {"items": response, "total": len(response)}
+            
+        # Handle single item responses
+        return response
+        
+    except Exception as e:
+        logging.error(f"Error processing API response: {str(e)}", exc_info=True)
+        return {"data": [], "error": "Error processing response", "message": str(e)}
+
+
+def safe_get_current_user(db: Session, request: Request) -> Optional[models.User]:
+    """
+    Safely get the current user with error handling.
+    
+    Args:
+        db: Database session
+        request: FastAPI request object
+        
+    Returns:
+        User object if found and authenticated, None otherwise
+    """
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return None
+            
+        token = auth_header.replace("Bearer ", "")
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
+        user_id = payload.get("sub")
+        
+        if not user_id:
+            return None
+            
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        return user if user and user.is_active else None
+        
+    except (jwt.JWTError, ValidationError, Exception) as e:
+        logging.warning(f"Authentication error: {str(e)}")
+        return None
+
+
+def safe_get_user_id(current_user: Optional[models.User]) -> Optional[int]:
+    """
+    Safely get user ID with null checking.
+    
+    Args:
+        current_user: User object
+        
+    Returns:
+        User ID if available, None otherwise
+    """
+    try:
+        return current_user.id if current_user else None
+    except Exception as e:
+        logging.error(f"Error getting user ID: {str(e)}")
+        return None

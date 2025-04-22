@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Stack, MenuItem } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Stack, MenuItem } from '@mui/material';
+import PineTimeTextField from './PineTimeTextField';
+import PineTimeButton from './PineTimeButton';
 // Removed custom CSS; all styling is now via MUI theme and components.
 
 export interface BadgeTypeFormValues {
@@ -69,7 +71,7 @@ const BadgeTypeFormDialog: React.FC<BadgeTypeFormDialogProps> = ({
       <DialogTitle>{isEdit ? "Edit Badge Type" : "Add Badge Type"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField
+          <PineTimeTextField
             label="Badge Type"
             name="badge_type"
             value={values.badge_type}
@@ -77,7 +79,7 @@ const BadgeTypeFormDialog: React.FC<BadgeTypeFormDialogProps> = ({
             fullWidth
             required
           />
-          <TextField
+          <PineTimeTextField
             label="Name"
             name="name"
             value={values.name}
@@ -85,26 +87,26 @@ const BadgeTypeFormDialog: React.FC<BadgeTypeFormDialogProps> = ({
             fullWidth
             required
           />
-          <TextField label="Description" name="description" value={values.description} onChange={handleChange} fullWidth multiline rows={2} variant="outlined" />
-          <TextField label="Level" name="level" value={values.level} onChange={handleChange} fullWidth select variant="outlined">
+          <PineTimeTextField label="Description" name="description" value={values.description} onChange={handleChange} fullWidth multiline rows={2} variant="outlined" />
+          <PineTimeTextField label="Level" name="level" value={values.level} onChange={handleChange} fullWidth select variant="outlined">
             <MenuItem value="bronze">Bronze</MenuItem>
             <MenuItem value="silver">Silver</MenuItem>
             <MenuItem value="gold">Gold</MenuItem>
-          </TextField>
-          <TextField label="Criteria Type" name="criteria_type" value={values.criteria_type} onChange={handleChange} fullWidth select variant="outlined">
+          </PineTimeTextField>
+          <PineTimeTextField label="Criteria Type" name="criteria_type" value={values.criteria_type} onChange={handleChange} fullWidth select variant="outlined">
             <MenuItem value="event_type">Event Type</MenuItem>
             <MenuItem value="attendance">Attendance</MenuItem>
             <MenuItem value="points">Points</MenuItem>
-          </TextField>
-          <TextField label="Criteria Threshold" name="criteria_threshold" value={values.criteria_threshold} onChange={handleChange} fullWidth type="number" variant="outlined" />
-          <TextField label="Event Type (optional)" name="event_type" value={values.event_type} onChange={handleChange} fullWidth variant="outlined" />
-          <TextField label="Image URL (optional)" name="image_url" value={values.image_url} onChange={handleChange} fullWidth variant="outlined" />
+          </PineTimeTextField>
+          <PineTimeTextField label="Criteria Threshold" name="criteria_threshold" value={values.criteria_threshold} onChange={handleChange} fullWidth type="number" variant="outlined" />
+          <PineTimeTextField label="Event Type (optional)" name="event_type" value={values.event_type} onChange={handleChange} fullWidth variant="outlined" />
+          <PineTimeTextField label="Image URL (optional)" name="image_url" value={values.image_url} onChange={handleChange} fullWidth variant="outlined" />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 1, p: 2 }}>
         <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button onClick={onClose} variant="outlined">Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">{isEdit ? "Update" : "Create"}</Button>
+          <PineTimeButton onClick={onClose} variant="outlined">Cancel</PineTimeButton>
+          <PineTimeButton onClick={handleSubmit} variant="contained" color="primary">{isEdit ? "Update" : "Create"}</PineTimeButton>
         </Stack>
       </DialogActions>
     </Dialog>

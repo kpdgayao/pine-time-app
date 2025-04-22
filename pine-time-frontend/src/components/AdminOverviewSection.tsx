@@ -9,6 +9,7 @@ interface AnalyticsProps {
   totalRevenue: number;
   eventStats: Record<number, { registration_count: number; revenue: number }>;
   eventsArray: any[];
+  loading: boolean;
 }
 
 const AdminOverviewSection: React.FC<AnalyticsProps> = ({
@@ -18,6 +19,7 @@ const AdminOverviewSection: React.FC<AnalyticsProps> = ({
   totalRevenue,
   eventStats,
   eventsArray,
+  loading,
 }) => {
   return (
     <Box>
@@ -32,14 +34,20 @@ const AdminOverviewSection: React.FC<AnalyticsProps> = ({
           <Typography variant="subtitle1">Total Revenue: {totalRevenue}</Typography>
         </Box>
         <Box>
-          {/* Transform eventStats and eventsArray into the 'events' prop for EventStatsChart */}
-          <EventStatsChart
-            events={eventsArray.map((e: any) => ({
-              ...e,
-              registration_count: eventStats[e.id]?.registration_count ?? 0,
-              revenue: eventStats[e.id]?.revenue ?? 0,
-            }))}
-          />
+          {/* Only render the chart when loading is false */}
+          {loading ? (
+            <div style={{ width: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 220 }}>
+              <span>Loading analytics...</span>
+            </div>
+          ) : (
+            <EventStatsChart
+              events={eventsArray.map((e: any) => ({
+                ...e,
+                registration_count: eventStats[e.id]?.registration_count ?? 0,
+                revenue: eventStats[e.id]?.revenue ?? 0,
+              }))}
+            />
+          )}
         </Box>
       </Box>
     </Box>

@@ -793,8 +793,19 @@ def update_user_points(user_id: str, points: int, reason: str) -> bool:
         return False
 
 @st.cache_data(ttl=300)
-def get_user_badges(user_id: str) -> List[Dict[str, Any]]:
-    """Get user badges"""
+def get_user_badges(user_id: str = None, include_progress: bool = False) -> List[Dict[str, Any]]:
+    """
+    Get user badges with enhanced error handling and progress information.
+    
+    Args:
+        user_id (str, optional): User ID, or None to use current user
+        include_progress (bool, optional): Whether to include progress information
+        
+    Returns:
+        List[Dict[str, Any]]: User badges with consistent format
+    """
+    # Safely get user ID if not provided
+    user_id = safe_get_user_id(user_id)
     if not user_id:
         logger.warning("Attempted to fetch badges with empty user_id")
         return []
@@ -802,30 +813,62 @@ def get_user_badges(user_id: str) -> List[Dict[str, Any]]:
     try:
         # First try the standard endpoint
         try:
+            # Add include_progress parameter if requested
+            params = {}
+            if include_progress:
+                params["include_progress"] = "true"
+                
             badges = api_client.get(
                 API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
+                params=params,
                 spinner_text="Loading badges...",
                 error_message="Fetching user badges",
                 fallback_to_demo=True
             )
-            if badges:
-                return badges if isinstance(badges, list) else [badges]
+            
+            # Process the response based on its format
+            if isinstance(badges, list):
+                return badges
+            elif isinstance(badges, dict):
+                if "items" in badges and isinstance(badges["items"], list):
+                    return badges["items"]
+                elif "badges" in badges and isinstance(badges["badges"], list):
+                    return badges["badges"]
+                # If it's a single badge object, wrap it in a list
+                elif "id" in badges or "badge_id" in badges:
+                    return [badges]
+                # Empty response with no recognized format
+                return []
+            elif badges is None:
+                return []
+            else:
+                logger.warning(f"Unexpected badges response format: {type(badges)}")
+                return []
+                
         except APIError as e:
             # If 404, try alternative endpoint format
             if e.status_code == 404:
                 logger.info(f"Standard badges endpoint returned 404 for user {user_id}, trying alternative")
                 try:
                     # Try alternative endpoint that might return all badges with a user_id filter
+                    params = {"user_id": user_id}
+                    if include_progress:
+                        params["include_progress"] = "true"
+                        
                     badges = api_client.get(
                         API_ENDPOINTS["badges"]["list"],
-                        params={"user_id": user_id},
+                        params=params,
                         spinner_text="Loading badges...",
                         error_message="Fetching user badges (alternative)"
                     )
+                    
                     if isinstance(badges, list):
                         return badges
-                    elif isinstance(badges, dict) and "items" in badges:
-                        return badges["items"]
+                    elif isinstance(badges, dict):
+                        if "items" in badges and isinstance(badges["items"], list):
+                            return badges["items"]
+                        elif "badges" in badges and isinstance(badges["badges"], list):
+                            return badges["badges"]
                     return []
                 except Exception as alt_e:
                     logger.warning(f"Alternative badges endpoint also failed: {str(alt_e)}")
@@ -837,7 +880,19 @@ def get_user_badges(user_id: str) -> List[Dict[str, Any]]:
         # If we got here, both attempts failed
         logger.warning(f"All badge fetch attempts failed for user {user_id}, using fallback")
         from utils.connection import get_sample_user_badges
-        return get_sample_user_badges()
+        sample_badges = get_sample_user_badges()
+        
+        # Add progress information to sample badges if requested
+        if include_progress and sample_badges:
+            for badge in sample_badges:
+                if "progress" not in badge:
+                    badge["progress"] = 0
+                if "next_level_threshold" not in badge:
+                    badge["next_level_threshold"] = 100
+                if "is_new" not in badge:
+                    badge["is_new"] = False
+        
+        return sample_badges
     except Exception as e:
         logger.error(f"Unexpected error fetching user badges: {str(e)}")
         # Don't show error to user - use fallback data instead
@@ -1195,6 +1250,218 @@ def get_points_history(user_id: str = None) -> List[Dict[str, Any]]:
         # Don't show error to user - use fallback data instead
         from utils.connection import get_sample_points_history
         return get_sample_points_history()
+
+@st.cache_data(ttl=300)
+def get_user_stats(user_id: str = None) -> Dict[str, Any]:
+    """
+    Get user statistics including points, badges, streak, and other engagement metrics.
+    
+    Args:
+        user_id (str, optional): User ID, or None to use current user
+        
+    Returns:
+        dict: User statistics with consistent format
+    """
+    # Safely get user ID if not provided
+    user_id = safe_get_user_id(user_id)
+    if not user_id:
+        logger.warning("Attempted to fetch user stats with empty user_id")
+        return {
+            "total_points": 0,
+            "total_badges": 0,
+            "rank": 0,
+            "total_users": 0,
+            "streak_count": 0,
+            "events_attended": 0,
+            "recent_activities": []
+        }
+    
+    try:
+        # Try to fetch user stats from API
+        try:
+            response = api_client.get(
+                API_ENDPOINTS["users"]["stats"].format(user_id=user_id),
+                spinner_text="Loading user stats...",
+                error_message="Fetching user stats",
+                fallback_to_demo=True
+            )
+            
+            # Handle various response formats
+            if isinstance(response, dict):
+                # If the response is already in the expected format, return it
+                if all(key in response for key in ["total_points", "total_badges", "streak_count"]):
+                    return response
+                
+                # If the response has a stats key, return that
+                if "stats" in response and isinstance(response["stats"], dict):
+                    return response["stats"]
+                
+                # If the response has user_stats key, return that
+                if "user_stats" in response and isinstance(response["user_stats"], dict):
+                    return response["user_stats"]
+                
+                # Try to construct a stats object from the response
+                stats = {
+                    "total_points": response.get("total_points", response.get("points", 0)),
+                    "total_badges": response.get("total_badges", response.get("badges_count", 0)),
+                    "rank": response.get("rank", 0),
+                    "total_users": response.get("total_users", 0),
+                    "streak_count": response.get("streak_count", response.get("streak", 0)),
+                    "events_attended": response.get("events_attended", response.get("attended_events", 0)),
+                    "recent_activities": response.get("recent_activities", [])
+                }
+                return stats
+            
+            # If we can't determine the format but got a response, log and continue to fallback
+            logger.warning(f"Unexpected user stats response format: {type(response)}")
+        except APIError as e:
+            # Handle 404 errors gracefully
+            if e.status_code == 404:
+                logger.info(f"No stats found for user {user_id}, trying to compile from other endpoints")
+                # If stats endpoint doesn't exist, try to compile stats from other endpoints
+                return compile_user_stats(user_id)
+            else:
+                logger.error(f"Error fetching user stats: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching user stats: {str(e)}")
+        
+        # If we got here, the request failed or returned an invalid format
+        logger.warning(f"User stats fetch failed or returned invalid format, using fallback")
+        return compile_user_stats(user_id)
+    except Exception as e:
+        logger.error(f"Unexpected error in get_user_stats: {str(e)}")
+        # Don't show error to user - use fallback data instead
+        return {
+            "total_points": 0,
+            "total_badges": 0,
+            "rank": 0,
+            "total_users": 0,
+            "streak_count": 0,
+            "events_attended": 0,
+            "recent_activities": []
+        }
+
+def compile_user_stats(user_id: str) -> Dict[str, Any]:
+    """
+    Compile user statistics from multiple endpoints when the stats endpoint is not available.
+    
+    Args:
+        user_id (str): User ID to compile stats for
+        
+    Returns:
+        dict: Compiled user statistics
+    """
+    stats = {
+        "total_points": 0,
+        "total_badges": 0,
+        "rank": 0,
+        "total_users": 0,
+        "streak_count": 0,
+        "events_attended": 0,
+        "recent_activities": []
+    }
+    
+    try:
+        # Try to get points
+        try:
+            points_response = api_client.get(
+                API_ENDPOINTS["users"]["points"].format(user_id=user_id),
+                error_message="Fetching user points for stats compilation",
+                show_spinner=False
+            )
+            if isinstance(points_response, dict):
+                stats["total_points"] = points_response.get("points", points_response.get("total", 0))
+        except Exception as e:
+            logger.debug(f"Error fetching points for stats compilation: {str(e)}")
+        
+        # Try to get badges count
+        try:
+            badges_response = api_client.get(
+                API_ENDPOINTS["users"]["badges"].format(user_id=user_id),
+                error_message="Fetching user badges for stats compilation",
+                show_spinner=False
+            )
+            if isinstance(badges_response, list):
+                stats["total_badges"] = len(badges_response)
+            elif isinstance(badges_response, dict):
+                if "items" in badges_response and isinstance(badges_response["items"], list):
+                    stats["total_badges"] = len(badges_response["items"])
+                elif "count" in badges_response:
+                    stats["total_badges"] = badges_response["count"]
+                elif "total" in badges_response:
+                    stats["total_badges"] = badges_response["total"]
+        except Exception as e:
+            logger.debug(f"Error fetching badges for stats compilation: {str(e)}")
+        
+        # Try to get events attended
+        try:
+            events_response = api_client.get(
+                API_ENDPOINTS["users"]["events"].format(user_id=user_id),
+                error_message="Fetching user events for stats compilation",
+                show_spinner=False
+            )
+            if isinstance(events_response, list):
+                # Count only past events
+                stats["events_attended"] = sum(1 for event in events_response if event.get("status") == "completed")
+            elif isinstance(events_response, dict):
+                if "past" in events_response and isinstance(events_response["past"], list):
+                    stats["events_attended"] = len(events_response["past"])
+                elif "items" in events_response and isinstance(events_response["items"], list):
+                    stats["events_attended"] = sum(1 for event in events_response["items"] if event.get("status") == "completed")
+        except Exception as e:
+            logger.debug(f"Error fetching events for stats compilation: {str(e)}")
+        
+        # Try to get rank from leaderboard
+        try:
+            leaderboard_response = api_client.get(
+                API_ENDPOINTS["points"]["leaderboard"],
+                error_message="Fetching leaderboard for stats compilation",
+                show_spinner=False
+            )
+            
+            # Process leaderboard to find user's rank
+            if isinstance(leaderboard_response, list):
+                for idx, entry in enumerate(leaderboard_response):
+                    if entry.get("user_id") == user_id or entry.get("id") == user_id:
+                        stats["rank"] = idx + 1
+                        break
+                stats["total_users"] = len(leaderboard_response)
+            elif isinstance(leaderboard_response, dict) and "items" in leaderboard_response:
+                for idx, entry in enumerate(leaderboard_response["items"]):
+                    if entry.get("user_id") == user_id or entry.get("id") == user_id:
+                        stats["rank"] = idx + 1
+                        break
+                stats["total_users"] = leaderboard_response.get("total", len(leaderboard_response["items"]))
+        except Exception as e:
+            logger.debug(f"Error fetching leaderboard for stats compilation: {str(e)}")
+        
+        # For streak count, we can only estimate based on recent activity
+        # This is a placeholder - in a real implementation, you'd need more sophisticated logic
+        stats["streak_count"] = 1  # Default to 1 for active users
+        
+        # Try to get recent activities from points history
+        try:
+            history_response = api_client.get(
+                API_ENDPOINTS["points"]["history"],
+                params={"user_id": user_id, "limit": 5},
+                error_message="Fetching points history for stats compilation",
+                show_spinner=False
+            )
+            
+            if isinstance(history_response, list):
+                stats["recent_activities"] = history_response[:5]
+            elif isinstance(history_response, dict):
+                if "items" in history_response and isinstance(history_response["items"], list):
+                    stats["recent_activities"] = history_response["items"][:5]
+                elif "history" in history_response and isinstance(history_response["history"], list):
+                    stats["recent_activities"] = history_response["history"][:5]
+        except Exception as e:
+            logger.debug(f"Error fetching points history for stats compilation: {str(e)}")
+    
+    except Exception as e:
+        logger.error(f"Error compiling user stats: {str(e)}")
+    
+    return stats
 
 @st.cache_data(ttl=3600)
 def get_badges() -> List[Dict[str, Any]]:

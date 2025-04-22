@@ -6,8 +6,9 @@ from app.db.base_class import Base
 
 
 class Registration(Base):
+    __tablename__ = "registration"  # Using singular table name to match existing database
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     event_id = Column(Integer, ForeignKey("event.id"), nullable=False)
     registration_date = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="registered")  # registered, attended, cancelled, etc.

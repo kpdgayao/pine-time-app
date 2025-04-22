@@ -17,7 +17,10 @@ interface Transaction {
   transaction_date: string;
 }
 
+import { useTheme } from '@mui/material/styles';
+
 const AdminPointsTransactionsTable: React.FC = () => {
+  const theme = useTheme();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,10 +95,10 @@ const AdminPointsTransactionsTable: React.FC = () => {
         </button>
       </div>
       {loading && <div>Loading transactions...</div>}
-      {error && <div style={{ color: "red" }}>{error}</div>}
+      {error && <div style={{ color: theme.palette.error.main }}>{error}</div>}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ background: "#e0e0e0" }}>
+          <tr style={{ background: theme.palette.grey[300] }}>
             <th>ID</th>
             <th>User</th>
             <th>Email</th>
@@ -112,7 +115,7 @@ const AdminPointsTransactionsTable: React.FC = () => {
             <tr><td colSpan={9} style={{ textAlign: "center" }}>No transactions found.</td></tr>
           ) : (
             filtered.map((t) => (
-              <tr key={t.id} style={{ borderBottom: "1px solid #ccc" }}>
+              <tr key={t.id} style={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                 <td>{t.id}</td>
                 <td>{t.user_name || t.user_id}</td>
                 <td>{t.user_email || ""}</td>

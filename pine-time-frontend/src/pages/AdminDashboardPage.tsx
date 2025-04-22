@@ -33,10 +33,11 @@ const AdminDashboardPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [events, setEvents] = useState<any[]>([]);
   const [eventStats, setEventStats] = useState<Record<number, { registration_count: number; revenue: number }>>({});
-  
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchEvents = async () => {
+      setLoading(true);
       try {
         const res = await api.get('/events/');
         const eventsData = res.data;
@@ -75,7 +76,7 @@ const AdminDashboardPage: React.FC = () => {
           console.warn(`Some event stats could not be loaded (${statsErrors} errors).`);
         }
       } finally {
-        
+        setLoading(false);
       }
     };
     fetchEvents();
@@ -153,7 +154,19 @@ const AdminDashboardPage: React.FC = () => {
           ))}
         </Tabs>
         <Box sx={{ mt: 2, width: '100%', overflowX: 'auto' }}>
-          <SectionComponent />
+          {activeSection === "overview" ? (
+            <AdminOverviewSection
+              totalEvents={events.length}
+              activeEvents={events.filter((e: any) => e.is_active).length}
+              totalParticipants={events.reduce((acc, e) => acc + (e.max_participants || 0), 0)}
+              totalRevenue={Object.values(eventStats).reduce((acc, s) => acc + (s.revenue || 0), 0)}
+              eventStats={eventStats}
+              eventsArray={events}
+              loading={loading}
+            />
+          ) : (
+            <SectionComponent />
+          )}
         </Box>
       </Paper>
     </Box>

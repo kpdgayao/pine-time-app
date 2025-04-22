@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import api from "../api/client";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, Stack, Select, MenuItem, FormControlLabel, Checkbox, Alert
+  Select, MenuItem, FormControlLabel, Checkbox, Alert, Stack
 } from "@mui/material";
+import PineTimeTextField from './PineTimeTextField';
+import PineTimeButton from './PineTimeButton';
 import { SelectChangeEvent } from "@mui/material/Select";
 // Removed custom CSS; all styling is now via MUI theme and components.
 
@@ -54,12 +56,12 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
   React.useEffect(() => {
     if (user) {
       setForm({
-        full_name: user.full_name,
-        email: user.email,
-        username: user.username,
-        user_type: user.user_type,
-        is_active: user.is_active,
-        is_superuser: user.is_superuser,
+        full_name: user.full_name ?? "",
+        email: user.email ?? "",
+        username: user.username ?? "",
+        user_type: user.user_type ?? "regular",
+        is_active: user.is_active ?? true,
+        is_superuser: user.is_superuser ?? false,
       });
     }
   }, [user]);
@@ -87,6 +89,23 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
+      // PUT profile fields if changed
+      if (
+        form.full_name !== user.full_name ||
+        form.email !== user.email ||
+        form.username !== user.username
+      ) {
+        await api.put(`/users/${user.id}`,
+          {
+            full_name: form.full_name,
+            email: form.email,
+            username: form.username,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      }
       onSave({ ...user, ...form });
       onClose();
     } catch (err: any) {
@@ -104,7 +123,7 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
       <DialogTitle>Edit User</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
-          <TextField
+          <PineTimeTextField
             label="Full Name"
             name="full_name"
             value={form.full_name}
@@ -114,7 +133,7 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
             disabled={loading}
             variant="outlined"
           />
-          <TextField
+          <PineTimeTextField
             label="Email"
             name="email"
             value={form.email}
@@ -125,7 +144,7 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
             variant="outlined"
             type="email"
           />
-          <TextField
+          <PineTimeTextField
             label="Username"
             name="username"
             value={form.username}
@@ -179,10 +198,10 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
           </Alert>
         )}
         <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button type="button" onClick={onClose} disabled={loading} variant="outlined">Cancel</Button>
-          <Button type="button" onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
+          <PineTimeButton type="button" onClick={onClose} disabled={loading} variant="outlined">Cancel</PineTimeButton>
+          <PineTimeButton type="button" onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
             {loading ? "Saving..." : "Save"}
-          </Button>
+          </PineTimeButton>
         </Stack>
       </DialogActions>
     </Dialog>

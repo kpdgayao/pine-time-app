@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import api from "../api/client";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, Select, MenuItem, FormControlLabel, Checkbox, Alert, Stack
+  Select, MenuItem, FormControlLabel, Checkbox, Alert, Stack
 } from "@mui/material";
+import PineTimeTextField from './PineTimeTextField';
+import PineTimeButton from './PineTimeButton';
 import { SelectChangeEvent } from '@mui/material/Select';
 // Removed FormDialog.css import; all styling is now via MUI theme and components.
 
@@ -79,47 +81,44 @@ const handleSubmit = async (e: React.FormEvent) => {
       <DialogTitle>Create New User</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
-          <TextField
+          <PineTimeTextField
+            autoFocus
+            margin="dense"
             label="Full Name"
             name="full_name"
             value={form.full_name}
             onChange={handleInputChange}
             fullWidth
             required
-            disabled={loading}
-            variant="outlined"
           />
-          <TextField
+          <PineTimeTextField
+            margin="dense"
             label="Email"
             name="email"
             value={form.email}
             onChange={handleInputChange}
+            type="email"
             fullWidth
             required
-            disabled={loading}
-            variant="outlined"
-            type="email"
           />
-          <TextField
+          <PineTimeTextField
+            margin="dense"
             label="Username"
             name="username"
             value={form.username}
             onChange={handleInputChange}
             fullWidth
             required
-            disabled={loading}
-            variant="outlined"
           />
-          <TextField
+          <PineTimeTextField
+            margin="dense"
             label="Password"
             name="password"
-            type="password"
             value={form.password}
             onChange={handleInputChange}
+            type="password"
             fullWidth
             required
-            disabled={loading}
-            variant="outlined"
           />
           <Select
             label="User Type"
@@ -128,7 +127,6 @@ const handleSubmit = async (e: React.FormEvent) => {
             onChange={handleSelectChange}
             fullWidth
             disabled={loading}
-            variant="outlined"
           >
             <MenuItem value="user">User</MenuItem>
             <MenuItem value="admin">Admin</MenuItem>
@@ -153,10 +151,12 @@ const handleSubmit = async (e: React.FormEvent) => {
           </Alert>
         )}
         <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button type="button" onClick={onClose} disabled={loading} variant="outlined">Cancel</Button>
-          <Button type="button" onClick={handleSubmit} disabled={loading} variant="contained" color="primary">
+          <PineTimeButton onClick={onClose} disabled={loading} variantType="text">
+            Cancel
+          </PineTimeButton>
+          <PineTimeButton onClick={handleSubmit} disabled={loading} variantType="primary">
             {loading ? "Creating..." : "Create"}
-          </Button>
+          </PineTimeButton>
         </Stack>
       </DialogActions>
     </Dialog>
