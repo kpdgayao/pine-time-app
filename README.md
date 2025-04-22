@@ -10,9 +10,11 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 
 - **User Authentication**: Registration, login/logout with JWT token management
 - **Event Management**: Create, discover, and register for events
-- **Multi-level Badge System**: Bronze, silver, and gold badges across different categories
-- **Points & Rewards**: Track points, view leaderboards, and earn rewards
-- **Streak Tracking**: Rewards for consistent weekly attendance
+- **Enhanced Gamification System**: Comprehensive badge and points system with visual celebrations
+- **Multi-level Badge System**: Bronze, silver, and gold badges across different categories with progress tracking
+- **Points & Rewards**: Track points, view leaderboards, and earn rewards with detailed transaction history
+- **Streak Tracking**: Rewards for consistent weekly attendance with visual indicators
+- **Achievement Celebrations**: Visual celebrations when users earn new badges
 - **Admin Dashboard**: Comprehensive tools for managing users, events, and analytics
 - **User Interface**: Mobile-friendly design with intuitive navigation
 - **Demo Mode**: Test the application without backend connection
@@ -22,7 +24,7 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 
 ## Project Structure
 
-```
+```text
 pine-time-app/
 ├── admin_dashboard/       # Streamlit admin dashboard (legacy/admin)
 │   ├── pages/             # Dashboard page components
@@ -31,14 +33,23 @@ pine-time-app/
 │   └── user_app_postgres.py # User interface entry point with PostgreSQL support
 ├── app/                   # FastAPI backend
 │   ├── api/               # API endpoints (all backend routes are prefixed with /api)
+│   │   └── endpoints/     # API endpoint modules (events, users, gamification, etc.)
 │   ├── core/              # Core functionality
 │   ├── db/                # Database setup
-│   ├── models/            # SQLAlchemy models
-│   ├── schemas/           # Pydantic schemas
+│   ├── models/            # SQLAlchemy models (User, Event, UserBadge, EventAttendee, etc.)
+│   ├── schemas/           # Pydantic schemas (request/response models)
 │   ├── services/          # Business logic
+│   │   ├── badge_manager.py  # Badge management service
+│   │   └── points_manager.py # Points management service
 │   └── main.py            # Backend entry point
 ├── pine-time-frontend/    # React frontend (Vite + TypeScript)
-│   ├── src/               # React source code (components, pages, hooks, types, utils)
+│   ├── src/               # React source code
+│   │   ├── components/    # Reusable UI components
+│   │   │   └── dashboard/ # Dashboard-specific components
+│   │   ├── contexts/      # React contexts (Theme, Toast, etc.)
+│   │   ├── pages/         # Page components
+│   │   ├── theme/         # Theming system with light/dark mode
+│   │   └── types/         # TypeScript type definitions
 ├── pine-time-proxy/       # Vercel proxy configuration for frontend-backend integration
 │   └── vercel.json        # Proxy and CORS rules for API requests
 ```
@@ -50,6 +61,7 @@ pine-time-app/
 The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely connect the React frontend with the FastAPI backend, handling authentication and CORS headers correctly. **This is critical for production deployments and local development using Vercel.**
 
 **Sample vercel.json:**
+
 ```json
 {
   "version": 2,
@@ -74,6 +86,7 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 ```
 
 **Key Points:**
+
 - The `destination` must match your backend route structure (do not add or omit `/api` unless your backend expects it).
 - Explicit CORS headers are required to support JWT authentication and cross-origin requests.
 - All frontend API calls should use `/api/...` as the base path.
@@ -87,6 +100,7 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 - The `.venv/` directory is used for your local Python virtual environment. It should **never** be committed to Git and is now included in `.gitignore` by default.
 - Always use `requirements.txt` (or `pyproject.toml`) to share dependencies, not the full environment.
 - To set up a new environment, run:
+
   ```bash
   python -m venv .venv
   pip install -r requirements.txt
@@ -114,7 +128,9 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 - **React Frontend**: Uses axios (with JWT auth), react-router-dom, jwt-decode, custom hooks, robust error handling
 - **Admin Dashboard**: Streamlit-based admin tools
 - **Authentication**: JWT-based auth system with refresh token logic (frontend and backend)
-- **Styling**: Custom CSS with Pine Time green theme (#2E7D32)
+- **Styling**: Custom theme system with light/dark mode support and Pine Time green theme (#2E7D32)
+- **Gamification**: Badge and points system with progress tracking and visual celebrations
+- **UI Components**: Custom-designed reusable components (PineTimeButton, PineTimeCard, etc.)
 - **Testing**: Pytest (backend), React Testing Library/Jest (frontend), demo mode support
 
 ## Setup Instructions
@@ -122,12 +138,14 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 ### Backend Setup
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/kpdgayao/pine-time-app.git
    cd pine-time-app
    ```
 
 2. Create a virtual environment:
+
    ```bash
    python -m venv venv
    ```
@@ -137,16 +155,19 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
    - Unix/MacOS: `source venv/bin/activate`
 
 4. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 5. Create a `.env` file based on `.env.example`:
+
    ```bash
    cp .env.example .env
    ```
 
 6. Run the FastAPI backend:
+
    ```bash
    uvicorn app.main:app --reload
    ```
@@ -156,30 +177,41 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 #### React Frontend (Recommended)
 
 1. Navigate to the React frontend directory:
+
    ```bash
    cd pine-time-frontend
    ```
+
 2. Install dependencies:
+
    ```bash
    npm install
    ```
+
 3. Start the development server:
+
    ```bash
    npm run dev
    ```
+
 4. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 #### Streamlit Admin Dashboard (Legacy/Admin)
 
 1. Navigate to the admin_dashboard directory:
+
    ```bash
    cd ../admin_dashboard
    ```
+
 2. Run the admin dashboard:
+
    ```bash
    streamlit run app.py
    ```
+
 3. Run the user interface with PostgreSQL support:
+
    ```bash
    streamlit run user_app_postgres.py
    ```
@@ -199,6 +231,7 @@ POSTGRES_PORT=5432
 POSTGRES_SSL_MODE=prefer
 
 # Connection Pooling
+```
 POOL_SIZE=5
 MAX_OVERFLOW=10
 POOL_TIMEOUT=30
@@ -270,6 +303,7 @@ python run_comprehensive_tests.py
 
 Or run specific test categories:
 ```bash
+python run_tests.py       # Run all tests
 python run_demo_tests.py  # Run tests in demo mode
 ```
 
