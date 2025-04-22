@@ -1,15 +1,9 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server.js"
+      "source": "/api/(.*)",
+      "destination": "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com/api/v1/$1"
     }
   ]
 }
