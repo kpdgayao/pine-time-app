@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import PineTimeButton from './PineTimeButton';
 import PineTimeCard from './PineTimeCard';
-import { useTheme } from '@mui/material/styles';
+// import { useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 
 interface User {
@@ -23,7 +23,7 @@ interface User {
 const PAGE_SIZE = 10;
 
 const AdminUsersSection: React.FC = () => {
-  const theme = useTheme();
+  // Remove unused theme variable
   const [users, setUsers] = useState<User[]>([]);
   const [page, setPage] = useState(1);
 

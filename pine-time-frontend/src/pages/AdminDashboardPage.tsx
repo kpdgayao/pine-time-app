@@ -97,6 +97,7 @@ const AdminDashboardPage: React.FC = () => {
       totalRevenue={totalRevenue}
       eventStats={eventStats}
       eventsArray={eventsArray}
+      loading={loading}
     /> },
     { key: "users", label: "Users", component: UsersSection },
     { key: "events", label: "Events", component: EventsSection },

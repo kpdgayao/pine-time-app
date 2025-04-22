@@ -12,7 +12,7 @@ const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  // Removed unused error state - using Toast context instead
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -24,7 +24,6 @@ const LoginPage: React.FC = () => {
       return;
     }
     setLoading(true);
-    setError('');
     try {
       const params = new URLSearchParams();
       params.append('username', username);
@@ -34,7 +33,7 @@ const LoginPage: React.FC = () => {
         timeout: 10000,
       });
       login(res.data.access_token, res.data.refresh_token);
-      setError('');
+      // Error handling now done through Toast
       showToast('✅ Login successful! Welcome to Pine Time 🌲', 'success');
       // Redirect based on user role
       const user: any = jwtDecode(res.data.access_token);
