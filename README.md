@@ -250,8 +250,8 @@ python run_admin_dashboard_demo.py
 
 1. Use the demo credentials:
 
-- Username: demo@pinetimeexperience.com
-- Password: demo
+- Username: `demo@pinetimeexperience.com`
+- Password: `demo`
 
 ## Error Handling and Resilience
 

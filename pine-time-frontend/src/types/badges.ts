@@ -7,6 +7,9 @@ export interface Badge {
   category?: string;
   progress?: number;
   next_level_threshold?: number;
+  next_level?: number;
+  next_level_name?: string;
+  next_level_description?: string;
 }
 
 export interface BadgeProgress {
@@ -26,6 +29,7 @@ export interface UserStats {
   streak_count: number;
   events_attended: number;
   recent_activities: RecentActivity[];
+  total_points_change?: number; // Percentage change in points compared to previous period
 }
 
 export interface RecentActivity {

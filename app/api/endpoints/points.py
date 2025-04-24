@@ -10,7 +10,7 @@ import logging
 from app import models, schemas
 from app.api import dependencies
 from app.services.points_manager import PointsManager
-from app.api.dependencies import safe_api_call, safe_api_response_handler, safe_get_user_id
+from app.api.dependencies import safe_api_call, safe_api_response_handler, safe_get_user_id, safe_sqlalchemy_to_pydantic
 
 router = APIRouter()
 
@@ -49,7 +49,7 @@ def get_points_balance(
         return 0
 
 
-@router.get("/transactions")
+@router.get("/transactions", response_model=schemas.PaginatedPointsTransactionResponse)
 @safe_api_call
 def get_user_transactions(
     request: Request,
@@ -125,9 +125,20 @@ def get_user_transactions(
         
         logging.info(f"Retrieved {len(transactions)} transactions for user {user_id}")
         
-        # Return paginated response
+        # Convert SQLAlchemy models to Pydantic models for proper serialization
+        transaction_schemas = []
+        for transaction in transactions:
+            try:
+                # Use the utility function for consistent conversion
+                transaction_schema = safe_sqlalchemy_to_pydantic(transaction, schemas.PointsTransaction)
+                transaction_schemas.append(transaction_schema)
+            except ValueError as e:
+                logging.error(f"Error converting transaction {transaction.id}: {str(e)}")
+                # Skip this transaction if conversion fails
+        
+        # Return paginated response with properly serialized items
         return {
-            "items": transactions if transactions else [],
+            "items": transaction_schemas if transaction_schemas else [],
             "total": total_count,
             "page": current_page,
             "size": page_size,
@@ -143,6 +154,9 @@ def get_user_transactions(
         
     except Exception as e:
         logging.error(f"Unexpected error in get_user_transactions: {str(e)}", exc_info=True)
+        # Log the specific error for debugging
+        logging.error(f"Error processing request: {str(e)}", exc_info=True)
+        
         # Return empty paginated response as fallback
         return {
             "items": [],
@@ -153,7 +167,7 @@ def get_user_transactions(
         }
 
 
-@router.get("/users/{user_id}/history", response_model=List[Dict])
+@router.get("/users/{user_id}/history", response_model=List[schemas.PointsTransaction])
 @safe_api_call
 def get_user_points_history(
     request: Request,
@@ -186,34 +200,16 @@ def get_user_points_history(
                 models.PointsTransaction.user_id == user_id
             ).order_by(models.PointsTransaction.transaction_date.desc()).offset(skip).limit(limit).all()
             
-            # Format the transactions for response
+            # Convert SQLAlchemy models to Pydantic models for proper serialization
             history = []
             for tx in transactions:
-                # Get associated event information if available
-                event_info = None
-                if tx.event_id:
-                    try:
-                        event = db.query(models.Event).filter(models.Event.id == tx.event_id).first()
-                        if event:
-                            event_info = {
-                                "id": event.id,
-                                "title": event.title,
-                                "event_type": event.event_type,
-                                "start_time": event.start_time.isoformat() if event.start_time else None
-                            }
-                    except Exception as event_error:
-                        logging.error(f"Error getting event info for transaction {tx.id}: {str(event_error)}")
-                
-                # Format transaction for response
-                history_item = {
-                    "id": tx.id,
-                    "points": tx.points,
-                    "transaction_type": tx.transaction_type,
-                    "description": tx.description,
-                    "transaction_date": tx.transaction_date.isoformat() if tx.transaction_date else None,
-                    "event": event_info
-                }
-                history.append(history_item)
+                try:
+                    # Use the utility function for consistent conversion
+                    transaction_schema = safe_sqlalchemy_to_pydantic(tx, schemas.PointsTransaction)
+                    history.append(transaction_schema)
+                except ValueError as e:
+                    logging.error(f"Error converting transaction {tx.id}: {str(e)}")
+                    # Skip this transaction if conversion fails
             
             logging.info(f"Retrieved {len(history)} points history items for user {user_id}")
             return history
@@ -227,6 +223,7 @@ def get_user_points_history(
             
     except Exception as e:
         logging.error(f"Unexpected error in get_user_points_history: {str(e)}", exc_info=True)
+        logging.error(f"Error processing request: {str(e)}", exc_info=True)
         # Return empty list as fallback
         return []
 
@@ -268,8 +265,18 @@ def award_points(
             event_id=event_id
         )
         
+        # Convert SQLAlchemy model to Pydantic model for proper serialization
+        try:
+            transaction_schema = safe_sqlalchemy_to_pydantic(transaction, schemas.PointsTransaction)
+        except ValueError as e:
+            logging.error(f"Error converting transaction: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error processing transaction data"
+            )
+        
         logging.info(f"Admin {admin_id} awarded {points} points to user {user_id}")
-        return transaction
+        return transaction_schema
         
     except ValueError as e:
         logging.error(f"Value error in award_points: {str(e)}")
@@ -324,8 +331,18 @@ def redeem_points(
             description=description
         )
         
+        # Convert SQLAlchemy model to Pydantic model for proper serialization
+        try:
+            transaction_schema = safe_sqlalchemy_to_pydantic(transaction, schemas.PointsTransaction)
+        except ValueError as e:
+            logging.error(f"Error converting transaction: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error processing transaction data"
+            )
+        
         logging.info(f"User {user_id} redeemed {points} points. New balance: {balance - points}")
-        return transaction
+        return transaction_schema
         
     except ValueError as e:
         logging.error(f"Value error in redeem_points: {str(e)}")

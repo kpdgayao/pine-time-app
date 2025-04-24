@@ -212,6 +212,35 @@ def safe_get_user_id(current_user: Optional[models.User]) -> Optional[int]:
     """
     try:
         return current_user.id if current_user else None
-    except Exception as e:
-        logging.error(f"Error getting user ID: {str(e)}")
+    except AttributeError as e:
+        logging.warning(f"Error getting user ID: {str(e)}")
         return None
+
+
+def safe_sqlalchemy_to_pydantic(model: Any, schema_class: Any) -> Any:
+    """
+    Safely convert a SQLAlchemy model instance to a Pydantic schema instance.
+    
+    Args:
+        model: SQLAlchemy model instance
+        schema_class: Pydantic schema class to convert to
+        
+    Returns:
+        Pydantic schema instance
+    """
+    try:
+        if model is None:
+            logging.warning(f"Attempted to convert None model to {schema_class.__name__}")
+            return None
+            
+        # Extract model attributes as dictionary
+        model_dict = {}
+        for column in model.__table__.columns:
+            model_dict[column.name] = getattr(model, column.name)
+            
+        # Create and return Pydantic model instance
+        return schema_class(**model_dict)
+        
+    except Exception as e:
+        logging.error(f"Error converting SQLAlchemy model to Pydantic schema: {str(e)}", exc_info=True)
+        raise ValueError(f"Failed to convert model to {schema_class.__name__}: {str(e)}")

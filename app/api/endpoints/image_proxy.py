@@ -1,5 +1,6 @@
 import base64
 import httpx
+import logging
 from fastapi import APIRouter, Response, HTTPException
 from typing import Optional
 from urllib.parse import urlparse, unquote
@@ -44,10 +45,27 @@ async def proxy_image(url: str, fallback: Optional[str] = None):
     # Try to fetch the image
     async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
         try:
+            # Determine if this is a Facebook CDN URL
+            is_facebook_url = any(fb_domain in url.lower() for fb_domain in [
+                'fbcdn.net', 'facebook.com', 'fbsbx.com', 'fbcdn-profile', 'fbcdn-video',
+                'fbcdn-sphotos', 'fbexternal', 'fna.fbcdn.net', 'scontent'
+            ])
+            
+            # Set appropriate headers based on the image source
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Referer": "https://www.google.com/"
+                "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Sec-Fetch-Dest": "image",
+                "Sec-Fetch-Mode": "no-cors",
+                "Sec-Fetch-Site": "cross-site"
             }
+            
+            # Add specific referrer for Facebook CDN images
+            if is_facebook_url:
+                headers["Referer"] = "https://www.facebook.com/"
+            else:
+                headers["Referer"] = "https://www.google.com/"
             
             response = await client.get(url, headers=headers)
             
@@ -63,10 +81,18 @@ async def proxy_image(url: str, fallback: Optional[str] = None):
             # Determine content type
             content_type = response.headers.get("content-type", "image/jpeg")
             
-            # Return the image with the correct content type
-            return Response(content=response.content, media_type=content_type)
+            # Return the image with the correct content type and caching headers
+            return Response(
+                content=response.content, 
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=86400",  # Cache for 24 hours
+                    "Content-Type": content_type
+                }
+            )
             
-        except httpx.RequestError:
+        except httpx.RequestError as e:
+            logging.error(f"Request error when proxying image: {str(e)} for URL: {url}")
             if fallback:
                 try:
                     response = await client.get(fallback, headers=headers)

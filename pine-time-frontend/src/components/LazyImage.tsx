@@ -72,9 +72,16 @@ const LazyImage: React.FC<LazyImageProps> = ({
     if (!url) return fallbackSrc;
     
     // Check if it's a Facebook CDN URL that might have CORS issues
-    if (url.includes('fbcdn.net') || 
-        url.includes('scontent') || 
-        url.includes('facebook.com')) {
+    // Expanded pattern matching for Facebook CDN domains
+    const facebookPatterns = [
+      'fbcdn.net', 'facebook.com', 'fbsbx.com', 'fbcdn-profile', 
+      'fbcdn-video', 'fbcdn-sphotos', 'fbexternal', 'fna.fbcdn.net', 
+      'scontent'
+    ];
+    
+    const isFacebookImage = facebookPatterns.some(pattern => url.toLowerCase().includes(pattern));
+    
+    if (isFacebookImage) {
       // Use our backend proxy for Facebook CDN images
       const apiUrl = '/api/images/proxy';
       const encodedUrl = encodeURIComponent(url);

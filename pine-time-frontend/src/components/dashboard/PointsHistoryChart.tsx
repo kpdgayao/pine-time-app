@@ -3,10 +3,9 @@ import {
   Box, 
   Paper, 
   Typography, 
-  ToggleButtonGroup, 
-  ToggleButton,
   useTheme 
 } from '@mui/material';
+import CustomTabs from '../ui/CustomTabs';
 
 // Note: In a real implementation, you would import a charting library like Chart.js or Recharts
 // For this example, we'll create a simplified visualization
@@ -76,25 +75,16 @@ const PointsHistoryChart: React.FC<PointsHistoryChartProps> = ({
         <Typography variant="h6" fontWeight="bold" color="primary">
           Points History
         </Typography>
-        <ToggleButtonGroup
-          size="small"
+        <CustomTabs
+          options={[
+            { value: 'week', label: 'Week' },
+            { value: 'month', label: 'Month' },
+            { value: 'year', label: 'Year' }
+          ]}
           value={timeRange}
-          exclusive
-          onChange={(_, newValue) => {
-            if (newValue) setTimeRange(newValue);
-          }}
-          aria-label="time range"
-        >
-          <ToggleButton value="week" aria-label="week">
-            Week
-          </ToggleButton>
-          <ToggleButton value="month" aria-label="month">
-            Month
-          </ToggleButton>
-          <ToggleButton value="year" aria-label="year">
-            Year
-          </ToggleButton>
-        </ToggleButtonGroup>
+          onChange={(newValue) => setTimeRange(newValue as 'week' | 'month' | 'year')}
+          color="primary"
+        />
       </Box>
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
