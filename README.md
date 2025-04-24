@@ -10,6 +10,7 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 
 - **User Authentication**: Registration, login/logout with JWT token management
 - **Event Management**: Create, discover, and register for events
+- **Robust Payment System**: Database-driven payment tracking with step-based payment flow and comprehensive error handling
 - **Enhanced Gamification System**: Comprehensive badge and points system with visual celebrations
 - **Multi-level Badge System**: Bronze, silver, and gold badges across different categories with progress tracking
 - **Points & Rewards**: Track points, view leaderboards, and earn rewards with detailed transaction history
@@ -94,30 +95,16 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 
 ---
 
-
 ## Development Environment
 
 - The `.venv/` directory is used for your local Python virtual environment. It should **never** be committed to Git and is now included in `.gitignore` by default.
 - Always use `requirements.txt` (or `pyproject.toml`) to share dependencies, not the full environment.
 - To set up a new environment, run:
 
-  ```bash
-  python -m venv .venv
-  pip install -r requirements.txt
-  ```
-│   ├── public/            # Static assets
-│   ├── package.json       # React frontend dependencies
-│   └── ...
-├── tests/                 # Comprehensive test suite
-│   ├── api/               # API tests
-│   ├── frontend/          # Frontend tests
-│   ├── integration/       # Integration tests
-│   └── load/              # Load testing tools
-├── .env.example           # Example environment variables
-└── requirements.txt       # Backend dependencies
+```bash
+python -m venv .venv
+pip install -r requirements.txt
 ```
-
-**Note:** The project now supports both a modern React frontend (for users) and a Streamlit-based admin dashboard. The React frontend is located in `pine-time-frontend/` and is the recommended UI for end users.
 
 ## Tech Stack
 
@@ -128,6 +115,7 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 - **React Frontend**: Uses axios (with JWT auth), react-router-dom, jwt-decode, custom hooks, robust error handling
 - **Admin Dashboard**: Streamlit-based admin tools
 - **Authentication**: JWT-based auth system with refresh token logic (frontend and backend)
+- **Payment System**: Context-based payment management with database integration and step-based payment flow
 - **Styling**: Custom theme system with light/dark mode support and Pine Time green theme (#2E7D32)
 - **Gamification**: Badge and points system with progress tracking and visual celebrations
 - **UI Components**: Custom-designed reusable components (PineTimeButton, PineTimeCard, etc.)
@@ -139,38 +127,39 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 
 1. Clone the repository:
 
-   ```bash
-   git clone https://github.com/kpdgayao/pine-time-app.git
-   cd pine-time-app
-   ```
+```bash
+git clone https://github.com/kpdgayao/pine-time-app.git
+cd pine-time-app
+```
 
-2. Create a virtual environment:
+1. Create a virtual environment:
 
-   ```bash
-   python -m venv venv
-   ```
+```bash
+python -m venv venv
+```
 
-3. Activate the virtual environment:
-   - Windows: `venv\Scripts\activate`
-   - Unix/MacOS: `source venv/bin/activate`
+1. Activate the virtual environment:
 
-4. Install dependencies:
+- Windows: `venv\Scripts\activate`
+- Unix/MacOS: `source venv/bin/activate`
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+1. Install dependencies:
 
-5. Create a `.env` file based on `.env.example`:
+```bash
+pip install -r requirements.txt
+```
 
-   ```bash
-   cp .env.example .env
-   ```
+1. Create a `.env` file based on `.env.example`:
 
-6. Run the FastAPI backend:
+```bash
+cp .env.example .env
+```
 
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+1. Run the FastAPI backend:
+
+```bash
+uvicorn app.main:app --reload
+```
 
 ### Frontend Setup
 
@@ -178,43 +167,43 @@ The project uses a Vercel proxy (see `pine-time-proxy/vercel.json`) to securely 
 
 1. Navigate to the React frontend directory:
 
-   ```bash
-   cd pine-time-frontend
-   ```
+```bash
+cd pine-time-frontend
+```
 
-2. Install dependencies:
+1. Install dependencies:
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-3. Start the development server:
+1. Start the development server:
 
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+```
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser.
+1. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 #### Streamlit Admin Dashboard (Legacy/Admin)
 
 1. Navigate to the admin_dashboard directory:
 
-   ```bash
-   cd ../admin_dashboard
-   ```
+```bash
+cd ../admin_dashboard
+```
 
-2. Run the admin dashboard:
+1. Run the admin dashboard:
 
-   ```bash
-   streamlit run app.py
-   ```
+```bash
+streamlit run app.py
+```
 
-3. Run the user interface with PostgreSQL support:
+1. Run the user interface with PostgreSQL support:
 
-   ```bash
-   streamlit run user_app_postgres.py
-   ```
+```bash
+streamlit run user_app_postgres.py
+```
 
 ## Environment Variables
 
@@ -231,7 +220,6 @@ POSTGRES_PORT=5432
 POSTGRES_SSL_MODE=prefer
 
 # Connection Pooling
-```
 POOL_SIZE=5
 MAX_OVERFLOW=10
 POOL_TIMEOUT=30
@@ -244,7 +232,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=60
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
 # API Configuration
-API_BASE_URL=http://localhost:8000
+API_BASE_URL=[http://localhost:8000](http://localhost:8000)
 
 # Demo Mode (set to "true" to enable)
 DEMO_MODE=false
@@ -255,13 +243,15 @@ DEMO_MODE=false
 The application includes an enhanced demo mode for testing without backend connection:
 
 1. Set `DEMO_MODE=true` in your `.env` file or run:
-   ```bash
-   python run_admin_dashboard_demo.py
-   ```
 
-2. Use the demo credentials:
-   - Username: demo@pinetimeexperience.com
-   - Password: demo
+```bash
+python run_admin_dashboard_demo.py
+```
+
+1. Use the demo credentials:
+
+- Username: demo@pinetimeexperience.com
+- Password: demo
 
 ## Error Handling and Resilience
 
@@ -297,11 +287,13 @@ The application includes a comprehensive test suite:
 - **Proxy/CORS Tests**: Ensure frontend-backend connectivity via Vercel proxy (see troubleshooting section)
 
 Run the test suite with:
+
 ```bash
 python run_comprehensive_tests.py
 ```
 
 Or run specific test categories:
+
 ```bash
 python run_tests.py       # Run all tests
 python run_demo_tests.py  # Run tests in demo mode
@@ -321,9 +313,13 @@ python run_demo_tests.py  # Run tests in demo mode
 ## Contributing
 
 1. Fork the repository
+
 2. Create a feature branch: `git checkout -b feature-name`
+
 3. Commit your changes: `git commit -am 'Add feature'`
+
 4. Push to the branch: `git push origin feature-name`
+
 5. Submit a pull request
 
 ## License
