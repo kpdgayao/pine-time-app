@@ -32,11 +32,12 @@ const PaymentReviewDialog: React.FC<PaymentReviewDialogProps> = ({ registrationI
     if (!open || !registrationId) return;
     setLoading(true);
     setError("");
+    // Using the correct endpoint path according to documentation
     api.get(`/payments/payments/by_registration/${registrationId}`)
       .then(res => setPayment(res.data))
       .catch((err) => {
         if (err.response && err.response.status === 404) {
-          setError("No payment found for this registration yet.");
+          setError("❗ No payment record was found for this registration.\n\nTip: Ask the attendee to upload proof of payment or try again later.");
         } else {
           setError("Failed to fetch payment details.");
         }
@@ -81,7 +82,7 @@ const PaymentReviewDialog: React.FC<PaymentReviewDialogProps> = ({ registrationI
         {loading ? (
           <CircularProgress />
         ) : error ? (
-          <Alert severity="error">{error}</Alert>
+          <Alert severity="error" sx={{ whiteSpace: 'pre-line' }}>{error}</Alert>
         ) : payment ? (
           <Stack spacing={1}>
             <Typography><b>Amount Paid:</b> ₱{payment.amount_paid.toFixed(2)}</Typography>
@@ -91,9 +92,7 @@ const PaymentReviewDialog: React.FC<PaymentReviewDialogProps> = ({ registrationI
             )}
             <Typography><b>Date:</b> {new Date(payment.payment_date).toLocaleString()}</Typography>
           </Stack>
-        ) : (
-          <Typography>No payment details found.</Typography>
-        )}
+        ) : null}
         {actionMsg && <Alert severity={actionMsg.includes('approved') ? 'success' : 'error'} sx={{ mt: 2 }}>{actionMsg}</Alert>}
       </DialogContent>
       <DialogActions>

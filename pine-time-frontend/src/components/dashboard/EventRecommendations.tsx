@@ -73,9 +73,9 @@ const EventRecommendations: React.FC<EventRecommendationsProps> = ({
         </Box>
       ) : (
         <Stack spacing={2} sx={{ overflow: 'auto' }}>
-          {events.map((event) => (
+          {events.map((event, index) => (
             <Card 
-              key={event.id} 
+              key={`recommendation-${event.id}-${index}`} 
               sx={{ 
                 display: 'flex', 
                 borderRadius: 2,

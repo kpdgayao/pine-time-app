@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+
+// Helper function to handle image URLs, using proxy for problematic URLs
+const getImageUrl = (url?: string): string => {
+  if (!url) return '/event-placeholder.png';
+  
+  // Check if it's a Facebook CDN URL that might have CORS issues
+  if (url.includes('fbcdn.net') || 
+      url.includes('scontent') || 
+      url.includes('facebook.com')) {
+    // Use our backend proxy for Facebook CDN images
+    const apiUrl = '/api/images/proxy';
+    const encodedUrl = encodeURIComponent(url);
+    const fallbackUrl = encodeURIComponent('/event-placeholder.png');
+    return `${apiUrl}?url=${encodedUrl}&fallback=${fallbackUrl}`;
+  }
+  
+  // Return the original URL for other images
+  return url;
+};
 import { Box, Typography, Chip, Stack, Skeleton } from '@mui/material';
 import PineTimeCard from './PineTimeCard';
 import PineTimeButton from './PineTimeButton';
 import { Event, Registration } from '../types/events';
 import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaUsers } from 'react-icons/fa';
 import { styled } from '@mui/material/styles';
+import LazyImage from './LazyImage';
 
 const AnimatedCard = styled(PineTimeCard)(({ theme }) => ({
   transition: 'transform 0.18s cubic-bezier(0.4,0,0.2,1), box-shadow 0.18s cubic-bezier(0.4,0,0.2,1)',
@@ -25,6 +45,8 @@ const StatusBadge = styled(Box)({
   minWidth: 0,
 });
 
+import { usePayment } from '../contexts/PaymentContext';
+
 interface EventCardProps {
   event: Event;
   registration?: Registration;
@@ -32,40 +54,56 @@ interface EventCardProps {
   onRegister: (id: number) => void;
   onUnregister: (id: number) => void;
   onCancelPending: (id: number) => void;
+  onPayNow?: (id: number) => void;
   handleOpenDialog?: (event: Event) => void;
   highlight?: boolean;
   dimmed?: boolean;
+  sx?: any;
 }
 
-const EventCard: React.FC<EventCardProps & { sx?: any }> = React.memo(({
+const EventCard: React.FC<EventCardProps> = React.memo(function EventCard({
   event,
   registration,
   loading,
   onRegister,
   onUnregister,
   onCancelPending,
+  onPayNow,
   handleOpenDialog,
   highlight = false,
   dimmed = false,
   sx = {},
-}) => {
-  const past = new Date(event.end_time) < new Date();
-  const full = typeof event.registration_count === 'number' && event.registration_count >= event.max_participants;
-  const isPending = registration?.status === 'pending';
-  const isApproved = registration?.status === 'approved';
-  const isRejected = registration?.status === 'rejected';
-  const canRegister =
-    (!registration || registration.status === 'cancelled' || registration.status === 'rejected')
-    && !past && !full;
+}) {
+  // Use the payment context to check if registration is paid
+  const { isRegistrationPaid } = usePayment();
+  // Memoize expensive calculations
+  const { isPending, isApproved, canRegister, status } = useMemo(() => {
+    const past = new Date(event?.end_time || Date.now()) < new Date();
+    const full = typeof event?.registration_count === 'number' && 
+                event.registration_count >= (event?.max_participants || 0);
+    const isPending = registration?.status === 'pending';
+    const isApproved = registration?.status === 'approved';
+    const isRejected = registration?.status === 'rejected';
+    const canRegister = (!registration || 
+                        registration.status === 'cancelled' || 
+                        registration.status === 'rejected') && 
+                        !past && !full;
 
-
-  // Status logic for badge
-  let status: null | { label: string; color: 'success' | 'warning' | 'error' | 'default'; icon?: React.ReactNode } = null;
-  if (isApproved) status = { label: 'Registered', color: 'success', icon: <span role="img" aria-label="check">✔️</span> };
-  else if (isPending) status = { label: 'Pending', color: 'warning', icon: <span role="img" aria-label="pending">⏳</span> };
-  else if (isRejected) status = { label: 'Rejected', color: 'error', icon: <span role="img" aria-label="rejected">❌</span> };
-  else if (past) status = { label: 'Ended', color: 'default', icon: <span role="img" aria-label="clock">⏰</span> };
-  else if (full && !registration) status = { label: 'Full', color: 'warning', icon: <span role="img" aria-label="full">🚫</span> };
+    // Status logic for badge
+    let status: null | { 
+      label: string; 
+      color: 'success' | 'warning' | 'error' | 'default'; 
+      icon?: React.ReactNode 
+    } = null;
+    
+    if (isApproved) status = { label: 'Registered', color: 'success', icon: <span role="img" aria-label="check">✔️</span> };
+    else if (isPending) status = { label: 'Pending', color: 'warning', icon: <span role="img" aria-label="pending">⏳</span> };
+    else if (isRejected) status = { label: 'Rejected', color: 'error', icon: <span role="img" aria-label="rejected">❌</span> };
+    else if (past) status = { label: 'Ended', color: 'default', icon: <span role="img" aria-label="clock">⏰</span> };
+    else if (full && !registration) status = { label: 'Full', color: 'warning', icon: <span role="img" aria-label="full">🚫</span> };
+    
+    return { past, full, isPending, isApproved, isRejected, canRegister, status };
+  }, [event, registration]);
 
   return (
     <AnimatedCard
@@ -125,21 +163,15 @@ const EventCard: React.FC<EventCardProps & { sx?: any }> = React.memo(({
       {/* Event image or skeleton */}
       {loading ? (
         <Skeleton variant="rectangular" width="100%" height={180} animation="wave" sx={{ borderTopLeftRadius: 12, borderTopRightRadius: 12, mb: 2 }} />
-      ) : event.image_url ? (
-        <Box sx={{ width: '100%', aspectRatio: '16/9', mb: 2, overflow: 'hidden', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
-          <img
-            src={event.image_url}
-            alt={event.title ? `Image for ${event.title}` : 'Event image'}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
-            onError={e => { (e.currentTarget as HTMLImageElement).src = '/event-placeholder.png'; }}
-          />
-        </Box>
       ) : (
-        <Box sx={{ width: '100%', aspectRatio: '16/9', mb: 2, overflow: 'hidden', borderTopLeftRadius: 12, borderTopRightRadius: 12, background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img
-            src={'/event-placeholder.png'}
-            alt={'No event image available'}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+        <Box sx={{ width: '100%', aspectRatio: '16/9', mb: 2, overflow: 'hidden', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
+          <LazyImage
+            src={getImageUrl(event.image_url)}
+            alt={event.title ? `Image for ${event.title}` : 'Event image'}
+            fallbackSrc="/event-placeholder.png"
+            placeholderSrc="/event-placeholder.png"
+            borderRadius="12px 12px 0 0"
+            loadingHeight={180}
           />
         </Box>
       )}
@@ -272,15 +304,49 @@ const EventCard: React.FC<EventCardProps & { sx?: any }> = React.memo(({
           </PineTimeButton>
         )}
         {!loading && isPending && (
-          <PineTimeButton
-            variantType="secondary"
-            size="small"
-            onClick={() => onCancelPending(event.id)}
-            disabled={loading === event.id}
-            sx={{ ml: 1 }}
-          >
-            Cancel
-          </PineTimeButton>
+          <>
+            <PineTimeButton
+              variantType="secondary"
+              size="small"
+              onClick={() => onCancelPending(event.id)}
+              disabled={loading === event.id}
+              sx={{ ml: 1 }}
+            >
+              Cancel
+            </PineTimeButton>
+            {/* Only show Pay Now button if:
+                1. Event has a price
+                2. onPayNow handler is provided
+                3. Registration is not already paid
+            */}
+            {(event.price ?? 0) > 0 && onPayNow && registration && 
+             !isRegistrationPaid(event.id, registration.id) && (
+              <PineTimeButton
+                variantType="primary"
+                size="small"
+                onClick={() => {
+                  if (event && event.id) {
+                    onPayNow(event.id);
+                  }
+                }}
+                disabled={loading === event.id}
+                sx={{ ml: 1, bgcolor: '#2E7D32' }}
+                aria-label="Pay now for this event"
+              >
+                Pay Now
+              </PineTimeButton>
+            )}
+            {/* Show payment submitted chip only if payment is marked as paid */}
+            {(event.price ?? 0) > 0 && registration && 
+             isRegistrationPaid(event.id, registration.id) && (
+              <Chip 
+                label="Payment Submitted" 
+                color="success" 
+                sx={{ ml: 1, fontWeight: 600 }} 
+                aria-label="Payment has been submitted"
+              />
+            )}
+          </>
         )}
       </Box>
     </AnimatedCard>

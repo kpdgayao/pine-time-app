@@ -41,7 +41,13 @@ const AdminDashboardPage: React.FC = () => {
       try {
         const res = await api.get('/events/');
         const eventsData = res.data;
-        setEvents(eventsData);
+        
+        // Handle both array and paginated object formats
+        const eventsArray = Array.isArray(eventsData) 
+          ? eventsData 
+          : (eventsData && eventsData.items ? eventsData.items : []);
+          
+        setEvents(eventsArray);
         // Fetch stats for each event
         const stats: Record<number, { registration_count: number; revenue: number }> = {};
         let statsErrors = 0;
@@ -83,7 +89,8 @@ const AdminDashboardPage: React.FC = () => {
   }, []);
 
   // Analytics calculations
-  const eventsArray: any[] = Array.isArray(events) ? events : (events && Array.isArray((events as any).items) ? (events as any).items : []);
+  // Ensure events is always treated as an array
+  const eventsArray: any[] = Array.isArray(events) ? events : [];
   const totalEvents: number = eventsArray.length;
   const activeEvents: number = eventsArray.filter((e: any) => e.is_active).length;
   const totalParticipants: number = eventsArray.reduce((sum: number, e: any) => sum + (e.max_participants || 0), 0);
@@ -157,12 +164,12 @@ const AdminDashboardPage: React.FC = () => {
         <Box sx={{ mt: 2, width: '100%', overflowX: 'auto' }}>
           {activeSection === "overview" ? (
             <AdminOverviewSection
-              totalEvents={events.length}
-              activeEvents={events.filter((e: any) => e.is_active).length}
-              totalParticipants={events.reduce((acc, e) => acc + (e.max_participants || 0), 0)}
-              totalRevenue={Object.values(eventStats).reduce((acc, s) => acc + (s.revenue || 0), 0)}
+              totalEvents={totalEvents}
+              activeEvents={activeEvents}
+              totalParticipants={totalParticipants}
+              totalRevenue={totalRevenue}
               eventStats={eventStats}
-              eventsArray={events}
+              eventsArray={eventsArray}
               loading={loading}
             />
           ) : (

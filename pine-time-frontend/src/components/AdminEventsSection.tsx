@@ -45,7 +45,8 @@ const AdminEventsSection: React.FC = () => {
   const [regEventId, setRegEventId] = useState<number | undefined>(undefined);
   // Stats for events
   const [eventStats, setEventStats] = useState<Record<number, { registration_count: number; revenue: number }>>({});
-  const [events, setEvents] = useState<Event[]>([]); 
+  const [events, setEvents] = useState<Event[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0); 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -61,12 +62,23 @@ const AdminEventsSection: React.FC = () => {
       const params: any = { skip: (pageVal - 1) * PAGE_SIZE, limit: PAGE_SIZE };
       if (searchVal) params.q = searchVal;
       const res = await api.get('/events/', { params });
-      setEvents(res.data);
+      
+      // Handle both array and paginated response formats
+      if (Array.isArray(res.data)) {
+        setEvents(res.data);
+        setTotalCount(res.data.length);
+      } else if (res.data && Array.isArray(res.data.items)) {
+        setEvents(res.data.items);
+        setTotalCount(res.data.total || res.data.items.length);
+      } else {
+        setEvents([]);
+        setTotalCount(0);
+      }
       // Fetch stats for each event
       const stats: Record<number, { registration_count: number; revenue: number }> = {};
       let statsErrors = 0;
       await Promise.all(
-        (res.data || []).map(async (event: Event) => {
+        (Array.isArray(events) ? events : []).map(async (event: Event) => {
           try {
             const statsRes = await api.get(`/events/${event.id}/stats`);
             stats[event.id] = {
@@ -253,7 +265,7 @@ const filteredEvents = eventsArray.filter(
       <TablePagination
         rowsPerPageOptions={[10, 25, 50]}
         component="div"
-        count={eventsArray.length}
+        count={totalCount}
         rowsPerPage={PAGE_SIZE}
         page={page - 1}
         onPageChange={(_, newPage) => handlePageChange(newPage + 1)}

@@ -25,7 +25,7 @@ import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import Divider from '@mui/material/Divider';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import api from '../api/client';
+import api, { apiLongTimeout, retryApiCall } from '../utils/api';
 
 const navLinks = [
   { label: 'Events', to: '/' },
@@ -73,40 +73,46 @@ const Navbar = (): React.ReactNode => {
     
     const fetchUserData = async () => {
       try {
-        // Fetch user points
-        try {
-          const pointsResponse = await api.get(`/users/${user.sub}/points`);
-          if (pointsResponse.data) {
-            // Handle different response formats
-            if (typeof pointsResponse.data.points === 'number') {
-              setUserPoints(pointsResponse.data.points);
-            } else if (typeof pointsResponse.data.total_points === 'number') {
-              setUserPoints(pointsResponse.data.total_points);
-            } else if (typeof pointsResponse.data === 'number') {
-              setUserPoints(pointsResponse.data);
-            }
+        // Fetch user points with retry mechanism
+        const pointsData = await retryApiCall(
+          () => apiLongTimeout.get(`/users/${user.sub}/points`),
+          null, // fallback value
+          2,    // max retries
+          1000  // retry delay in ms
+        );
+        
+        if (pointsData) {
+          // Handle different response formats
+          if (typeof pointsData.points === 'number') {
+            setUserPoints(pointsData.points);
+          } else if (typeof pointsData.total_points === 'number') {
+            setUserPoints(pointsData.total_points);
+          } else if (typeof pointsData === 'number') {
+            setUserPoints(pointsData);
           }
-        } catch (pointsError) {
-          console.error('Error fetching user points:', pointsError);
-          // Don't fail the entire function, continue with other requests
         }
         
-        // Fetch user badges with progress
-        let badgeData: any[] = [];
         try {
-          const badgesResponse = await api.get(`/users/${user.sub}/badges`, {
-            params: { include_progress: true }
-          });
+          // Fetch user badges with progress using retry mechanism
+          let badgeData: any[] = [];
+          const badgesData = await retryApiCall(
+            () => apiLongTimeout.get(`/users/${user.sub}/badges`, {
+              params: { include_progress: true }
+            }),
+            { items: [], badges: [] }, // fallback value
+            2,    // max retries
+            1000  // retry delay in ms
+          );
           
           // Handle different response formats
-          if (Array.isArray(badgesResponse.data)) {
-            badgeData = badgesResponse.data;
-          } else if (badgesResponse.data && Array.isArray(badgesResponse.data.items)) {
-            badgeData = badgesResponse.data.items;
-          } else if (badgesResponse.data && Array.isArray(badgesResponse.data.badges)) {
-            badgeData = badgesResponse.data.badges;
+          if (Array.isArray(badgesData)) {
+            badgeData = badgesData;
+          } else if (badgesData && Array.isArray(badgesData.items)) {
+            badgeData = badgesData.items;
+          } else if (badgesData && Array.isArray(badgesData.badges)) {
+            badgeData = badgesData.badges;
           }
-          
+            
           // Check for unread/new badges
           const newBadges = badgeData.filter((badge: any) => 
             badge && badge.is_new === true
@@ -119,7 +125,7 @@ const Navbar = (): React.ReactNode => {
             typeof badge.progress === 'number' && 
             badge.progress < badge.next_level_threshold
           );
-          
+            
           if (inProgressBadges.length > 0) {
             // Sort by progress percentage (highest first)
             inProgressBadges.sort((a: any, b: any) => {
@@ -139,8 +145,8 @@ const Navbar = (): React.ReactNode => {
           // Don't fail the entire function, continue with other requests
         }
         
-        // Fetch user stats for streak
         try {
+          // Fetch user stats for streak
           const statsResponse = await api.get(`/users/${user.sub}/stats`);
           if (statsResponse.data) {
             // Handle different response formats
