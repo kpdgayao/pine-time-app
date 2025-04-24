@@ -5,6 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import func
 
 from app import models, schemas
 from app.api import dependencies
@@ -17,18 +18,78 @@ import random
 router = APIRouter()
 
 
-@router.get("/", response_model=List[schemas.User])
+@router.get("/")
 def read_users(
     db: Session = Depends(dependencies.get_db),
     skip: int = 0,
     limit: int = 100,
+    search: Optional[str] = None,
+    user_type: Optional[str] = None,
+    is_active: Optional[bool] = None,
     current_user: models.User = Depends(dependencies.get_current_active_superuser),
 ) -> Any:
     """
-    Retrieve users.
+    Retrieve users with pagination and filtering.
+    
+    Parameters:
+    - skip: Number of items to skip (for pagination)
+    - limit: Maximum number of items to return
+    - search: Search in username and email
+    - user_type: Filter by user type (regular, admin, business)
+    - is_active: Filter by user active status
+    
+    Returns a paginated response with items, total count, and pagination metadata.
     """
-    users = db.query(models.User).offset(skip).limit(limit).all()
-    return users
+    # Base query
+    query = db.query(models.User)
+    
+    # Get total count before applying filters for pagination metadata
+    total_query = db.query(func.count(models.User.id))
+    
+    # Apply search filter
+    if search:
+        search_term = f"%{search.lower()}%"
+        query = query.filter(
+            func.lower(models.User.username).like(search_term) | 
+            func.lower(models.User.email).like(search_term) |
+            func.lower(models.User.full_name).like(search_term)
+        )
+        total_query = total_query.filter(
+            func.lower(models.User.username).like(search_term) | 
+            func.lower(models.User.email).like(search_term) |
+            func.lower(models.User.full_name).like(search_term)
+        )
+    
+    # Apply user_type filter
+    if user_type:
+        query = query.filter(models.User.user_type == user_type)
+        total_query = total_query.filter(models.User.user_type == user_type)
+    
+    # Apply is_active filter
+    if is_active is not None:
+        query = query.filter(models.User.is_active == is_active)
+        total_query = total_query.filter(models.User.is_active == is_active)
+    
+    # Get total count for pagination metadata
+    total_count = total_query.scalar() or 0
+    
+    # Apply pagination
+    query = query.order_by(models.User.id)
+    users = query.offset(skip).limit(limit).all()
+    
+    # Calculate pagination metadata
+    page_size = limit
+    current_page = (skip // page_size) + 1 if page_size > 0 else 1
+    total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
+    
+    # Return paginated response
+    return {
+        "items": users,
+        "total": total_count,
+        "page": current_page,
+        "size": page_size,
+        "pages": total_pages
+    }
 
 
 @router.post("/", response_model=schemas.User)
@@ -457,7 +518,7 @@ def get_user_events(
         return []
 
 
-@router.get("/{user_id}/points/history", response_model=List[Dict])
+@router.get("/{user_id}/points/history")
 @safe_api_call
 def get_user_points_history(
     request: Request,
@@ -468,9 +529,13 @@ def get_user_points_history(
     current_user: models.User = Depends(dependencies.get_current_active_user),
 ) -> Any:
     """
-    Get points history for a specific user.
+    Get points history for a specific user with pagination.
     
-    Returns a list of point transactions with details about each transaction.
+    Parameters:
+    - skip: Number of items to skip (for pagination)
+    - limit: Maximum number of items to return
+    
+    Returns a paginated response with transactions, including details about each transaction.
     Regular users can only view their own history, while admins can view any user's history.
     """
     try:
@@ -485,10 +550,18 @@ def get_user_points_history(
             raise HTTPException(status_code=403, detail="Not enough permissions")
         
         try:
-            # Get transactions from database
-            transactions = db.query(models.PointsTransaction).filter(
+            # Get base query
+            base_query = db.query(models.PointsTransaction).filter(
                 models.PointsTransaction.user_id == user_id
-            ).order_by(models.PointsTransaction.transaction_date.desc()).offset(skip).limit(limit).all()
+            )
+            
+            # Get total count for pagination metadata
+            total_count = base_query.count()
+            
+            # Get transactions with pagination
+            transactions = base_query.order_by(
+                models.PointsTransaction.transaction_date.desc()
+            ).offset(skip).limit(limit).all()
             
             # Format the transactions for response
             history = []
@@ -519,8 +592,22 @@ def get_user_points_history(
                 }
                 history.append(history_item)
             
+            # Calculate pagination metadata
+            page_size = limit
+            current_page = (skip // page_size) + 1 if page_size > 0 else 1
+            total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
+            
+            # Create paginated response
+            response = {
+                "items": history,
+                "total": total_count,
+                "page": current_page,
+                "size": page_size,
+                "pages": total_pages
+            }
+            
             logging.info(f"Retrieved {len(history)} points history items for user {user_id}")
-            return history
+            return response
             
         except SQLAlchemyError as db_error:
             logging.error(f"Database error in get_user_points_history: {str(db_error)}")
@@ -531,5 +618,11 @@ def get_user_points_history(
             
     except Exception as e:
         logging.error(f"Unexpected error in get_user_points_history: {str(e)}", exc_info=True)
-        # Return empty list as fallback
-        return []
+        # Return empty paginated response as fallback
+        return {
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "size": limit,
+            "pages": 0
+        }

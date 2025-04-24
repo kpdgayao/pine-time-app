@@ -10,12 +10,12 @@ from app.api.dependencies import safe_api_call, safe_api_response_handler, safe_
 from app.db.session import SessionLocal
 from app.services.points_manager import PointsManager
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, distinct
 
 router = APIRouter()
 
 from fastapi import Path
 from app.schemas.event import EventStats
-from sqlalchemy import func
 import logging
 
 @router.get("/recommended", response_model=List[schemas.Event])
@@ -148,6 +148,46 @@ def get_recommended_events(
         return []
 
 
+@router.get("/types", response_model=List[str])
+def get_event_types(
+    db: Session = Depends(dependencies.get_db),
+    request: Request = None,
+) -> Any:
+    """
+    Get all unique event types in the system.
+    Used by the frontend EventFilters component to populate the event type dropdown.
+    Public endpoint - returns event types from active events for unauthenticated users,
+    and all event types for authenticated admin users.
+    """
+    logger = logging.getLogger("events.types")
+    
+    # Try to get user from Authorization header (optional)
+    user = None
+    try:
+        from app.api.dependencies import get_current_user
+        token = None
+        if request and "authorization" in request.headers:
+            token = request.headers["authorization"].replace("Bearer ", "")
+        if token:
+            user = get_current_user.__wrapped__(db, token)  # bypass Depends
+    except Exception as e:
+        logger.debug(f"Error getting user from token: {str(e)}")
+        user = None
+    
+    # Query for event types
+    query = db.query(distinct(models.Event.event_type))
+    
+    # Only include active events for unauthenticated users
+    if not user or (not getattr(user, 'is_superuser', False) and getattr(user, 'user_type', None) != "admin"):
+        query = query.filter(models.Event.is_active == True)
+    
+    # Get all event types and filter out None values
+    event_types = [et for et in query.all() if et[0] is not None]
+    
+    # Return flat list of event types
+    return [et[0] for et in event_types]
+
+
 @router.get("/{event_id}/stats", response_model=EventStats)
 def get_event_stats(
     *,
@@ -191,31 +231,46 @@ def get_event_stats(
 
 from fastapi import Request
 
-@router.get("/", response_model=List[schemas.Event])
+@router.get("/", response_model=schemas.PaginatedEventResponse)
 def read_events(
     db: Session = Depends(dependencies.get_db),
+    search: Optional[str] = None,
+    event_type: Optional[str] = None,
+    location: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    sort_by: Optional[str] = "start-soonest",
+    upcoming: Optional[bool] = None,
     skip: int = 0,
     limit: int = 100,
-    event_type: Optional[str] = None,
-    upcoming: Optional[bool] = None,
     request: Request = None,
 ) -> Any:
     """
-    Retrieve events with filtering options. Public for GET. Authenticated users see all, unauthenticated see only active events.
+    Retrieve events with enhanced filtering options matching frontend EventFilters component.
+    
+    Filters:
+    - search: Search in title, description, and location
+    - event_type: Filter by event type
+    - location: Filter by location (partial match)
+    - start_date/end_date: Filter by date range
+    - min_price/max_price: Filter by price range
+    - sort_by: Sort results (start-soonest, start-latest, title-az, price-low, price-high)
+    - upcoming: Filter for upcoming events only
+    
+    Pagination:
+    - skip: Number of items to skip (for pagination)
+    - limit: Maximum number of items to return
+    
+    Public endpoint for GET. Authenticated users see all events, unauthenticated see only active events.
     """
+    logger = logging.getLogger("events.list")
     query = db.query(models.Event)
-
-    # Apply filters
-    if event_type:
-        query = query.filter(models.Event.event_type == event_type)
-
-    if upcoming is not None:
-        now = datetime.utcnow()
-        if upcoming:
-            query = query.filter(models.Event.start_time > now)
-        else:  # past events
-            query = query.filter(models.Event.end_time < now)
-
+    
+    # Get total count before applying filters for pagination metadata
+    total_query = db.query(func.count(models.Event.id))
+    
     # Try to get user from Authorization header (optional)
     user = None
     try:
@@ -225,44 +280,156 @@ def read_events(
             token = request.headers["authorization"].replace("Bearer ", "")
         if token:
             user = get_current_user.__wrapped__(db, token)  # bypass Depends
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Error getting user from token: {str(e)}")
         user = None
 
     # Only show active events to unauthenticated users
     if not user or (not getattr(user, 'is_superuser', False) and getattr(user, 'user_type', None) != "admin"):
         query = query.filter(models.Event.is_active == True)
+        total_query = total_query.filter(models.Event.is_active == True)
 
-    # Order by start_time
-    query = query.order_by(models.Event.start_time)
+    # Apply search filter (search in title, description, and location)
+    if search:
+        search_term = f"%{search.lower()}%"
+        query = query.filter(
+            func.lower(models.Event.title).like(search_term) |
+            func.lower(models.Event.description).like(search_term) |
+            func.lower(models.Event.location).like(search_term)
+        )
+        total_query = total_query.filter(
+            func.lower(models.Event.title).like(search_term) |
+            func.lower(models.Event.description).like(search_term) |
+            func.lower(models.Event.location).like(search_term)
+        )
 
-    events = query.offset(skip).limit(limit).all()
-    return events
-
-    """
-    Retrieve events with filtering options.
-    """
-    query = db.query(models.Event)
-    
-    # Apply filters
+    # Apply event type filter
     if event_type:
         query = query.filter(models.Event.event_type == event_type)
-        
+        total_query = total_query.filter(models.Event.event_type == event_type)
+
+    # Apply location filter (partial match)
+    if location:
+        location_term = f"%{location.lower()}%"
+        query = query.filter(func.lower(models.Event.location).like(location_term))
+        total_query = total_query.filter(func.lower(models.Event.location).like(location_term))
+
+    # Apply date range filters
+    if start_date:
+        query = query.filter(models.Event.start_time >= start_date)
+        total_query = total_query.filter(models.Event.start_time >= start_date)
+    
+    if end_date:
+        query = query.filter(models.Event.end_time <= end_date)
+        total_query = total_query.filter(models.Event.end_time <= end_date)
+
+    # Apply price range filters
+    if min_price is not None:
+        query = query.filter(models.Event.price >= min_price)
+        total_query = total_query.filter(models.Event.price >= min_price)
+    
+    if max_price is not None:
+        query = query.filter(models.Event.price <= max_price)
+        total_query = total_query.filter(models.Event.price <= max_price)
+
+    # Handle upcoming filter (for backward compatibility)
     if upcoming is not None:
         now = datetime.utcnow()
         if upcoming:
             query = query.filter(models.Event.start_time > now)
+            total_query = total_query.filter(models.Event.start_time > now)
         else:  # past events
             query = query.filter(models.Event.end_time < now)
+            total_query = total_query.filter(models.Event.end_time < now)
+
+    # Apply sorting
+    if sort_by == "start-soonest":
+        query = query.order_by(models.Event.start_time.asc())
+    elif sort_by == "start-latest":
+        query = query.order_by(models.Event.start_time.desc())
+    elif sort_by == "title-az":
+        query = query.order_by(models.Event.title.asc())
+    elif sort_by == "price-low":
+        query = query.order_by(models.Event.price.asc())
+    elif sort_by == "price-high":
+        query = query.order_by(models.Event.price.desc())
+    else:
+        # Default sorting by start time (soonest first)
+        query = query.order_by(models.Event.start_time.asc())
+
+    # Get total count for pagination metadata
+    total_count = total_query.scalar() or 0
     
-    # Only show active events to regular users
-    if not current_user.is_superuser and current_user.user_type != "admin":
+    # Apply pagination
+    events = query.offset(skip).limit(limit).all()
+    
+    # Calculate pagination metadata
+    page_size = limit
+    current_page = (skip // page_size) + 1 if page_size > 0 else 1
+    total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
+    
+    # Return paginated response
+    return {
+        "items": events,
+        "total": total_count,
+        "page": current_page,
+        "size": page_size,
+        "pages": total_pages
+    }
+
+
+@router.get("/price-range", response_model=Dict[str, float])
+def get_event_price_range(
+    db: Session = Depends(dependencies.get_db),
+    request: Request = None,
+) -> Any:
+    """
+    Get the minimum and maximum price of events in the system.
+    Used by the frontend EventFilters component to set the price range slider limits.
+    Public endpoint - returns price range from active events for unauthenticated users,
+    and from all events for authenticated admin users.
+    """
+    logger = logging.getLogger("events.price_range")
+    
+    # Try to get user from Authorization header (optional)
+    user = None
+    try:
+        from app.api.dependencies import get_current_user
+        token = None
+        if request and "authorization" in request.headers:
+            token = request.headers["authorization"].replace("Bearer ", "")
+        if token:
+            user = get_current_user.__wrapped__(db, token)  # bypass Depends
+    except Exception as e:
+        logger.debug(f"Error getting user from token: {str(e)}")
+        user = None
+    
+    # Prepare price range query
+    query = db.query(
+        func.min(models.Event.price).label("min_price"),
+        func.max(models.Event.price).label("max_price")
+    )
+    
+    # Only include active events for unauthenticated users
+    if not user or (not getattr(user, 'is_superuser', False) and getattr(user, 'user_type', None) != "admin"):
         query = query.filter(models.Event.is_active == True)
     
-    # Order by start_time
-    query = query.order_by(models.Event.start_time)
+    # Get price range
+    price_range = query.first()
     
-    events = query.offset(skip).limit(limit).all()
-    return events
+    # Handle case where there are no events or all events have NULL prices
+    min_price = price_range.min_price if price_range and price_range.min_price is not None else 0
+    max_price = price_range.max_price if price_range and price_range.max_price is not None else 1000
+    
+    # Ensure max is at least min
+    if max_price < min_price:
+        max_price = min_price
+    
+    # Add a small buffer to max price if min equals max (for better UI display)
+    if min_price == max_price:
+        max_price += 50
+    
+    return {"min_price": min_price, "max_price": max_price}
 
 
 @router.get("/{event_id}", response_model=schemas.Event)

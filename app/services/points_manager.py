@@ -1,6 +1,6 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 from app import models

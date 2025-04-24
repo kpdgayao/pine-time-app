@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
+from app.schemas.event import PaginatedResponse
 
 
 # Shared properties
@@ -36,6 +37,14 @@ class PointsTransactionInDBBase(PointsTransactionBase):
 class PointsTransaction(PointsTransactionInDBBase):
     pass
 
+
+# Paginated response for points transaction listings
+class PaginatedPointsTransactionResponse(PaginatedResponse[PointsTransaction]):
+    """
+    Paginated response specifically for points transactions
+    """
+
+
 from .user import User
 from .event import Event
 from typing import Optional
@@ -47,3 +56,10 @@ class PointsTransactionAdmin(PointsTransactionInDBBase):
 
     class Config:
         from_attributes = True
+
+
+# Paginated response for admin points transaction listings
+class PaginatedPointsTransactionAdminResponse(PaginatedResponse[PointsTransactionAdmin]):
+    """
+    Paginated response specifically for admin points transactions
+    """

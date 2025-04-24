@@ -1,6 +1,6 @@
 from typing import Optional, List
-
 from pydantic import BaseModel, EmailStr
+from app.schemas.event import PaginatedResponse
 
 
 # Shared properties
@@ -35,6 +35,13 @@ class UserInDBBase(UserBase):
 # Additional properties to return via API
 class User(UserInDBBase):
     pass
+
+
+# Paginated response for user listings
+class PaginatedUserResponse(PaginatedResponse):
+    """
+    Paginated response specifically for users
+    """
 
 
 # Additional properties stored in DB

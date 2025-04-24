@@ -1,8 +1,10 @@
 from typing import Any, List, Dict, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Body, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import func
 import logging
 
 from app import models, schemas
@@ -47,30 +49,90 @@ def get_points_balance(
         return 0
 
 
-@router.get("/transactions", response_model=List[schemas.PointsTransaction])
+@router.get("/transactions")
 @safe_api_call
 def get_user_transactions(
     request: Request,
     db: Session = Depends(dependencies.get_db),
     skip: int = 0,
     limit: int = 100,
+    transaction_type: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
     current_user: models.User = Depends(dependencies.get_current_active_user),
 ) -> Any:
     """
-    Get current user's points transactions.
+    Get current user's points transactions with pagination and filtering.
+    
+    Parameters:
+    - skip: Number of items to skip (for pagination)
+    - limit: Maximum number of items to return
+    - transaction_type: Filter by transaction type (earned, spent, etc.)
+    - date_from: Filter by minimum transaction date
+    - date_to: Filter by maximum transaction date
+    
+    Returns a paginated response with items, total count, and pagination metadata.
     """
     try:
         user_id = safe_get_user_id(current_user)
         if user_id is None:
             logging.warning("User ID is None when fetching transactions")
-            return []
-            
-        transactions = db.query(models.PointsTransaction).filter(
+            return {
+                "items": [],
+                "total": 0,
+                "page": 1,
+                "size": limit,
+                "pages": 0
+            }
+        
+        # Base query for items
+        query = db.query(models.PointsTransaction).filter(
             models.PointsTransaction.user_id == user_id
-        ).order_by(models.PointsTransaction.transaction_date.desc()).offset(skip).limit(limit).all()
+        )
+        
+        # Base query for count (for pagination metadata)
+        count_query = db.query(func.count(models.PointsTransaction.id)).filter(
+            models.PointsTransaction.user_id == user_id
+        )
+        
+        # Apply transaction_type filter
+        if transaction_type:
+            query = query.filter(models.PointsTransaction.transaction_type == transaction_type)
+            count_query = count_query.filter(models.PointsTransaction.transaction_type == transaction_type)
+        
+        # Apply date_from filter
+        if date_from:
+            query = query.filter(models.PointsTransaction.transaction_date >= date_from)
+            count_query = count_query.filter(models.PointsTransaction.transaction_date >= date_from)
+        
+        # Apply date_to filter
+        if date_to:
+            query = query.filter(models.PointsTransaction.transaction_date <= date_to)
+            count_query = count_query.filter(models.PointsTransaction.transaction_date <= date_to)
+        
+        # Get total count for pagination metadata
+        total_count = count_query.scalar() or 0
+        
+        # Apply sorting and pagination
+        transactions = query.order_by(
+            models.PointsTransaction.transaction_date.desc()
+        ).offset(skip).limit(limit).all()
+        
+        # Calculate pagination metadata
+        page_size = limit
+        current_page = (skip // page_size) + 1 if page_size > 0 else 1
+        total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
         
         logging.info(f"Retrieved {len(transactions)} transactions for user {user_id}")
-        return transactions if transactions else []
+        
+        # Return paginated response
+        return {
+            "items": transactions if transactions else [],
+            "total": total_count,
+            "page": current_page,
+            "size": page_size,
+            "pages": total_pages
+        }
         
     except SQLAlchemyError as e:
         logging.error(f"Database error in get_user_transactions: {str(e)}")
@@ -81,8 +143,14 @@ def get_user_transactions(
         
     except Exception as e:
         logging.error(f"Unexpected error in get_user_transactions: {str(e)}", exc_info=True)
-        # Return empty list as fallback
-        return []
+        # Return empty paginated response as fallback
+        return {
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "size": limit,
+            "pages": 0
+        }
 
 
 @router.get("/users/{user_id}/history", response_model=List[Dict])

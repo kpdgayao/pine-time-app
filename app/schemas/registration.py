@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
+from app.schemas.event import PaginatedResponse
 
 
 # Shared properties
@@ -36,6 +37,14 @@ class RegistrationInDBBase(RegistrationBase):
 # Additional properties to return via API
 class Registration(RegistrationInDBBase):
     pass
+
+
+# Paginated response for registration listings
+class PaginatedRegistrationResponse(PaginatedResponse[Registration]):
+    """
+    Paginated response specifically for registrations
+    """
+
 
 from app.schemas.user import User
 from app.schemas.event import Event

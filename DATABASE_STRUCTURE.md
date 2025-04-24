@@ -64,6 +64,20 @@ CREATE TABLE registrations (
 );
 ```
 
+### Payments
+
+```sql
+CREATE TABLE payment (
+    id SERIAL PRIMARY KEY,
+    registration_id INTEGER NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    amount_paid NUMERIC NOT NULL,
+    payment_channel CHARACTER VARYING(50) NOT NULL,
+    payment_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ## Gamification Tables
 
 ### Badges
@@ -126,6 +140,9 @@ CREATE TABLE event_attendees (
 - **Users to Events**: One-to-many (a user can create multiple events)
 - **Users to Registrations**: One-to-many (a user can register for multiple events)
 - **Events to Registrations**: One-to-many (an event can have multiple registrations)
+- **Registrations to Payments**: One-to-one (a registration can have one payment record)
+- **Users to Payments**: One-to-many (a user can make multiple payments)
+- **Events to Payments**: One-to-many (an event can have multiple payments)
 - **Users to User Badges**: One-to-many (a user can earn multiple badges)
 - **Badges to User Badges**: One-to-many (a badge can be earned by multiple users)
 - **Users to Points Transactions**: One-to-many (a user can have multiple points transactions)
@@ -199,6 +216,12 @@ CREATE INDEX idx_events_event_type ON events(event_type);
 CREATE INDEX idx_registrations_user_id ON registrations(user_id);
 CREATE INDEX idx_registrations_event_id ON registrations(event_id);
 CREATE INDEX idx_registrations_status ON registrations(status);
+
+-- Payment queries optimization
+CREATE INDEX idx_payment_registration_id ON payment(registration_id);
+CREATE INDEX idx_payment_user_id ON payment(user_id);
+CREATE INDEX idx_payment_event_id ON payment(event_id);
+CREATE INDEX idx_payment_payment_date ON payment(payment_date);
 
 -- Badge queries optimization
 CREATE INDEX idx_user_badges_user_id ON user_badges(user_id);

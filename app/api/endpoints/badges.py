@@ -13,19 +13,29 @@ from app.api.dependencies import safe_api_call, safe_api_response_handler, safe_
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Dict])
+@router.get("/")
 @safe_api_call
 def read_badges(
     request: Request,
     db: Session = Depends(dependencies.get_db),
     skip: int = 0,
     limit: int = 100,
+    category: Optional[str] = None,
+    level: Optional[str] = None,
+    earned: Optional[bool] = None,
     current_user: models.User = Depends(dependencies.get_current_active_user),
 ) -> Any:
     """
-    Retrieve all available badge types with their criteria.
+    Retrieve all available badge types with their criteria, with pagination and filtering.
     
-    Returns a list of all badge types, their descriptions, and the criteria required to earn them.
+    Parameters:
+    - skip: Number of items to skip (for pagination)
+    - limit: Maximum number of items to return
+    - category: Filter by badge category (event_master, points_collector, etc.)
+    - level: Filter by badge level (bronze, silver, gold)
+    - earned: If true, only show earned badges; if false, only show unearned badges
+    
+    Returns a paginated response with badge types, their descriptions, and the criteria required to earn them.
     This endpoint is available to all authenticated users.
     """
     # Define all available badge types with their criteria
@@ -38,6 +48,7 @@ def read_badges(
             "criteria_type": "attendance",
             "criteria_threshold": 5,
             "level": "bronze",
+            "category": "event_master",
             "image_url": "/static/badges/event_master_bronze.png"
         },
         {
@@ -47,6 +58,7 @@ def read_badges(
             "criteria_type": "attendance",
             "criteria_threshold": 15,
             "level": "silver",
+            "category": "event_master",
             "image_url": "/static/badges/event_master_silver.png"
         },
         {
@@ -56,6 +68,7 @@ def read_badges(
             "criteria_type": "attendance",
             "criteria_threshold": 30,
             "level": "gold",
+            "category": "event_master",
             "image_url": "/static/badges/event_master_gold.png"
         },
         
@@ -67,6 +80,7 @@ def read_badges(
             "criteria_type": "points",
             "criteria_threshold": 500,
             "level": "bronze",
+            "category": "points_collector",
             "image_url": "/static/badges/points_collector_bronze.png"
         },
         {
@@ -76,6 +90,7 @@ def read_badges(
             "criteria_type": "points",
             "criteria_threshold": 2000,
             "level": "silver",
+            "category": "points_collector",
             "image_url": "/static/badges/points_collector_silver.png"
         },
         {
@@ -85,6 +100,7 @@ def read_badges(
             "criteria_type": "points",
             "criteria_threshold": 5000,
             "level": "gold",
+            "category": "points_collector",
             "image_url": "/static/badges/points_collector_gold.png"
         },
         
@@ -96,6 +112,7 @@ def read_badges(
             "criteria_type": "streak",
             "criteria_threshold": 3,
             "level": "bronze",
+            "category": "streak_master",
             "image_url": "/static/badges/streak_master_bronze.png"
         },
         {
@@ -105,6 +122,7 @@ def read_badges(
             "criteria_type": "streak",
             "criteria_threshold": 8,
             "level": "silver",
+            "category": "streak_master",
             "image_url": "/static/badges/streak_master_silver.png"
         },
         {
@@ -114,6 +132,7 @@ def read_badges(
             "criteria_type": "streak",
             "criteria_threshold": 12,
             "level": "gold",
+            "category": "streak_master",
             "image_url": "/static/badges/streak_master_gold.png"
         },
         
@@ -126,6 +145,7 @@ def read_badges(
             "event_type": "trivia",
             "criteria_threshold": 3,
             "level": "bronze",
+            "category": "trivia_champion",
             "image_url": "/static/badges/trivia_champion_bronze.png"
         },
         {
@@ -136,6 +156,7 @@ def read_badges(
             "event_type": "trivia",
             "criteria_threshold": 8,
             "level": "silver",
+            "category": "trivia_champion",
             "image_url": "/static/badges/trivia_champion_silver.png"
         },
         {
@@ -146,6 +167,7 @@ def read_badges(
             "event_type": "trivia",
             "criteria_threshold": 15,
             "level": "gold",
+            "category": "trivia_champion",
             "image_url": "/static/badges/trivia_champion_gold.png"
         },
         
@@ -158,6 +180,7 @@ def read_badges(
             "event_type": "game_night",
             "criteria_threshold": 3,
             "level": "bronze",
+            "category": "game_night_enthusiast",
             "image_url": "/static/badges/game_night_enthusiast_bronze.png"
         },
         {
@@ -168,6 +191,7 @@ def read_badges(
             "event_type": "game_night",
             "criteria_threshold": 8,
             "level": "silver",
+            "category": "game_night_enthusiast",
             "image_url": "/static/badges/game_night_enthusiast_silver.png"
         },
         {
@@ -178,6 +202,7 @@ def read_badges(
             "event_type": "game_night",
             "criteria_threshold": 15,
             "level": "gold",
+            "category": "game_night_enthusiast",
             "image_url": "/static/badges/game_night_enthusiast_gold.png"
         },
     ]
@@ -190,7 +215,21 @@ def read_badges(
         if user_id is None:
             logging.warning("User ID is None when fetching badges")
             # Return badges without earned status if user ID is not available
-            return safe_api_response_handler(available_badges[skip:skip+limit])
+            result = available_badges[skip:skip+limit]
+            total_count = len(available_badges)
+            
+            # Calculate pagination metadata
+            page_size = limit
+            current_page = (skip // page_size) + 1 if page_size > 0 else 1
+            total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
+            
+            return safe_api_response_handler({
+                "items": result,
+                "total": total_count,
+                "page": current_page,
+                "size": page_size,
+                "pages": total_pages
+            })
         
         user_badges = points_manager.get_user_badges(user_id)
         user_badge_types = [badge.badge_type for badge in user_badges] if user_badges else []
@@ -199,10 +238,38 @@ def read_badges(
         for badge in available_badges:
             badge["earned"] = badge["badge_type"] in user_badge_types
         
+        # Apply category filter
+        filtered_badges = available_badges
+        if category:
+            filtered_badges = [b for b in filtered_badges if b.get("category") == category]
+        
+        # Apply level filter
+        if level:
+            filtered_badges = [b for b in filtered_badges if b.get("level") == level]
+        
+        # Apply earned filter
+        if earned is not None:
+            filtered_badges = [b for b in filtered_badges if b.get("earned", False) == earned]
+        
+        # Get total count
+        total_count = len(filtered_badges)
+        
         # Apply pagination
-        result = available_badges[skip:skip+limit]
+        result = filtered_badges[skip:skip+limit]
+        
+        # Calculate pagination metadata
+        page_size = limit
+        current_page = (skip // page_size) + 1 if page_size > 0 else 1
+        total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
+        
         logging.info(f"Retrieved {len(result)} badges for user {user_id}")
-        return safe_api_response_handler(result)
+        return safe_api_response_handler({
+            "items": result,
+            "total": total_count,
+            "page": current_page,
+            "size": page_size,
+            "pages": total_pages
+        })
         
     except SQLAlchemyError as e:
         logging.error(f"Database error in read_badges: {str(e)}")

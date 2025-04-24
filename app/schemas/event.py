@@ -1,6 +1,6 @@
-from typing import Optional, List
+from typing import Optional, List, Literal, Any, TypeVar, Generic
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # Shared properties
@@ -33,6 +33,42 @@ class EventUpdate(EventBase):
     pass
 
 
+# Event filtering parameters
+class EventFilterParams(BaseModel):
+    """
+    Parameters for filtering events, matching frontend EventFilters component.
+    """
+    search: Optional[str] = None
+    event_type: Optional[str] = None
+    location: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    sort_by: Optional[Literal["start-soonest", "start-latest", "title-az", "price-low", "price-high"]] = "start-soonest"
+    skip: Optional[int] = 0
+    limit: Optional[int] = 100
+
+
+# Define a TypeVar for generic item types
+T = TypeVar('T')
+
+# Simplified pagination schema for list endpoints
+class PaginatedResponse(BaseModel, Generic[T]):
+    """
+    Standard paginated response format
+    """
+    items: List[T]
+    total: int
+    page: int
+    size: int
+    pages: int
+    
+    class Config:
+        arbitrary_types_allowed = True
+        from_attributes = True
+
+
 class EventInDBBase(EventBase):
     id: int
 
@@ -55,5 +91,12 @@ class EventStats(BaseModel):
     class Config:
         from_attributes = True
 
+
 class Event(EventInDBBase):
     pass
+
+
+class PaginatedEventResponse(PaginatedResponse[Event]):
+    """
+    Paginated response specifically for events
+    """

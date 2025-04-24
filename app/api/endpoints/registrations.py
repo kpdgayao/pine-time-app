@@ -1,7 +1,8 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 from app import models, schemas
 from app.api import dependencies
@@ -259,20 +260,87 @@ def get_event_registrations(
 
 
 
-@router.get("/users/me/registrations", response_model=List[schemas.Registration])
+@router.get("/users/me/registrations", response_model=schemas.PaginatedRegistrationResponse)
 def get_user_registrations(
     *,
     db: Session = Depends(dependencies.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    payment_status: Optional[str] = None,
+    upcoming: Optional[bool] = None,
     current_user: models.User = Depends(dependencies.get_current_active_user),
 ) -> Any:
     """
-    Get current user's registrations.
-    """
-    registrations = db.query(models.Registration).filter(
-        models.Registration.user_id == current_user.id
-    ).all()
+    Get current user's registrations with pagination and filtering.
     
-    return registrations
+    Parameters:
+    - skip: Number of items to skip (for pagination)
+    - limit: Maximum number of items to return
+    - status: Filter by registration status (pending, approved, rejected, cancelled, etc.)
+    - payment_status: Filter by payment status (pending, completed, not_required, etc.)
+    - upcoming: If true, only show registrations for upcoming events; if false, show past events
+    
+    Returns a paginated response with items, total count, and pagination metadata.
+    """
+    # Base query
+    query = db.query(models.Registration).filter(
+        models.Registration.user_id == current_user.id
+    )
+    
+    # Total count query (for pagination metadata)
+    count_query = db.query(func.count(models.Registration.id)).filter(
+        models.Registration.user_id == current_user.id
+    )
+    
+    # Apply status filter
+    if status:
+        query = query.filter(models.Registration.status == status)
+        count_query = count_query.filter(models.Registration.status == status)
+    
+    # Apply payment_status filter
+    if payment_status:
+        query = query.filter(models.Registration.payment_status == payment_status)
+        count_query = count_query.filter(models.Registration.payment_status == payment_status)
+    
+    # Apply upcoming filter
+    if upcoming is not None:
+        # This requires a join to the Event table
+        query = query.join(models.Event, models.Registration.event_id == models.Event.id)
+        count_query = count_query.join(models.Event, models.Registration.event_id == models.Event.id)
+        
+        from datetime import datetime
+        now = datetime.utcnow()
+        
+        if upcoming:
+            query = query.filter(models.Event.start_time > now)
+            count_query = count_query.filter(models.Event.start_time > now)
+        else:
+            query = query.filter(models.Event.start_time <= now)
+            count_query = count_query.filter(models.Event.start_time <= now)
+    
+    # Get total count for pagination metadata
+    total_count = count_query.scalar() or 0
+    
+    # Apply sorting (most recent registrations first)
+    query = query.order_by(models.Registration.registration_date.desc())
+    
+    # Apply pagination
+    registrations = query.offset(skip).limit(limit).all()
+    
+    # Calculate pagination metadata
+    page_size = limit
+    current_page = (skip // page_size) + 1 if page_size > 0 else 1
+    total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
+    
+    # Return paginated response
+    return {
+        "items": registrations,
+        "total": total_count,
+        "page": current_page,
+        "size": page_size,
+        "pages": total_pages
+    }
 
 
 @router.delete("/events/{event_id}/register", response_model=schemas.Registration)
