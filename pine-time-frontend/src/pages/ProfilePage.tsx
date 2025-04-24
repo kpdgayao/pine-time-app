@@ -128,8 +128,6 @@ const ProfilePage: React.FC = () => {
         return;
       }
       
-      const userId = userData.id;
-      
       // Fetch user badges using safeApiCall
       const badgesResponse = await safeApiCall(
         api.get('/badges/users/me/badges'),

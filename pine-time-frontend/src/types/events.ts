@@ -11,6 +11,7 @@ export interface EventBase {
   image_url?: string;
   price?: number;
   registration_count?: number;
+  category?: string;
 }
 
 export interface Event extends EventBase {

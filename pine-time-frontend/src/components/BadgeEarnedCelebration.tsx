@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, Typography, Box, Button, useTheme, Zoom } from '@mui/material';
 import { Badge } from '../types/badges';
-import LottieAnimation from './LottieAnimation';
+import LottieAnimation from '../components/LottieAnimation';
 import confettiAnimation from '../assets/animations/confetti.json';
 import badgeShineAnimation from '../assets/animations/badge-shine.json';
 
@@ -17,7 +17,6 @@ const BadgeEarnedCelebration: React.FC<BadgeEarnedCelebrationProps> = ({
   onClose 
 }) => {
   const theme = useTheme();
-  const [animationComplete, setAnimationComplete] = useState(false);
   const [showBadgeShine, setShowBadgeShine] = useState(false);
   const lottieRef = useRef<any>(null);
   const badgeShineRef = useRef<any>(null);
@@ -28,8 +27,6 @@ const BadgeEarnedCelebration: React.FC<BadgeEarnedCelebrationProps> = ({
   // Reset animation states when dialog opens/closes
   useEffect(() => {
     if (open) {
-      setAnimationComplete(false);
-      
       // Start badge shine animation after a delay
       const timer = setTimeout(() => {
         setShowBadgeShine(true);
@@ -96,7 +93,7 @@ const BadgeEarnedCelebration: React.FC<BadgeEarnedCelebrationProps> = ({
           loop={false}
           autoplay={true}
           style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
-          onComplete={() => setAnimationComplete(true)}
+          onComplete={() => {/* Animation complete */}}
         />
       </Box>
 

@@ -54,8 +54,7 @@ const EventRecommendations: React.FC<EventRecommendationsProps> = ({
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [activeSort, setActiveSort] = useState<string>('recommended');
   
-  // Pine Time green theme color
-  const pineTimeGreen = '#2E7D32';
+  // Component state and hooks
   
   // Handle expand/collapse for recommendation reason
   const handleExpandClick = (eventId: number) => {
