@@ -393,7 +393,7 @@ const Navbar = (): React.ReactNode => {
     <AppBar position="static" color="primary" elevation={1}>
       <Toolbar sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" sx={{ flexGrow: 1, letterSpacing: 1, fontWeight: 800 }}>
-          Pine Time
+          Pine Time App
         </Typography>
         
         {/* Points display - visible on all screen sizes */}

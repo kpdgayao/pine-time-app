@@ -99,82 +99,44 @@ const ProfileCustomizationDialog: React.FC<ProfileCustomizationDialogProps> = ({
     }
   }, [open, currentUser]);
   
-  // Function to fetch customization options from API
+  // Function to load customization options
   const fetchCustomizationOptions = async () => {
     setLoading(true);
     setError('');
     
     try {
-      // Fetch avatar options
-      const avatarResponse = await api.get('/users/customization/avatars');
-      if (Array.isArray(avatarResponse.data)) {
-        setAvatarOptions(avatarResponse.data);
-      } else if (avatarResponse.data && Array.isArray(avatarResponse.data.items)) {
-        setAvatarOptions(avatarResponse.data.items);
-      } else {
-        // Fallback demo data if API fails
-        setAvatarOptions([
-          { id: 'avatar1', url: '/avatars/avatar1.png', name: 'Default', unlocked: true },
-          { id: 'avatar2', url: '/avatars/avatar2.png', name: 'Explorer', unlocked: true },
-          { id: 'avatar3', url: '/avatars/avatar3.png', name: 'Adventurer', unlocked: true },
-          { id: 'avatar4', url: '/avatars/avatar4.png', name: 'Achiever', unlocked: false, requirementText: 'Earn 5 badges' },
-          { id: 'avatar5', url: '/avatars/avatar5.png', name: 'Champion', unlocked: false, requirementText: 'Reach rank 10' },
-        ]);
-      }
+      // Since the backend endpoints don't exist, we'll use mock data directly
+      // instead of making API calls that result in 404 errors
       
-      // Fetch banner options
-      const bannerResponse = await api.get('/users/customization/banners');
-      if (Array.isArray(bannerResponse.data)) {
-        setBannerOptions(bannerResponse.data);
-      } else if (bannerResponse.data && Array.isArray(bannerResponse.data.items)) {
-        setBannerOptions(bannerResponse.data.items);
-      } else {
-        // Fallback demo data if API fails
-        setBannerOptions([
-          { id: 'banner1', url: '/banners/banner1.jpg', name: 'Pine Time Default', unlocked: true },
-          { id: 'banner2', url: '/banners/banner2.jpg', name: 'Baguio Mountains', unlocked: true },
-          { id: 'banner3', url: '/banners/banner3.jpg', name: 'City Lights', unlocked: true },
-          { id: 'banner4', url: '/banners/banner4.jpg', name: 'Night Sky', unlocked: false, requirementText: 'Attend 10 events' },
-          { id: 'banner5', url: '/banners/banner5.jpg', name: 'VIP', unlocked: false, requirementText: 'Reach rank 20' },
-        ]);
-      }
-      
-      // Fetch theme options
-      const themeResponse = await api.get('/users/customization/themes');
-      if (Array.isArray(themeResponse.data)) {
-        setThemeOptions(themeResponse.data);
-      } else if (themeResponse.data && Array.isArray(themeResponse.data.items)) {
-        setThemeOptions(themeResponse.data.items);
-      } else {
-        // Fallback demo data if API fails
-        setThemeOptions([
-          { id: 'theme1', name: 'Pine Time Classic', primaryColor: '#2E7D32', secondaryColor: '#1976D2', unlocked: true },
-          { id: 'theme2', name: 'Forest', primaryColor: '#2E7D32', secondaryColor: '#388E3C', unlocked: true },
-          { id: 'theme3', name: 'Ocean', primaryColor: '#2E7D32', secondaryColor: '#0277BD', unlocked: true },
-          { id: 'theme4', name: 'Sunset', primaryColor: '#2E7D32', secondaryColor: '#E64A19', unlocked: false, requirementText: 'Earn 3 gold badges' },
-          { id: 'theme5', name: 'Royal', primaryColor: '#2E7D32', secondaryColor: '#7B1FA2', unlocked: false, requirementText: 'Maintain 5-week streak' },
-        ]);
-      }
-    } catch (err) {
-      console.error('Error fetching customization options:', err);
-      setError('Failed to load customization options. Please try again later.');
-      
-      // Set fallback demo data
+      // Set avatar options
       setAvatarOptions([
         { id: 'avatar1', url: '/avatars/avatar1.png', name: 'Default', unlocked: true },
         { id: 'avatar2', url: '/avatars/avatar2.png', name: 'Explorer', unlocked: true },
         { id: 'avatar3', url: '/avatars/avatar3.png', name: 'Adventurer', unlocked: true },
+        { id: 'avatar4', url: '/avatars/avatar4.png', name: 'Achiever', unlocked: false, requirementText: 'Earn 5 badges' },
+        { id: 'avatar5', url: '/avatars/avatar5.png', name: 'Champion', unlocked: false, requirementText: 'Reach rank 10' },
       ]);
       
+      // Set banner options
       setBannerOptions([
         { id: 'banner1', url: '/banners/banner1.jpg', name: 'Pine Time Default', unlocked: true },
         { id: 'banner2', url: '/banners/banner2.jpg', name: 'Baguio Mountains', unlocked: true },
+        { id: 'banner3', url: '/banners/banner3.jpg', name: 'City Lights', unlocked: true },
+        { id: 'banner4', url: '/banners/banner4.jpg', name: 'Night Sky', unlocked: false, requirementText: 'Attend 10 events' },
+        { id: 'banner5', url: '/banners/banner5.jpg', name: 'VIP', unlocked: false, requirementText: 'Reach rank 20' },
       ]);
       
+      // Set theme options
       setThemeOptions([
         { id: 'theme1', name: 'Pine Time Classic', primaryColor: '#2E7D32', secondaryColor: '#1976D2', unlocked: true },
         { id: 'theme2', name: 'Forest', primaryColor: '#2E7D32', secondaryColor: '#388E3C', unlocked: true },
+        { id: 'theme3', name: 'Ocean', primaryColor: '#2E7D32', secondaryColor: '#0277BD', unlocked: true },
+        { id: 'theme4', name: 'Sunset', primaryColor: '#2E7D32', secondaryColor: '#E64A19', unlocked: false, requirementText: 'Earn 3 gold badges' },
+        { id: 'theme5', name: 'Royal', primaryColor: '#2E7D32', secondaryColor: '#7B1FA2', unlocked: false, requirementText: 'Maintain 5-week streak' },
       ]);
+    } catch (err) {
+      console.error('Error setting customization options:', err);
+      setError('Failed to load customization options. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -197,8 +159,12 @@ const ProfileCustomizationDialog: React.FC<ProfileCustomizationDialogProps> = ({
         theme_id: selectedTheme
       };
       
-      // Call API to save customization
-      await api.put(`/users/${currentUser.id}/customization`, updates);
+      // Call API to save customization using the general user update endpoint
+      await api.put(`/users/${currentUser.id}`, {
+        avatar_id: updates.avatar_id,
+        banner_id: updates.banner_id,
+        theme_id: updates.theme_id
+      });
       
       // Call onSave callback with updates
       onSave(updates);
@@ -551,7 +517,10 @@ const ProfileCustomizationDialog: React.FC<ProfileCustomizationDialogProps> = ({
           </Tabs>
         </Box>
         
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent dividers>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>Coming Soon!</strong> Profile customization is currently in preview mode. Full customization features will be available in the next update.
+          </Alert>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}

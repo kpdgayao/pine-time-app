@@ -74,21 +74,10 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
     setLoading(true);
     setError(null);
     try {
-      // PATCH role/superuser
-      await api.patch(`/users/${user.id}/role`, {
-        user_type: form.user_type,
-        is_superuser: form.is_superuser,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // PATCH status if changed
-      if (form.is_active !== user.is_active) {
-        await api.patch(`/users/${user.id}/status`, {
-          is_active: form.is_active,
-        }, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
+      // Role and superuser status are now updated as part of the main user update
+      // No need for a separate API call
+      // Status is now updated as part of the main user update
+      // No need for a separate API call
       // PUT profile fields if changed
       if (
         form.full_name !== user.full_name ||
@@ -100,6 +89,9 @@ const UserEditDialog: React.FC<Props> = ({ user, open, onClose, onSave }) => {
             full_name: form.full_name,
             email: form.email,
             username: form.username,
+            is_active: form.is_active,
+            user_type: form.user_type,
+            is_superuser: form.is_superuser,
           },
           {
             headers: { Authorization: `Bearer ${token}` },
