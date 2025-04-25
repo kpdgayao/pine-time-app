@@ -36,7 +36,9 @@ def get_all_registrations(
     try:
         registrations = db.query(models.Registration).all()
         logger.info(f"Admin {current_user.id} fetched all registrations. Count: {len(registrations)}")
-        return registrations
+        # Convert SQLAlchemy models to Pydantic schemas
+        registration_schemas = [schemas.Registration.model_validate(reg, from_attributes=True) for reg in registrations]
+        return registration_schemas
     except Exception as e:
         logger.error(f"Failed to fetch registrations: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch registrations.")
@@ -146,7 +148,7 @@ def register_for_event(
                     existing_registration.payment_status = "not_required"
                 db.commit()
                 db.refresh(existing_registration)
-                return existing_registration
+                return schemas.Registration.model_validate(existing_registration, from_attributes=True)
         # Otherwise, create a new registration as before
 
         # Check if event is at capacity
@@ -171,7 +173,7 @@ def register_for_event(
         db.commit()
         db.refresh(registration)
         
-        return registration
+        return schemas.Registration.model_validate(registration, from_attributes=True)
     except HTTPException as http_ex:
         # Re-raise HTTP exceptions as they are already properly formatted
         logger.warning(f"HTTP exception during registration: {http_ex.detail}")
@@ -382,7 +384,7 @@ def cancel_registration(
     db.commit()
     db.refresh(registration)
     
-    return registration
+    return schemas.Registration.model_validate(registration, from_attributes=True)
 
 
 @router.post("/events/{event_id}/check-in", response_model=schemas.Registration)
@@ -477,7 +479,7 @@ def check_in_user(
         # Log the error but don't fail the check-in
         print(f"Error in check-in process: {str(e)}")
     
-    return registration
+    return schemas.Registration.model_validate(registration, from_attributes=True)
 
 
 @router.post("/events/{event_id}/self-check-in", response_model=schemas.Registration)
@@ -564,7 +566,7 @@ def self_check_in(
         # Log the error but don't fail the check-in
         print(f"Error in self check-in process: {str(e)}")
     
-    return registration
+    return schemas.Registration.model_validate(registration, from_attributes=True)
 
 
 @router.post("/events/{event_id}/mark-attendance", response_model=schemas.Registration)
@@ -668,4 +670,4 @@ def mark_attendance(
         # Log the error but don't fail the attendance marking
         print(f"Error in attendance marking process: {str(e)}")
     
-    return registration
+    return schemas.Registration.model_validate(registration, from_attributes=True)

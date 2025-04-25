@@ -32,6 +32,8 @@ logging.getLogger("event_registrations_debug").setLevel(logging.INFO)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import pathlib
 from sqlalchemy.orm import Session
 
 from app.api.api import api_router
@@ -172,6 +174,25 @@ app.add_middleware(
 )
 
 # --- End CORS Configuration ---
+
+# Set up static file serving for placeholder images and other assets
+static_dir = pathlib.Path(__file__).parent / "static"
+if not static_dir.exists():
+    static_dir.mkdir(parents=True, exist_ok=True)
+    # Create placeholder directories
+    placeholder_dir = static_dir / "images" / "placeholders" / "events"
+    placeholder_dir.mkdir(parents=True, exist_ok=True)
+    # Create default placeholder file
+    default_event = placeholder_dir / "default-event.jpg"
+    if not default_event.exists():
+        with open(default_event, "w") as f:
+            f.write("Placeholder image")
+    logging.info(f"Created static file directory and placeholders at {static_dir}")
+else:
+    logging.info(f"Using existing static file directory at {static_dir}")
+
+# Mount the static directory to serve files
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

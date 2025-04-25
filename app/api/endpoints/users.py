@@ -82,9 +82,12 @@ def read_users(
     current_page = (skip // page_size) + 1 if page_size > 0 else 1
     total_pages = (total_count + page_size - 1) // page_size if page_size > 0 else 1
     
+    # Convert SQLAlchemy models to Pydantic schemas
+    user_schemas = [schemas.User.model_validate(user, from_attributes=True) for user in users]
+    
     # Return paginated response
     return {
-        "items": users,
+        "items": user_schemas,
         "total": total_count,
         "page": current_page,
         "size": page_size,
@@ -121,7 +124,7 @@ def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return schemas.User.model_validate(user, from_attributes=True)
 
 # --- NEW USER MANAGEMENT ENDPOINTS ---
 from fastapi import status, Request
@@ -162,7 +165,7 @@ def update_user_me(
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return schemas.User.model_validate(user, from_attributes=True)
 
 # --- NEW USER MANAGEMENT ENDPOINTS ---
 from fastapi import status, Request
@@ -180,7 +183,7 @@ def read_user_me(
     """
     Get current user.
     """
-    return current_user
+    return schemas.User.model_validate(current_user, from_attributes=True)
 
 
 @router.get("/{user_id}", response_model=schemas.User)
@@ -196,9 +199,9 @@ def read_user_by_id(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user == current_user:
-        return user
+        return schemas.User.model_validate(user, from_attributes=True)
     if current_user.is_superuser:
-        return user
+        return schemas.User.model_validate(user, from_attributes=True)
     raise HTTPException(
         status_code=400, detail="The user doesn't have enough privileges"
     )
@@ -239,7 +242,7 @@ def update_user(
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return schemas.User.model_validate(user, from_attributes=True)
 
 # --- NEW USER MANAGEMENT ENDPOINTS ---
 from fastapi import status, Request
@@ -281,7 +284,7 @@ def register_user(
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return schemas.User.model_validate(user, from_attributes=True)
 
 
 @router.get("/{user_id}/activities", response_model=List[Dict])

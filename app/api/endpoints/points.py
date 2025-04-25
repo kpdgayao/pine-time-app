@@ -15,6 +15,102 @@ from app.api.dependencies import safe_api_call, safe_api_response_handler, safe_
 router = APIRouter()
 
 
+@router.get("/activities", response_model=List[Dict])
+@safe_api_call
+def get_user_activities(
+    request: Request,
+    db: Session = Depends(dependencies.get_db),
+    time_period: str = "all_time",  # Options: all_time, weekly, monthly
+    sort: str = "desc",  # Options: asc, desc
+    limit: int = 20,
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+) -> Any:
+    """
+    Get current user's recent activities with filtering options.
+    
+    Parameters:
+    - time_period: Filter by time period (all_time, weekly, monthly)
+    - sort: Sort order (asc, desc)
+    - limit: Maximum number of items to return
+    
+    Returns a list of recent activities including points transactions and event attendance.
+    """
+    try:
+        user_id = safe_get_user_id(current_user)
+        if user_id is None:
+            logging.warning("User ID is None when fetching activities")
+            return []
+        
+        # Get current date for filtering
+        from datetime import datetime, timedelta
+        current_date = datetime.now()
+        
+        # Set date filter based on time_period
+        date_filter = None
+        if time_period == "weekly":
+            date_filter = current_date - timedelta(days=7)
+        elif time_period == "monthly":
+            date_filter = current_date - timedelta(days=30)
+        
+        # Get points transactions
+        transactions_query = db.query(models.PointsTransaction).filter(
+            models.PointsTransaction.user_id == user_id
+        )
+        
+        # Apply date filter if specified
+        if date_filter:
+            transactions_query = transactions_query.filter(
+                models.PointsTransaction.timestamp >= date_filter
+            )
+        
+        # Apply sort order
+        if sort.lower() == "asc":
+            transactions_query = transactions_query.order_by(models.PointsTransaction.timestamp.asc())
+        else:
+            transactions_query = transactions_query.order_by(models.PointsTransaction.timestamp.desc())
+        
+        # Get transactions
+        transactions = transactions_query.limit(limit).all()
+        
+        # Format activities
+        activities = []
+        for tx in transactions:
+            activity_type = "points_earned" if tx.points > 0 else "points_spent"
+            
+            # Get related event if available
+            event_name = None
+            if tx.event_id:
+                event = db.query(models.Event).filter(models.Event.id == tx.event_id).first()
+                if event:
+                    event_name = event.title
+            
+            activity = {
+                "id": tx.id,
+                "type": activity_type,
+                "description": tx.description,
+                "points": abs(tx.points),
+                "timestamp": tx.timestamp.isoformat() if tx.timestamp else None,
+                "event_id": tx.event_id,
+                "event_name": event_name
+            }
+            activities.append(activity)
+        
+        logging.info(f"Retrieved {len(activities)} activities for user {user_id}")
+        return activities
+        
+    except SQLAlchemyError as e:
+        logging.error(f"Database error in get_user_activities: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred when retrieving activities"
+        )
+        
+    except Exception as e:
+        logging.error(f"Unexpected error in get_user_activities: {str(e)}", exc_info=True)
+        # Return empty list as fallback
+        return []
+
+
 @router.get("/balance", response_model=int)
 @safe_api_call
 def get_points_balance(

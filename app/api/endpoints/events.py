@@ -140,7 +140,9 @@ def get_recommended_events(
             recommended_events.extend(random_events)
         
         logging.info(f"Generated {len(recommended_events)} event recommendations for user {user_id}")
-        return recommended_events
+        # Convert SQLAlchemy models to Pydantic schemas
+        event_schemas = [schemas.Event.model_validate(event, from_attributes=True) for event in recommended_events]
+        return event_schemas
         
     except Exception as e:
         logging.error(f"Error generating event recommendations: {str(e)}", exc_info=True)
@@ -450,7 +452,7 @@ def read_event(
     if not event.is_active and not (current_user.is_superuser or current_user.user_type == "admin"):
         raise HTTPException(status_code=404, detail="Event not found")
     
-    return event
+    return schemas.Event.model_validate(event, from_attributes=True)
 
 
 @router.post("/", response_model=schemas.Event)
@@ -513,7 +515,7 @@ def create_event(
         # Log the error but don't fail the event creation
         print(f"Error awarding host points: {str(e)}")
     
-    return event
+    return schemas.Event.model_validate(event, from_attributes=True)
 
 
 @router.put("/{event_id}", response_model=schemas.Event)
@@ -555,7 +557,7 @@ def update_event(
     db.add(event)
     db.commit()
     db.refresh(event)
-    return event
+    return schemas.Event.model_validate(event, from_attributes=True)
 
 
 @router.delete("/{event_id}", response_model=schemas.Event)
@@ -584,7 +586,7 @@ def delete_event(
     db.add(event)
     db.commit()
     db.refresh(event)
-    return event
+    return schemas.Event.model_validate(event, from_attributes=True)
 
 
 @router.post("/{event_id}/register", response_model=schemas.Registration)
@@ -708,4 +710,4 @@ def complete_event(
     db.commit()
     db.refresh(event)
     
-    return event
+    return schemas.Event.model_validate(event, from_attributes=True)
