@@ -33,6 +33,7 @@ const RegisterPage: React.FC = () => {
         .catch(() => setLegalContent('Failed to load legal content.'));
     }
   }, [showLegalModal]);
+  const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,8 +51,8 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     // setMsg('');
     // setError('');
-    if (!username || !email || !password || !confirmPassword) {
-      showToast('❗ Please fill in all fields.', 'warning');
+    if (!fullName || !username || !email || !password || !confirmPassword) {
+      showToast('❗ Please fill in all fields, including your full name.', 'warning');
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(email)) {
@@ -72,7 +73,7 @@ const RegisterPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      await api.post('/users/register', { username, email, password }, { timeout: 10000 });
+      await api.post('/users/register', { full_name: fullName, username, email, password }, { timeout: 10000 });
       showToast('✅ Registration successful! You can now log in. 🌲', 'success');
       setUsername('');
       setEmail('');
@@ -102,6 +103,15 @@ const RegisterPage: React.FC = () => {
           <Typography variant="h5" align="center" gutterBottom>Register</Typography>
           <form onSubmit={handleSubmit} autoComplete="on">
             <TextField
+              label="Full Name"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              fullWidth
+              required
+              margin="normal"
+              autoFocus
+            />
+            <TextField
               label="Username"
               value={username}
               onChange={e => setUsername(e.target.value)}
@@ -115,7 +125,6 @@ const RegisterPage: React.FC = () => {
                   </InputAdornment>
                 ),
               }}
-              autoFocus
             />
             <TextField
               label="Email"

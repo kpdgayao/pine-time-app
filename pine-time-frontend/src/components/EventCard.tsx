@@ -1,37 +1,12 @@
 import React, { useMemo } from 'react';
 
-// Helper function to handle image URLs, using proxy for problematic URLs
-const getImageUrl = (url?: string): string => {
-  if (!url) return '/event-placeholder.png';
-  
-  // Check if it's a Facebook CDN URL that might have CORS issues
-  // Expanded pattern matching for Facebook CDN domains
-  const facebookPatterns = [
-    'fbcdn.net', 'facebook.com', 'fbsbx.com', 'fbcdn-profile', 
-    'fbcdn-video', 'fbcdn-sphotos', 'fbexternal', 'fna.fbcdn.net', 
-    'scontent'
-  ];
-  
-  const isFacebookImage = facebookPatterns.some(pattern => url.toLowerCase().includes(pattern));
-  
-  if (isFacebookImage) {
-    // Use our backend proxy for Facebook CDN images
-    const apiUrl = '/api/images/proxy';
-    const encodedUrl = encodeURIComponent(url);
-    const fallbackUrl = encodeURIComponent('/event-placeholder.png');
-    return `${apiUrl}?url=${encodedUrl}&fallback=${fallbackUrl}`;
-  }
-  
-  // Return the original URL for other images
-  return url;
-};
 import { Box, Typography, Chip, Stack, Skeleton } from '@mui/material';
 import PineTimeCard from './PineTimeCard';
 import PineTimeButton from './PineTimeButton';
 import { Event, Registration } from '../types/events';
 import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaUsers } from 'react-icons/fa';
 import { styled } from '@mui/material/styles';
-import LazyImage from './LazyImage';
+import EventImage from './EventImage';
 
 const AnimatedCard = styled(PineTimeCard)(({ theme }) => ({
   transition: 'transform 0.18s cubic-bezier(0.4,0,0.2,1), box-shadow 0.18s cubic-bezier(0.4,0,0.2,1)',
@@ -168,18 +143,16 @@ const EventCard: React.FC<EventCardProps> = React.memo(function EventCard({
           />
         </StatusBadge>
       )}
-      {/* Event image or skeleton */}
+      {/* Event image with fallback */}
       {loading ? (
         <Skeleton variant="rectangular" width="100%" height={180} animation="wave" sx={{ borderTopLeftRadius: 12, borderTopRightRadius: 12, mb: 2 }} />
       ) : (
-        <Box sx={{ width: '100%', aspectRatio: '16/9', mb: 2, overflow: 'hidden', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
-          <LazyImage
-            src={getImageUrl(event.image_url)}
-            alt={event.title ? `Image for ${event.title}` : 'Event image'}
-            fallbackSrc="/event-placeholder.png"
-            placeholderSrc="/event-placeholder.png"
+        <Box sx={{ width: '100%', mb: 2, overflow: 'hidden', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
+          <EventImage
+            event={event}
+            aspectRatio="16/9"
             borderRadius="12px 12px 0 0"
-            loadingHeight={180}
+            showLoading={true}
           />
         </Box>
       )}

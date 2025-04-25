@@ -5,7 +5,6 @@ import {
   Typography, 
   Card, 
   CardContent, 
-  CardMedia, 
   Button, 
   Chip,
   Stack,
@@ -81,19 +80,20 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = ({
                 borderRadius: 2,
                 overflow: 'hidden',
                 transition: 'transform 0.2s, box-shadow 0.2s',
+                border: `1px solid ${theme.palette.divider}`,
                 '&:hover': {
                   transform: 'translateY(-2px)',
                   boxShadow: theme.shadows[3],
+                  borderColor: theme.palette.primary.light,
                 }
               }}
             >
-              <CardMedia
-                component="img"
-                sx={{ width: 100, height: '100%', objectFit: 'cover' }}
-                image={event.image_url || '/default-event.jpg'}
-                alt={event.title}
-              />
-              <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                width: '100%',
+                borderLeft: `4px solid ${theme.palette.primary.main}`,
+              }}>
                 <CardContent sx={{ flex: '1 0 auto', py: 1.5 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Typography component="div" variant="subtitle1" fontWeight="bold">

@@ -5,7 +5,6 @@ import {
   Typography, 
   Card, 
   CardContent, 
-  CardMedia, 
   Button, 
   Chip,
   Stack,
@@ -354,17 +353,26 @@ const EventRecommendations: React.FC<EventRecommendationsProps> = ({
                   zIndex: expandedId === event.id ? 2 : 1
                 }}
               >
-                <CardMedia
-                  component="img"
+                <Box 
                   sx={{ 
-                    width: { xs: '100%', sm: 150 }, 
-                    height: { xs: 140, sm: '100%' }, 
-                    objectFit: 'cover'
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    width: '100%',
+                    borderLeft: `6px solid ${theme.palette.secondary.main}`,
+                    position: 'relative',
+                    '&:before': {
+                      content: '""',
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 6,
+                      background: `linear-gradient(to bottom, ${theme.palette.secondary.main}, ${theme.palette.secondary.light})`,
+                      borderTopLeftRadius: 2,
+                      borderBottomLeftRadius: 2,
+                    }
                   }}
-                  image={event.image_url || '/default-event.jpg'}
-                  alt={event.title}
-                />
-                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                >
                   <CardContent sx={{ flex: '1 0 auto', py: 2, px: { xs: 2, md: 3 } }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                       <Typography 

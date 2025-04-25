@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useProfileData } from '../hooks/useProfileData';
 import { 
   Box, 
   Container, 
   Typography, 
-  Avatar, 
   Paper, 
   Chip,
   Alert,
@@ -13,17 +13,19 @@ import {
   Grid,
   Button
 } from '@mui/material';
+import LazyAvatar from '../components/LazyAvatar';
+
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import StarIcon from '@mui/icons-material/Star';
 import EventIcon from '@mui/icons-material/Event';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import api from '../api/client';
-import { safeApiCall } from '../utils/api';
-import { Event } from '../types/events';
-import { Badge, RecentActivity, UserStats } from '../types/badges';
+
+
+import type { Badge, RecentActivity, UserStats } from '../types/badges';
 import StatsCard from '../components/dashboard/StatsCard';
+
 import RecentActivities from '../components/dashboard/RecentActivities';
 import UpcomingEvents from '../components/dashboard/UpcomingEvents';
 import BadgeProgressSection from '../components/dashboard/BadgeProgressSection';
@@ -36,37 +38,29 @@ import ViewAllButton from '../components/ui/ViewAllButton';
 import MilestoneApproachIndicator from '../components/MilestoneApproachIndicator';
 import ProfileCustomizationDialog from '../components/profile/ProfileCustomizationDialog';
 import { useToast } from '../contexts/ToastContext';
+import { getImageUrl } from '../utils/image';
+
+// Safe image URL function with built-in fallbacks
+const getSafeImageUrl = (url: string | null | undefined, type: 'avatar' | 'event' = 'event'): string => {
+  // First try using the utility function
+  const processedUrl = getImageUrl(url, type);
+  
+  // Define appropriate fallbacks based on type
+  const fallbacks = {
+    avatar: '/avatar-placeholder.png',
+    event: '/event-placeholder.png'
+  };
+  
+  // Return the processed URL or appropriate fallback
+  return processedUrl || fallbacks[type];
+};
 
 const ProfilePage: React.FC = () => {
   const theme = useTheme();
-  const [profile, setProfile] = useState<any>(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  
-  // Dashboard data states
-  const [stats, setStats] = useState<UserStats | null>(null);
-  const [badges, setBadges] = useState<Badge[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
-  const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([]);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
-  
-  // States for badge celebration
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationBadge, setCelebrationBadge] = useState<Badge | null>(null);
-  
-  // States for badge level-up celebration
-  const [showLevelUpCelebration, setShowLevelUpCelebration] = useState(false);
-  const [levelUpBadge, setLevelUpBadge] = useState<Badge | null>(null);
-  const [previousLevel, setPreviousLevel] = useState(0);
-  
-  // States for streak celebration
+  // Local state only for streak and customization dialogs (not yet in hook)
   const [showStreakCelebration, setShowStreakCelebration] = useState(false);
   const [streakCount, setStreakCount] = useState(0);
-  
-  // States for profile customization
   const [showCustomizationDialog, setShowCustomizationDialog] = useState(false);
-  
-  // States for approaching milestones
   const [approachingMilestones] = useState<Array<{
     type: 'points' | 'streak' | 'rank' | 'badge';
     currentValue: number;
@@ -74,191 +68,30 @@ const ProfilePage: React.FC = () => {
     label: string;
     description: string;
   }>>([]);
-  
-  // Toast context for notifications
   const { showToast } = useToast();
+
+  // Use the new hook for all profile/dashboard/celebration data
+  const {
+    profile,
+    stats,
+    badges,
+    upcomingEvents,
+    recommendedEvents,
+    recentActivities,
+    loading,
+    error,
+    showCelebration,
+    setShowCelebration,
+    celebrationBadge,
+    showLevelUpCelebration,
+    setShowLevelUpCelebration,
+    levelUpBadge,
+    previousLevel,
+    setProfile,
+  } = useProfileData();
+
   
-  // Fetch user profile
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        
-        // Use safeApiCall for better error handling
-        const userData = await safeApiCall(
-          api.get('/users/me'),
-          null
-        );
-        
-        if (!userData) {
-          setError('Failed to load profile data');
-          return null;
-        }
-        
-        setProfile(userData);
-        
-        // Fetch stats immediately after profile is loaded
-        if (userData.id) {
-          try {
-            const statsData = await safeApiCall(
-              api.get(`/users/${userData.id}/stats`),
-              null
-            );
-            
-            if (statsData) {
-              setStats(statsData);
-            }
-          } catch (error) {
-            console.error('Error fetching user stats:', error);
-          }
-        }
-        
-        return userData; // Return user data for use in other functions
-      } finally {
-        setLoading(false);
-      }
-      
-      return null; // Return null if there was an error
-    };
-    
-    const fetchDashboardData = async (userData: any) => {
-      if (!userData || !userData.id) {
-        console.error('User data not available for dashboard data fetching');
-        return;
-      }
-      
-      // Fetch user badges using safeApiCall
-      const badgesResponse = await safeApiCall(
-        api.get('/badges/users/me/badges'),
-        { badges: [] }
-      );
-      
-      // Handle different response formats
-      const badgesData = Array.isArray(badgesResponse) 
-        ? badgesResponse 
-        : badgesResponse?.badges || [];
-      
-      setBadges(badgesData);
-      
-      // Check for newly earned badges
-      const newBadge = localStorage.getItem('newBadge');
-      if (newBadge) {
-        try {
-          const badgeData = JSON.parse(newBadge);
-          setCelebrationBadge(badgeData);
-          setShowCelebration(true);
-          localStorage.removeItem('newBadge');
-        } catch (error) {
-          console.error('Error parsing new badge data:', error);
-          localStorage.removeItem('newBadge');
-        }
-      }
-      
-      // Check for badge level ups
-      const levelUpData = localStorage.getItem('badgeLevelUp');
-      if (levelUpData) {
-        try {
-          const { badge, previousLevel } = JSON.parse(levelUpData);
-          setLevelUpBadge(badge);
-          setPreviousLevel(previousLevel);
-          setShowLevelUpCelebration(true);
-          localStorage.removeItem('badgeLevelUp');
-        } catch (error) {
-          console.error('Error parsing badge level up data:', error);
-          localStorage.removeItem('badgeLevelUp');
-        }
-      }
-      
-      // Fetch upcoming events using safeApiCall with proper parameters
-      try {
-          // Get upcoming events from the recommended endpoint
-        // This follows the Pine Time API structure as documented
-        const upcomingEventsResponse = await safeApiCall(
-          api.get('/events/recommended', {
-            params: {
-              limit: 3
-            }
-          }),
-          { events: [] }
-        );
-        
-        // Handle different response formats
-        const upcomingEventsData = Array.isArray(upcomingEventsResponse) 
-          ? upcomingEventsResponse 
-          : upcomingEventsResponse?.events || [];
-        
-        setUpcomingEvents(upcomingEventsData.slice(0, 3)); // Show only 3 upcoming events
-      } catch (error) {
-        console.error('Error fetching upcoming events:', error);
-        setUpcomingEvents([]); // Set empty array on error
-      }
-      
-      // Fetch recommended events using safeApiCall
-      const recommendedEventsResponse = await safeApiCall(
-        api.get('/events/recommended'),
-        { events: [] }
-      );
-      
-      // Handle different response formats
-      const recommendedEventsData = Array.isArray(recommendedEventsResponse) 
-        ? recommendedEventsResponse 
-        : recommendedEventsResponse?.events || [];
-      
-      setRecommendedEvents(recommendedEventsData.slice(0, 4)); // Show only 4 recommended events
-      
-      // Fetch recent activities using safeApiCall with proper parameters
-      try {
-        
-        // Following Pine Time's API structure and error handling guidelines
-        const activitiesResponse = await safeApiCall(
-          api.get(`/users/${userData.id}/activities`, {
-            params: {
-              limit: 5
-            }
-          }),
-          { activities: [] }
-        );
-        
-        // Handle different response formats
-        const activitiesData = Array.isArray(activitiesResponse) 
-          ? activitiesResponse 
-          : activitiesResponse?.activities || [];
-        
-        setRecentActivities(activitiesData.slice(0, 5)); // Show only 5 recent activities
-      } catch (error) {
-        console.error('Error fetching user activities:', error);
-        setRecentActivities([]); // Set empty array on error
-      }
-    };
-    
-    const checkStreakCelebration = () => {
-      const streakData = localStorage.getItem('streakCelebration');
-      if (streakData) {
-        try {
-          const { count } = JSON.parse(streakData);
-          setStreakCount(count);
-          setShowStreakCelebration(true);
-          localStorage.removeItem('streakCelebration');
-        } catch (error) {
-          console.error('Error parsing streak celebration data:', error);
-          localStorage.removeItem('streakCelebration');
-        }
-      }
-    };
-    
-    // Execute all data fetching functions in sequence
-    // This ensures proper data dependencies are respected
-    const loadData = async () => {
-      const userData = await fetchProfileData(); // Load profile first and get user data
-      if (userData) {
-        await fetchDashboardData(userData); // Pass user data directly to dashboard function
-      }
-      checkStreakCelebration();
-    };
-    
-    loadData();
-  }, []);
+  
   
   // Render loading state with skeleton screens
   if (loading) {
@@ -422,22 +255,40 @@ const ProfilePage: React.FC = () => {
             {/* Avatar Section */}
             <Box sx={{ width: { xs: '100%', sm: 'auto' }, display: 'flex', justifyContent: { xs: 'center', sm: 'flex-start' } }}>
               <Box sx={{ position: 'relative' }}>
-                <Avatar 
-                  src={profile.avatar_url} 
+                <LazyAvatar
+                  src={getSafeImageUrl(profile.avatar_url, 'avatar')}
                   alt={profile.full_name || profile.username}
-                  sx={{ 
-                    width: 100, 
+                  sx={{
+                    width: 100,
                     height: 100,
                     border: `4px solid ${theme.palette.primary.main}`,
                     boxShadow: theme.shadows[3],
                     transition: 'transform 0.3s ease',
+                    bgcolor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
                     '&:hover': {
                       transform: 'scale(1.05)'
                     }
                   }}
                 >
                   {(profile.full_name || profile.username || '').substring(0, 1).toUpperCase()}
-                </Avatar>
+                </LazyAvatar>
+{/*
+// Alternate approach using LazyImage for avatar rendering:
+<Box sx={{ width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: `4px solid ${theme.palette.primary.main}`, boxShadow: theme.shadows[3], transition: 'transform 0.3s ease', '&:hover': { transform: 'scale(1.05)' } }}>
+  <LazyImage
+    src={profile.avatar_url}
+    alt={profile.full_name || profile.username}
+    fallbackSrc="/avatars/default.png"
+    placeholderSrc="/avatars/default.png"
+    width={100}
+    height={100}
+    borderRadius="50%"
+    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+  />
+</Box>
+*/}
+
                 <Tooltip title="Edit profile">
                   <IconButton 
                     size="small" 
@@ -766,7 +617,6 @@ const ProfilePage: React.FC = () => {
         onClose={() => setShowCustomizationDialog(false)}
         currentUser={profile}
         onSave={(updates) => {
-          // Update profile with customization changes
           setProfile((prev: any) => ({ ...prev, ...updates }));
           showToast('Profile customization saved successfully!', 'success');
         }}
