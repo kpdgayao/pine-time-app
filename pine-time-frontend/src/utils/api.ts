@@ -37,8 +37,27 @@ export const useApiLoadingEffect = () => {
 
 // Helper to ensure consistent API path handling
 const getApiPath = (path: string): string => {
+  // Remove leading slash if present
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return cleanPath.startsWith('api/v1/') ? `/${cleanPath}` : `${API_PREFIX}/${cleanPath}`;
+  
+  // IMPORTANT: The backend already includes '/api/v1' in its routes
+  // We should NOT add it again to prevent duplicate prefixes
+  
+  // Check if path already includes the API prefix (without leading slash)
+  if (cleanPath.startsWith('api/v1/') || cleanPath.startsWith('api/v1')) {
+    // Path already has API prefix - this is an error case we need to fix
+    // Remove the api/v1 prefix to prevent duplication
+    const fixedPath = cleanPath.replace(/^api\/v1\/?/, '');
+    console.warn(`Path '${path}' contains API prefix which may cause duplicate prefixes. Fixed to '/${fixedPath}'`);
+    return `/${fixedPath}`;
+  } else if (path.startsWith(API_PREFIX) && API_PREFIX !== '') {
+    // Path already has full API prefix with leading slash
+    return path;
+  } else {
+    // Path needs API prefix added (which is empty string as per config)
+    // Just return the path with a leading slash
+    return `/${cleanPath}`;
+  }
 };
 
 // Export getApiPath for use in other modules
@@ -99,7 +118,8 @@ api.interceptors.request.use(
           message = `Fetching data...`;
         } else if (method === 'POST') {
           // Special handling for payment submissions
-          if (url.includes('payments/register') || url.includes('payments/payments/register')) {
+          // Note: The correct endpoint is '/payments/payments/register' due to router prefix
+          if (url.includes('payments/payments/register')) {
             message = `Processing payment...`;
           } else {
             message = `Saving data...`;
