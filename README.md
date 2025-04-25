@@ -177,6 +177,12 @@ cd pine-time-frontend
 npm install
 ```
 
+1. Create a `.env` file based on `.env.example` for development:
+
+```bash
+cp .env.example .env
+```
+
 1. Start the development server:
 
 ```bash
@@ -184,6 +190,20 @@ npm run dev
 ```
 
 1. Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+#### Production Deployment
+
+For production deployment, the frontend uses a dedicated configuration file at `src/config.ts` that contains hardcoded production values:
+
+```typescript
+// Base URL for API requests
+export const API_BASE_URL = 'https://api.pinetimeapp.com';
+
+// API version prefix
+export const API_PREFIX = '/api/v1';
+```
+
+This approach separates development configuration (via `.env` files) from production settings, eliminating the need for environment variables in the production environment.
 
 #### Streamlit Admin Dashboard (Legacy/Admin)
 

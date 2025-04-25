@@ -1,6 +1,7 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { useEffect } from "react";
 import { useLoading } from "../contexts/LoadingContext";
+import { API_BASE_URL, API_PREFIX, DEFAULT_TIMEOUT, EXTENDED_TIMEOUT } from "../config";
 
 // Create a loading state handler that can be used outside of React components
 let setLoadingState: ((loading: boolean) => void) | null = null;
@@ -32,23 +33,40 @@ export const useApiLoadingEffect = () => {
   }, [setLoading, setLoadingMessage]);
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// API configuration is now imported from config.ts
+
+// Helper to ensure consistent API path handling
+const getApiPath = (path: string): string => {
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return cleanPath.startsWith('api/v1/') ? `/${cleanPath}` : `${API_PREFIX}/${cleanPath}`;
+};
+
+// Export getApiPath for use in other modules
+export { getApiPath };
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // Default timeout of 10 seconds
+  timeout: DEFAULT_TIMEOUT, // Timeout from config
   withCredentials: true, // Set to true if using cookies for auth, false for JWT in headers
 });
 
 // Create an instance with longer timeout for paginated endpoints
 export const apiLongTimeout = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // Extended timeout of 30 seconds for paginated endpoints
+  timeout: EXTENDED_TIMEOUT, // Extended timeout from config
   withCredentials: true,
 });
 
-// Attach JWT token to all API instances
-const attachTokenInterceptor = (instance: any) => {
+// Add request interceptor to handle API paths and JWT tokens
+const attachInterceptors = (instance: any) => {
+  // Path handling interceptor
+  instance.interceptors.request.use((config: AxiosRequestConfig) => {
+    if (config.url) {
+      config.url = getApiPath(config.url);
+    }
+    return config;
+  });
+
   instance.interceptors.request.use((config: any) => {
     const token = localStorage.getItem("access_token");
     if (token) {
@@ -59,9 +77,9 @@ const attachTokenInterceptor = (instance: any) => {
   });
 };
 
-// Apply the interceptor to both API instances
-attachTokenInterceptor(api);
-attachTokenInterceptor(apiLongTimeout);
+// Apply the interceptors to both API instances
+attachInterceptors(api);
+attachInterceptors(apiLongTimeout);
 
 // Add request interceptor for loading states
 api.interceptors.request.use(
@@ -148,7 +166,8 @@ export const createSilentRequest = (config: AxiosRequestConfig) => {
 };
 
 // Helper function for safe API calls with better error handling
-export const safeApiCall = async <T>(apiCall: Promise<AxiosResponse<T>>, fallbackValue: T): Promise<T> => {
+export const safeApiCall = async <T>(apiCall: Promise<AxiosResponse<T>> | null, fallbackValue: T): Promise<T> => {
+  if (!apiCall) return fallbackValue;
   try {
     const response = await apiCall;
     return response.data;

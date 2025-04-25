@@ -1,54 +1,105 @@
-# React + TypeScript + Vite
+# Pine Time App Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Modern React frontend for Pine Time Experience Baguio
 
-Currently, two official plugins are available:
+This React-based frontend application powers the Pine Time Experience Baguio platform, connecting locals with local businesses and artisans in Baguio City. The app allows users to discover and register for events, track points and badges, and engage with the Pine Time community.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Key Features
 
-## Expanding the ESLint configuration
+- **Event Discovery**: Browse and register for upcoming events
+- **User Profiles**: View and manage user profiles
+- **Gamification**: Track badges, points, and achievements
+- **Image Handling**: Robust image loading with fallbacks and proxying
+- **API Integration**: Resilient API client with error handling
+- **Authentication**: JWT-based auth with token management
+- **Theme Support**: Custom theme with light/dark mode
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Environment Setup
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+The application uses environment variables for development and a configuration file for production:
+
+### Development Environment
+
+Create a `.env` file based on `.env.example`:
+
+```
+# API Configuration - for development only
+# Production uses the config.ts file with hardcoded values
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Production Configuration
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Production settings are managed in `src/config.ts`:
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+```typescript
+// Base URL for API requests
+export const API_BASE_URL = 'https://api.pinetimeapp.com';
+
+// API version prefix
+export const API_PREFIX = '/api/v1';
+
+// Default request timeout in milliseconds
+export const DEFAULT_TIMEOUT = 10000;
+
+// Extended timeout for paginated endpoints
+export const EXTENDED_TIMEOUT = 30000;
 ```
+
+## Development Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+3. Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+## Building for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist` directory.
+
+## Image Handling System
+
+The application includes a robust image handling system with:
+
+- Automatic fallbacks for missing images
+- Event type-specific image placeholders
+- CORS-aware image proxying
+- Lazy loading and graceful error recovery
+- Image caching prevention
+
+Key components:
+
+- `EventImage.tsx`: Specialized component for displaying event images
+- `utils/image.ts`: Utilities for image URL handling and proxying
+
+## API Integration
+
+The application uses a centralized API client with:
+
+- Consistent error handling
+- Loading state management
+- JWT authentication
+- Support for both standard and long-timeout endpoints
+- Configuration based on environment or production settings
+
+## Tech Stack
+
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **UI Components**: Material UI v7
+- **API Client**: Axios
+- **Routing**: React Router v6
+- **State Management**: React Context
+- **Authentication**: JWT
+- **Styling**: Emotion/styled-components
