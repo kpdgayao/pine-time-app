@@ -17,6 +17,10 @@ export const API_BASE_URL = isDevelopment
   ? import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
   : 'https://api.pinetimeapp.com';
 
+// Flag to determine if we're running on the main domain (pinetimeapp.com)
+export const IS_MAIN_DOMAIN = !isDevelopment && 
+  (typeof window !== 'undefined' && window.location.hostname === 'pinetimeapp.com');
+
 // API version prefix
 // Note: The backend already includes /api/v1 in its routes, so we keep this empty
 export const API_PREFIX = '';

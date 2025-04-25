@@ -2,13 +2,13 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com/$1"
+      "source": "/api/v1/(.*)",
+      "destination": "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com/api/v1/$1"
     }
   ],
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/v1/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Credentials", "value": "true" },
         { "key": "Access-Control-Allow-Origin", "value": "*" },

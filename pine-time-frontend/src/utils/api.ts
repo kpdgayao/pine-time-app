@@ -35,6 +35,8 @@ export const useApiLoadingEffect = () => {
 
 // API configuration is now imported from config.ts
 
+// We're using a simplified approach that works for all production environments
+
 // Helper to ensure consistent API path handling
 const getApiPath = (path: string): string => {
   // Remove leading slash if present
@@ -54,9 +56,17 @@ const getApiPath = (path: string): string => {
     // Path already has full API prefix with leading slash
     return path;
   } else {
-    // Path needs API prefix added (which is empty string as per config)
-    // Just return the path with a leading slash
-    return `/${cleanPath}`;
+    // For production environment, we need to ensure the path is prefixed with /api/v1
+    // For development, we just need a leading slash as the backend router handles it
+    const isProd = import.meta.env.PROD;
+    
+    if (isProd) {
+      // In production, ensure path starts with /api/v1/ for both Amplify and other environments
+      return `/api/v1/${cleanPath}`;
+    } else {
+      // In development, just add leading slash
+      return `/${cleanPath}`;
+    }
   }
 };
 

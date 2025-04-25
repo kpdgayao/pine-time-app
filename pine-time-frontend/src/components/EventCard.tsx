@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 
-import { Box, Typography, Chip, Stack, Skeleton } from '@mui/material';
+import { Box, Typography, Chip, Stack, Skeleton, Tooltip } from '@mui/material';
 import PineTimeCard from './PineTimeCard';
 import PineTimeButton from './PineTimeButton';
 import { Event, Registration } from '../types/events';
@@ -60,6 +60,15 @@ const EventCard: React.FC<EventCardProps> = React.memo(function EventCard({
   // Use the payment context to check if registration is paid
   const { isRegistrationPaid } = usePayment();
   // Memoize expensive calculations
+  // Check if event is within 24 hours of its start time
+  const isWithin24Hours = useMemo(() => {
+    const now = new Date();
+    const startTime = new Date(event.start_time);
+    const timeDiff = startTime.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    return hoursDiff <= 24;
+  }, [event.start_time]);
+
   const { isPending, isApproved, canRegister, status } = useMemo(() => {
     const past = new Date(event?.end_time || Date.now()) < new Date();
     const full = typeof event?.registration_count === 'number' && 
@@ -278,27 +287,35 @@ const EventCard: React.FC<EventCardProps> = React.memo(function EventCard({
           </PineTimeButton>
         )}
         {!loading && isApproved && (
-          <PineTimeButton
-            variantType="secondary"
-            size="small"
-            onClick={() => onUnregister(event.id)}
-            disabled={loading === event.id}
-            sx={{ ml: 1 }}
-          >
-            Unregister
-          </PineTimeButton>
+          <Tooltip title={isWithin24Hours ? "Cannot cancel registration less than 24 hours before event start" : ""} arrow>
+            <span>
+              <PineTimeButton
+                variantType="secondary"
+                size="small"
+                onClick={() => onUnregister(event.id)}
+                disabled={loading === event.id || isWithin24Hours}
+                sx={{ ml: 1 }}
+              >
+                Unregister
+              </PineTimeButton>
+            </span>
+          </Tooltip>
         )}
         {!loading && isPending && (
           <>
-            <PineTimeButton
-              variantType="secondary"
-              size="small"
-              onClick={() => onCancelPending(event.id)}
-              disabled={loading === event.id}
-              sx={{ ml: 1 }}
-            >
-              Cancel
-            </PineTimeButton>
+            <Tooltip title={isWithin24Hours ? "Cannot cancel registration less than 24 hours before event start" : ""} arrow>
+              <span>
+                <PineTimeButton
+                  variantType="secondary"
+                  size="small"
+                  onClick={() => onCancelPending(event.id)}
+                  disabled={loading === event.id || isWithin24Hours}
+                  sx={{ ml: 1 }}
+                >
+                  Cancel
+                </PineTimeButton>
+              </span>
+            </Tooltip>
             {/* Only show Pay Now button if:
                 1. Event has a price
                 2. onPayNow handler is provided

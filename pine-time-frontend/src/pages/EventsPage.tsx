@@ -157,13 +157,16 @@ const EventsPage: React.FC = () => {
 
   const handleConfirmAction = async () => {
     if (!confirmAction) return;
-    if (!user) {
-      setShowAuthPrompt(true);
-      setConfirmAction(null);
-      return;
-    }
     
     const { type, eventId } = confirmAction;
+    setConfirmAction(null); // Close dialog
+    
+    // Helper function to find event by ID across all event categories
+    const findEventById = (id: number) => {
+      return [...categorizedEvents.upcomingRegistered, 
+              ...categorizedEvents.upcomingUnregistered,
+              ...categorizedEvents.pastEvents].find(e => e.id === id);
+    };
     
     try {
       if (type === 'register') {
@@ -178,11 +181,27 @@ const EventsPage: React.FC = () => {
           console.log('Registration failed or was cancelled');
         }
       } else if (type === 'unregister') {
-        await registrationHook.unregister(eventId);
-        await refetch(); // Refetch after unregistration
+        // Find the event object to check cancellation policy
+        const event = findEventById(eventId);
+        if (event) {
+          const success = await registrationHook.unregister(eventId, event);
+          if (success) {
+            await refetch(); // Refetch after unregistration
+          }
+        } else {
+          console.error('Event not found for unregistration:', eventId);
+        }
       } else if (type === 'cancel') {
-        await registrationHook.cancelPending(eventId);
-        await refetch(); // Refetch after cancellation
+        // Find the event object to check cancellation policy
+        const event = findEventById(eventId);
+        if (event) {
+          const success = await registrationHook.cancelPending(eventId, event);
+          if (success) {
+            await refetch(); // Refetch after cancellation
+          }
+        } else {
+          console.error('Event not found for cancellation:', eventId);
+        }
       }
     } catch (error) {
       console.error('Action error:', error);
