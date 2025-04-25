@@ -173,6 +173,21 @@ def register_for_event(
         db.commit()
         db.refresh(registration)
         
+        # Award 100 points to the user for registering
+        try:
+            points_manager = PointsManager(db)
+            points_manager.award_points(
+                user_id=user_id,
+                points=100,
+                transaction_type="earned",
+                description="Registration bonus for event: " + event.title,
+                event_id=event_id
+            )
+            logger.info(f"Awarded 100 registration bonus points to user {user_id} for event {event_id}")
+        except Exception as e:
+            # Log the error but don't fail the registration process
+            logger.error(f"Failed to award registration bonus points to user {user_id}: {str(e)}")
+        
         return schemas.Registration.model_validate(registration, from_attributes=True)
     except HTTPException as http_ex:
         # Re-raise HTTP exceptions as they are already properly formatted
