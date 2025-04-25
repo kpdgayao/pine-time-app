@@ -106,6 +106,31 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+## Production Deployment
+
+### Frontend Deployment
+
+- The React frontend uses hardcoded production values in `src/config.ts` for production deployment
+- No environment variables are needed in production, simplifying deployment
+- The API base URL is automatically set to `https://api.pinetimeapp.com` in production
+- API prefix is intentionally set to an empty string to prevent duplicate prefixes
+
+### Backend Deployment
+
+- The deployment package is created using the `create_deployment_zip.ps1` script
+- Only essential files are included: `app/`, `.ebextensions/`, `.platform/`, `Procfile`, `requirements.txt`
+- The resulting ZIP file is suitable for AWS Elastic Beanstalk and other Linux-based deployments
+- Ensure all paths in the ZIP file use forward slashes (/) for cross-platform compatibility
+
+### Deployment Checklist
+
+1. Update API configuration if needed (see API Configuration section)
+2. Run comprehensive tests with `python run_comprehensive_tests.py`
+3. Create deployment package with `./create_deployment_zip.ps1`
+4. Deploy to production environment
+5. Verify API connectivity and authentication
+6. Check logs for any errors (`logs/app.log`)
+
 ## Tech Stack
 
 - **Backend**: FastAPI (with all routes under `/api`) and SQLAlchemy ORM
@@ -329,6 +354,38 @@ python run_demo_tests.py  # Run tests in demo mode
 - For authentication issues, ensure your axios client uses the correct token key (`access_token`) and always uses the shared API instance.
 - If you deploy to a new domain, add it to your backend's CORS origins (see `BACKEND_CORS_ORIGINS` in your environment variables).
 - For more advanced proxy needs, see the sample `api/[...path].js` handler in the documentation or ask for help.
+
+## API Configuration and Path Handling
+
+The Pine Time application uses a specific API configuration pattern to prevent duplicate API prefixes:
+
+- **Backend Configuration**: The FastAPI backend already includes the `/api/v1` prefix in its routes
+- **Frontend Configuration**: The frontend configuration in `src/config.ts` sets `API_PREFIX = ''` (empty string)
+- **API Path Handling**: The `getApiPath` function in `src/utils/api.ts` handles path normalization
+- **Common Issues to Avoid**:
+  - Never set `API_PREFIX = '/api/v1'` in the frontend config
+  - Don't include `/api/v1` in API request paths in components
+  - When adding new API endpoints, follow the existing pattern
+
+## Points Management Utilities
+
+The application includes several command-line utilities for managing the points system:
+
+```bash
+# Display current points data
+python app/utils/manage_points.py --display
+
+# Reset points data with sample data
+python app/utils/manage_points.py --reset
+
+# Clean all points transactions
+python app/utils/manage_points.py --clean
+
+# Show points summary by user
+python app/utils/manage_points.py --summary
+```
+
+These utilities are essential for production maintenance and troubleshooting.
 
 ## Contributing
 
