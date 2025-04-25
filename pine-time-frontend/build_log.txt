@@ -1,0 +1,8 @@
+
+> pine-time-frontend@0.0.0 build
+> tsc -b && vite build
+
+src/components/BadgeEarnedCelebration.tsx(20,10): error TS6133: 'animationComplete' is declared but its value is never read.
+src/components/dashboard/EventRecommendations.tsx(58,9): error TS6133: 'pineTimeGreen' is declared but its value is never read.
+src/components/dashboard/EventRecommendations.tsx(112,50): error TS2339: Property 'category' does not exist on type 'Event'.
+src/pages/ProfilePage.tsx(131,13): error TS6133: 'userId' is declared but its value is never read.
