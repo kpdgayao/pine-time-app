@@ -34,7 +34,7 @@ const LoginPage: React.FC = () => {
       });
       login(res.data.access_token, res.data.refresh_token);
       // Error handling now done through Toast
-      showToast('✅ Login successful! Welcome to Pine Time 🌲', 'success');
+      showToast('✅ Login successful! Welcome to Pine Time App 🌲', 'success');
       // Redirect based on user role
       const user: any = jwtDecode(res.data.access_token);
       if (user.is_superuser || user.user_type === 'admin') {

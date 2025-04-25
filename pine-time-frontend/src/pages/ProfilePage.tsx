@@ -23,7 +23,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 
-import type { Badge, RecentActivity, UserStats } from '../types/badges';
+// Import types as needed
 import StatsCard from '../components/dashboard/StatsCard';
 
 import RecentActivities from '../components/dashboard/RecentActivities';

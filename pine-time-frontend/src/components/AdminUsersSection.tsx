@@ -67,7 +67,8 @@ const AdminUsersSection: React.FC = () => {
     setActionLoading(l => ({ ...l, [user.id]: true }));
     setError(null);
     try {
-      await api.patch(`/users/${user.id}/status`, { is_active: !user.is_active }, {
+      // Use the general user update endpoint instead of the specific status endpoint
+      await api.put(`/users/${user.id}`, { is_active: !user.is_active }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       fetchUsers();
