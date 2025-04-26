@@ -23,9 +23,19 @@ The application uses CORS to allow cross-origin requests. The CORS configuration
 BACKEND_CORS_ORIGINS: '["https://pinetimeapp.com", "https://www.pinetimeapp.com", "http://pinetimeapp.com", "http://www.pinetimeapp.com", "https://api.pinetimeapp.com", "https://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com", "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com", "http://localhost:5173", "http://localhost:8000", "http://localhost:8501"]'
 ```
 
-2. **Application Code**: In `app/main.py`, the `all_origins` list defines a hardcoded list of allowed origins. The application merges this list with the origins from the environment variable.
+1. **Application Code**: In `app/main.py`, the `all_origins` list defines a hardcoded list of allowed origins. The application merges this list with the origins from the environment variable.
 
-When updating the CORS configuration, ensure both places are updated to maintain consistency.
+#### Important: CORS Configuration Order
+
+The order of variable declarations in `app/main.py` is critical for proper CORS functionality:
+
+1. The `all_origins` list must be defined **before** any code that references it
+2. The environment variable parsing should occur after the `all_origins` list is defined
+3. The CORS middleware should be added last
+
+Failure to maintain this order will result in a `NameError: name 'all_origins' is not defined` error during application startup, causing deployment failures.
+
+When updating the CORS configuration, ensure both places are updated to maintain consistency and that the variable declaration order is preserved.
 
 ## Deployment Process
 
@@ -52,13 +62,13 @@ zip -r ../pine-time-deploy.zip .
 cd ..
 ```
 
-2. **Deploy to Elastic Beanstalk**:
+1. **Deploy to Elastic Beanstalk**:
 
    - Log in to the AWS Elastic Beanstalk console
    - Navigate to your Pine Time application environment
    - Upload the `pine-time-deploy.zip` file as a new application version
 
-3. **Verify Deployment**:
+2. **Verify Deployment**:
 
    - Check the Elastic Beanstalk logs for any errors
    - Test the API endpoints to ensure they're working correctly

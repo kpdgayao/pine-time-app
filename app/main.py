@@ -62,34 +62,6 @@ default_origins = [
     "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com"
 ]
 
-# Parse CORS origins from environment variable (should be a JSON array)
-origins_str = os.getenv(
-    "BACKEND_CORS_ORIGINS",
-    '["https://master.dq3hhwbwgg2a3.amplifyapp.com","http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com","http://localhost:5173","http://localhost:3000"]'
-)
-
-try:
-    # Parse as JSON array
-    origins = json.loads(origins_str)
-    # Add default origins
-    for origin in default_origins:
-        if origin not in origins:
-            origins.append(origin)
-    logging.info(f"CORS origins loaded from environment: {origins}")
-    
-    # Update all_origins with these origins
-    for origin in origins:
-        if origin not in all_origins:
-            all_origins.append(origin)
-    
-    logging.info(f"Final all_origins list: {all_origins}")
-except json.JSONDecodeError as e:
-    # Fallback in case JSON parsing fails
-    logging.error(f"Failed to parse CORS origins as JSON: {origins_str}. Error: {str(e)}")
-    # Use default origins as fallback
-    origins = default_origins
-    logging.info(f"CORS origins (fallback method): {origins}")
-
 # Hard-coded CORS origins for local/dev/prod
 CORS_ORIGINS = [
     "http://localhost",
@@ -125,6 +97,34 @@ all_origins = [
     "http://www.pinetimeapp.com",
     "https://api.pinetimeapp.com"
 ]
+
+# Parse CORS origins from environment variable (should be a JSON array)
+origins_str = os.getenv(
+    "BACKEND_CORS_ORIGINS",
+    '["https://master.dq3hhwbwgg2a3.amplifyapp.com","http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com","http://localhost:5173","http://localhost:3000"]'
+)
+
+try:
+    # Parse as JSON array
+    origins = json.loads(origins_str)
+    # Add default origins
+    for origin in default_origins:
+        if origin not in origins:
+            origins.append(origin)
+    logging.info(f"CORS origins loaded from environment: {origins}")
+    
+    # Update all_origins with these origins
+    for origin in origins:
+        if origin not in all_origins:
+            all_origins.append(origin)
+    
+    logging.info(f"Final all_origins list: {all_origins}")
+except json.JSONDecodeError as e:
+    # Fallback in case JSON parsing fails
+    logging.error(f"Failed to parse CORS origins as JSON: {origins_str}. Error: {str(e)}")
+    # Use default origins as fallback
+    origins = default_origins
+    logging.info(f"CORS origins (fallback method): {origins}")
 
 # Create a middleware to handle CORS with proper error handling
 from fastapi.middleware.cors import CORSMiddleware

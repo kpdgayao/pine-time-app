@@ -404,6 +404,20 @@ python run_demo_tests.py  # Run tests in demo mode
 
 ## Troubleshooting Frontend-Backend Connectivity
 
+### CORS Configuration Issues
+
+- If your backend fails to start with `NameError: name 'all_origins' is not defined`, check the variable declaration order in `app/main.py`:
+  - The `all_origins` list must be defined **before** any code that references it
+  - The environment variable parsing should occur after the `all_origins` list is defined
+  - The CORS middleware should be added last
+
+- If you encounter CORS errors in the browser console:
+  - Verify that your domain is included in both the `all_origins` list in `app/main.py` and the `BACKEND_CORS_ORIGINS` environment variable
+  - Check the application logs for CORS-related messages
+  - Ensure your API requests include the correct credentials and headers
+
+### Proxy Configuration
+
 - If your frontend cannot reach the backend or authentication fails, check your `pine-time-proxy/vercel.json`:
   - The `destination` must match your backend route structure (add or remove `/api` as needed).
   - CORS headers must allow credentials and the Authorization header.
