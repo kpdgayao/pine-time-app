@@ -108,18 +108,26 @@ pip install -r requirements.txt
 
 ## Production Deployment
 
+The Pine Time application is deployed using AWS services with a custom domain (pinetimeapp.com) managed through Route 53.
+
 ### Frontend Deployment
 
-- The React frontend uses hardcoded production values in `src/config.ts` for production deployment
+- The React frontend is deployed on AWS Amplify with the custom domain pinetimeapp.com
+- The frontend uses hardcoded production values in `src/config.ts` for production deployment
+- SSL is managed through AWS Certificate Manager with a wildcard certificate (*.pinetimeapp.com)
 - No environment variables are needed in production, simplifying deployment
 - The API base URL is automatically set to `https://api.pinetimeapp.com` in production
 - API prefix is intentionally set to an empty string to prevent duplicate prefixes
 
 ### Backend Deployment
 
+- The FastAPI backend is deployed on AWS Elastic Beanstalk with the custom domain api.pinetimeapp.com
 - The deployment package is created using the `create_deployment_zip.ps1` script
 - Only essential files are included: `app/`, `.ebextensions/`, `.platform/`, `Procfile`, `requirements.txt`
 - The resulting ZIP file is suitable for AWS Elastic Beanstalk and other Linux-based deployments
+- Database connection to Neon PostgreSQL is configured via environment variables in `.ebextensions/04_environment.config`
+- HTTPS is enabled through the Elastic Beanstalk load balancer with an AWS Certificate Manager certificate
+- HTTP to HTTPS redirection is configured for security
 - Ensure all paths in the ZIP file use forward slashes (/) for cross-platform compatibility
 
 ### Deployment Checklist
@@ -216,7 +224,7 @@ npm run dev
 
 1. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-#### Production Deployment
+#### Frontend Production Deployment
 
 For production deployment, the frontend uses a dedicated configuration file at `src/config.ts` that contains hardcoded production values:
 
@@ -224,8 +232,14 @@ For production deployment, the frontend uses a dedicated configuration file at `
 // Base URL for API requests
 export const API_BASE_URL = 'https://api.pinetimeapp.com';
 
-// API version prefix
-export const API_PREFIX = '/api/v1';
+// API version prefix - empty because backend already includes /api/v1
+export const API_PREFIX = '';
+
+// Default request timeout in milliseconds
+export const DEFAULT_TIMEOUT = 10000;
+
+// Extended timeout for paginated endpoints
+export const EXTENDED_TIMEOUT = 30000;
 ```
 
 This approach separates development configuration (via `.env` files) from production settings, eliminating the need for environment variables in the production environment.
@@ -256,6 +270,7 @@ Create a `.env` file with the following variables:
 
 ```bash
 # Database Configuration
+# Local Development
 DATABASE_TYPE=postgresql
 POSTGRES_SERVER=localhost
 POSTGRES_USER=postgres
@@ -263,6 +278,15 @@ POSTGRES_PASSWORD=your_password
 POSTGRES_DB=pine_time
 POSTGRES_PORT=5432
 POSTGRES_SSL_MODE=prefer
+
+# Production (Neon PostgreSQL)
+# DATABASE_TYPE=postgresql
+# POSTGRES_SERVER=ep-black-sound-a13jwznd-pooler.ap-southeast-1.aws.neon.tech
+# POSTGRES_USER=neondb_owner
+# POSTGRES_PASSWORD=your_neon_password
+# POSTGRES_DB=neondb
+# POSTGRES_PORT=5432
+# POSTGRES_SSL_MODE=require
 
 # Connection Pooling
 POOL_SIZE=5
@@ -319,6 +343,33 @@ The application is optimized for PostgreSQL with:
 - Proper error handling for database constraints
 - Sequence management utilities
 - Type-safe database operations
+
+## Troubleshooting Database Connectivity
+
+If you encounter database connectivity issues, especially in the deployed environment, check the following:
+
+1. **Environment Variables**: Ensure all PostgreSQL connection parameters are correctly set in `.ebextensions/04_environment.config`:
+   - Verify the `POSTGRES_PASSWORD` is correctly set for your Neon database
+   - Check that `POSTGRES_SSL_MODE` is set to `require` for Neon PostgreSQL
+
+2. **CORS Configuration**: Make sure your CORS settings include all necessary domains:
+   - Include both HTTP and HTTPS versions of your domains
+   - Include both www and non-www versions if applicable
+   - Include your Elastic Beanstalk domain
+
+3. **SSL Configuration**: Ensure HTTPS is properly configured:
+   - Add an HTTPS listener (port 443) to your Elastic Beanstalk load balancer
+   - Configure HTTP to HTTPS redirection for security
+   - Verify your SSL certificate covers both your main domain and api subdomain
+
+4. **Connection Pooling**: Adjust pool settings if you encounter connection issues:
+   - Increase `POOL_SIZE` and `MAX_OVERFLOW` for higher traffic
+   - Decrease `POOL_RECYCLE` if you encounter stale connections
+
+5. **Logs**: Check the application logs for specific error messages:
+   - Database connection errors
+   - SSL/TLS handshake failures
+   - Authentication failures
 
 ## Testing Capabilities
 
