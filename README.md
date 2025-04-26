@@ -356,6 +356,11 @@ If you encounter database connectivity issues, especially in the deployed enviro
    - Include both HTTP and HTTPS versions of your domains
    - Include both www and non-www versions if applicable
    - Include your Elastic Beanstalk domain
+   - The application has two CORS configurations that must be synchronized:
+     1. Hardcoded `all_origins` list in `app/main.py`
+     2. Environment variable `BACKEND_CORS_ORIGINS` in `.ebextensions/04_environment.config`
+   - The custom CORS middleware in `app/main.py` merges origins from both sources
+   - Check application logs for messages about CORS origins to troubleshoot issues
 
 3. **SSL Configuration**: Ensure HTTPS is properly configured:
    - Add an HTTPS listener (port 443) to your Elastic Beanstalk load balancer

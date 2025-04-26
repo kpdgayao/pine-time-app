@@ -75,7 +75,14 @@ try:
     for origin in default_origins:
         if origin not in origins:
             origins.append(origin)
-    logging.info(f"CORS origins loaded: {origins}")
+    logging.info(f"CORS origins loaded from environment: {origins}")
+    
+    # Update all_origins with these origins
+    for origin in origins:
+        if origin not in all_origins:
+            all_origins.append(origin)
+    
+    logging.info(f"Final all_origins list: {all_origins}")
 except json.JSONDecodeError as e:
     # Fallback in case JSON parsing fails
     logging.error(f"Failed to parse CORS origins as JSON: {origins_str}. Error: {str(e)}")
@@ -110,7 +117,13 @@ all_origins = [
     "http://localhost:8501",
     "http://127.0.0.1:8501",
     "https://master.dq3hhwbwgg2a3.amplifyapp.com",
-    "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com"
+    "http://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com",
+    "https://pine-time-app-env-v2.eba-keu6sc2y.us-east-1.elasticbeanstalk.com",
+    "https://pinetimeapp.com",
+    "https://www.pinetimeapp.com",
+    "http://pinetimeapp.com",
+    "http://www.pinetimeapp.com",
+    "https://api.pinetimeapp.com"
 ]
 
 # Create a middleware to handle CORS with proper error handling
