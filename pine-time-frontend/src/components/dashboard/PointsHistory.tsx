@@ -88,8 +88,8 @@ const PointsHistory: React.FC<PointsHistoryProps> = ({ userId }) => {
       try {
         // Construct the API endpoint based on whether a userId is provided
         const endpoint = userId 
-          ? `/points/transactions?user_id=${userId}`
-          : '/points/transactions';
+          ? `/users/${userId}/history`
+          : '/users/me/history';
         
         try {
           // First attempt to get data from API

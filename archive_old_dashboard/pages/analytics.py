@@ -1,24 +1,37 @@
 """
 Analytics page for Pine Time Admin Dashboard.
-Displays event popularity, user engagement, and points distribution.
+Displays event popularity, user engagement, points distribution, and database performance metrics.
+Enhanced with PostgreSQL integration for comprehensive data analysis.
 """
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import sys
 import os
 import random  # For demo data generation
+import logging
+import json
+from typing import Dict, List, Any, Optional, Union, Tuple
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.api import (
     get_event_popularity, get_user_engagement, get_points_distribution,
-    get_events, get_users
+    get_events, get_users, safe_api_call, safe_api_response_handler
 )
 from utils.auth import check_admin_access
+from utils.postgres_utils import (
+    test_postgres_connection, get_database_stats, get_table_sizes,
+    reset_sequences, vacuum_analyze
+)
+from utils.event_utils import calculate_event_statistics
+
+# Configure logging
+logger = logging.getLogger("analytics_page")
 
 def show_analytics():
     """Display analytics dashboard with charts and insights"""
@@ -44,10 +57,54 @@ def show_analytics():
         st.error("Start date must be before end date")
         return
     
-    # Fetch analytics data
-    event_popularity = get_event_popularity()
-    user_engagement = get_user_engagement()
-    points_distribution = get_points_distribution()
+    # Fetch analytics data with error handling
+    try:
+        event_popularity_response = safe_api_call(
+            get_event_popularity,
+            "Failed to fetch event popularity data",
+            {}
+        )
+        event_popularity = safe_api_response_handler(event_popularity_response)
+        
+        user_engagement_response = safe_api_call(
+            get_user_engagement,
+            "Failed to fetch user engagement data",
+            {}
+        )
+        user_engagement = safe_api_response_handler(user_engagement_response)
+        
+        points_distribution_response = safe_api_call(
+            get_points_distribution,
+            "Failed to fetch points distribution data",
+            {}
+        )
+        points_distribution = safe_api_response_handler(points_distribution_response)
+        
+        # Fetch events for additional analytics
+        events_response = safe_api_call(
+            get_events,
+            "Failed to fetch events for analytics",
+            []
+        )
+        events_data = safe_api_response_handler(events_response)
+        
+        if isinstance(events_data, dict) and "items" in events_data:
+            events = events_data["items"]
+        elif isinstance(events_data, list):
+            events = events_data
+        else:
+            events = []
+            logger.warning("Received unexpected event data format for analytics")
+    except Exception as e:
+        st.error(f"Error fetching analytics data: {str(e)}")
+        logger.error(f"Error in show_analytics: {str(e)}")
+        event_popularity = {}
+        user_engagement = {}
+        points_distribution = {}
+        events = []
+    
+    # Calculate event statistics if events data is available
+    event_stats = calculate_event_statistics(events) if events else {}
     
     # If API doesn't return data, generate sample data for demonstration
     if not event_popularity or not user_engagement or not points_distribution:
@@ -55,17 +112,17 @@ def show_analytics():
         event_popularity, user_engagement, points_distribution = generate_sample_data()
     
     # Create tabs for different analytics views
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Overview", "Event Analytics", "User Analytics", "Points Analytics"
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "Overview", "Event Analytics", "User Analytics", "Points Analytics", "Database Performance"
     ])
     
     # Overview Tab
     with tab1:
-        show_overview_analytics(event_popularity, user_engagement, points_distribution)
+        show_overview_analytics(event_popularity, user_engagement, points_distribution, event_stats)
     
     # Event Analytics Tab
     with tab2:
-        show_event_analytics(event_popularity)
+        show_event_analytics(event_popularity, event_stats)
     
     # User Analytics Tab
     with tab3:
@@ -74,8 +131,12 @@ def show_analytics():
     # Points Analytics Tab
     with tab4:
         show_points_analytics(points_distribution)
+        
+    # Database Performance Tab
+    with tab5:
+        show_database_analytics()
 
-def show_overview_analytics(event_popularity, user_engagement, points_distribution):
+def show_overview_analytics(event_popularity, user_engagement, points_distribution, event_stats=None):
     """Display overview analytics with key metrics and trends"""
     st.header("Analytics Overview")
     st.write("Key metrics and trends across the Pine Time platform")
@@ -184,8 +245,8 @@ def show_overview_analytics(event_popularity, user_engagement, points_distributi
             f"with an average attendance of {event_popularity.get('category_attendance', {}).get('Outdoor', 0)} users per event."
         )
 
-def show_event_analytics(event_popularity):
-    """Display detailed event analytics"""
+def show_event_analytics(event_popularity, event_stats=None):
+    """Display detailed event analytics with enhanced metrics"""
     st.header("Event Analytics")
     st.write("Detailed analysis of event performance and attendance")
     
@@ -518,95 +579,277 @@ def show_points_analytics(points_distribution):
     
     st.plotly_chart(fig, use_container_width=True)
 
+def show_database_analytics():
+    """Display database performance analytics and maintenance tools"""
+    st.header("Database Performance Analytics")
+    st.write("Monitor and optimize your PostgreSQL database performance")
+    
+    # Test database connection
+    connection_success, connection_message = test_postgres_connection()
+    
+    if connection_success:
+        st.success(f"✅ {connection_message}")
+        
+        # Database stats overview
+        try:
+            db_stats = get_database_stats()
+            
+            # Display key database metrics
+            st.subheader("Database Overview")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric(
+                    label="Database Size",
+                    value=db_stats.get('database_size', 'Unknown')
+                )
+            
+            with col2:
+                st.metric(
+                    label="Tables",
+                    value=db_stats.get('tables', 0)
+                )
+            
+            with col3:
+                st.metric(
+                    label="Active Connections",
+                    value=db_stats.get('connections', {}).get('used', 0),
+                    delta=f"{db_stats.get('connections', {}).get('available', 0)} available"
+                )
+            
+            with col4:
+                st.metric(
+                    label="Active Queries",
+                    value=db_stats.get('queries', {}).get('running', 0)
+                )
+            
+            # Connection pool status
+            st.subheader("Connection Pool Status")
+            conn_data = db_stats.get('connections', {})
+            
+            # Create a gauge chart for connection pool usage
+            max_conn = conn_data.get('max', 100)
+            used_conn = conn_data.get('used', 0)
+            available_conn = conn_data.get('available', 0)
+            
+            fig = go.Figure(go.Indicator(
+                mode="gauge+number+delta",
+                value=used_conn,
+                domain={'x': [0, 1], 'y': [0, 1]},
+                title={'text': "Connection Pool Usage"},
+                delta={'reference': max_conn / 2, 'increasing': {'color': "red"}, 'decreasing': {'color': "green"}},
+                gauge={
+                    'axis': {'range': [None, max_conn], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                    'bar': {'color': "darkblue"},
+                    'bgcolor': "white",
+                    'borderwidth': 2,
+                    'bordercolor': "gray",
+                    'steps': [
+                        {'range': [0, max_conn * 0.5], 'color': 'green'},
+                        {'range': [max_conn * 0.5, max_conn * 0.8], 'color': 'yellow'},
+                        {'range': [max_conn * 0.8, max_conn], 'color': 'red'},
+                    ],
+                    'threshold': {
+                        'line': {'color': "red", 'width': 4},
+                        'thickness': 0.75,
+                        'value': max_conn * 0.9
+                    }
+                }
+            ))
+            
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Table sizes
+            st.subheader("Table Sizes")
+            try:
+                table_sizes = get_table_sizes()
+                if table_sizes:
+                    # Convert to DataFrame for display
+                    df_tables = pd.DataFrame(table_sizes)
+                    
+                    # Create a bar chart of table sizes
+                    fig = px.bar(
+                        df_tables,
+                        x='table',
+                        y='total_bytes',
+                        color='schema',
+                        labels={'table': 'Table Name', 'total_bytes': 'Size (bytes)', 'schema': 'Schema'},
+                        title='Table Sizes (bytes)',
+                        hover_data=['total_size', 'table_size', 'index_size']
+                    )
+                    fig.update_layout(height=400)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Display table as well
+                    st.dataframe(
+                        df_tables[['schema', 'table', 'total_size', 'table_size', 'index_size']],
+                        use_container_width=True
+                    )
+                else:
+                    st.info("No table size data available")
+            except Exception as e:
+                st.error(f"Error fetching table sizes: {str(e)}")
+                logger.error(f"Error fetching table sizes: {str(e)}")
+            
+            # Database maintenance tools
+            st.subheader("Database Maintenance")
+            st.write("Tools to optimize database performance")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("Reset Sequences", key="reset_sequences"):
+                    try:
+                        with st.spinner("Resetting sequences..."):
+                            result = reset_sequences()
+                        
+                        if result:
+                            st.success(f"Successfully reset {len(result)} sequences")
+                            # Show the sequences that were reset
+                            st.json(result)
+                        else:
+                            st.info("No sequences needed to be reset")
+                    except Exception as e:
+                        st.error(f"Error resetting sequences: {str(e)}")
+                        logger.error(f"Error resetting sequences: {str(e)}")
+            
+            with col2:
+                if st.button("Vacuum Analyze", key="vacuum_analyze"):
+                    try:
+                        with st.spinner("Running VACUUM ANALYZE..."):
+                            result = vacuum_analyze()
+                        
+                        if result:
+                            st.success("Successfully ran VACUUM ANALYZE on all tables")
+                        else:
+                            st.error("Failed to run VACUUM ANALYZE")
+                    except Exception as e:
+                        st.error(f"Error running VACUUM ANALYZE: {str(e)}")
+                        logger.error(f"Error running VACUUM ANALYZE: {str(e)}")
+        
+        except Exception as e:
+            st.error(f"Error fetching database statistics: {str(e)}")
+            logger.error(f"Error in show_database_analytics: {str(e)}")
+    else:
+        st.error(f"❌ {connection_message}")
+        st.info("Check your PostgreSQL connection settings in the environment variables.")
+        
+        # Show connection troubleshooting tips
+        with st.expander("Troubleshooting Tips"):
+            st.markdown("""
+            ### PostgreSQL Connection Troubleshooting
+            
+            1. **Check Environment Variables**:
+               - `POSTGRES_SERVER`: Server hostname or IP (default: localhost)
+               - `POSTGRES_PORT`: Server port (default: 5432)
+               - `POSTGRES_USER`: Database username (default: postgres)
+               - `POSTGRES_PASSWORD`: Database password
+               - `POSTGRES_DB`: Database name (default: postgres)
+               - `POSTGRES_SSL_MODE`: SSL mode (default: prefer)
+            
+            2. **Common Issues**:
+               - **Connection refused**: Ensure PostgreSQL is running and accessible
+               - **Authentication failed**: Check username and password
+               - **Database does not exist**: Verify database name
+               - **Timeout**: Check network connectivity and server load
+            
+            3. **For Neon PostgreSQL**:
+               - Ensure SSL mode is set to 'require'
+               - Use the connection pooler endpoint for better performance
+               - Format: `ep-name-code-pooler.region.aws.neon.tech`
+            """)
+
 def generate_sample_data():
     """Generate sample data for demonstration purposes"""
-    # Sample event popularity data
+    # Event popularity sample data
     event_popularity = {
-        "total_events": 45,
-        "new_events_last_month": 8,
-        "average_attendance": 18.5,
-        "attendance_change": 2.3,
-        "most_popular_category": "Outdoor",
-        "category_attendance": {
-            "Outdoor": 22.3,
-            "Conservation": 19.8,
-            "Education": 15.2,
-            "Community": 17.5,
-            "Wellness": 14.1
+        'total_events': 45,
+        'new_events_last_month': 8,
+        'average_attendance': 12.5,
+        'attendance_change': 2.3,
+        'most_popular_category': 'Outdoor',
+        'category_attendance': {
+            'Outdoor': 18,
+            'Workshop': 14,
+            'Seminar': 10,
+            'Social': 12,
+            'Volunteering': 15
         },
-        "completion_rate": {
-            "Forest Hike": 0.92,
-            "Tree Planting": 0.88,
-            "Nature Photography": 0.76,
-            "Bird Watching": 0.85,
-            "Beach Cleanup": 0.90,
-            "Sustainable Gardening": 0.82,
-            "Wildlife Conservation": 0.79
-        },
-        "attendance_trend": {
-            "Jan": 12.5,
-            "Feb": 13.8,
-            "Mar": 15.2,
-            "Apr": 16.7,
-            "May": 18.3,
-            "Jun": 19.5
+        'popular_events': [
+            {'name': 'Forest Cleanup', 'attendance': 24, 'category': 'Volunteering'},
+            {'name': 'Hiking Adventure', 'attendance': 20, 'category': 'Outdoor'},
+            {'name': 'Sustainable Living Workshop', 'attendance': 18, 'category': 'Workshop'},
+            {'name': 'Community Garden Day', 'attendance': 16, 'category': 'Volunteering'},
+            {'name': 'Nature Photography Walk', 'attendance': 15, 'category': 'Outdoor'}
+        ],
+        'attendance_by_month': {
+            'Jan': 120,
+            'Feb': 145,
+            'Mar': 160,
+            'Apr': 190,
+            'May': 210,
+            'Jun': 180
         }
     }
     
-    # Sample user engagement data
+    # User engagement sample data
     user_engagement = {
-        "total_users": 350,
-        "new_users_last_month": 42,
-        "engagement_change": 5.7,
-        "most_active_day": "Saturday",
-        "activity_distribution": {
-            "Highly Active": 0.25,
-            "Active": 0.35,
-            "Occasional": 0.28,
-            "Inactive": 0.12
+        'total_users': 250,
+        'new_users_last_month': 35,
+        'active_users': 180,
+        'engagement_rate': 72,
+        'engagement_change': 5.2,
+        'most_active_day': 'Saturday',
+        'activity_distribution': {
+            'Very Active': 30,
+            'Active': 45,
+            'Occasional': 15,
+            'Inactive': 10
         },
-        "retention_rate": {
-            "Jan": 0.82,
-            "Feb": 0.79,
-            "Mar": 0.81,
-            "Apr": 0.83,
-            "May": 0.85,
-            "Jun": 0.87
+        'user_retention': {
+            '1 month': 85,
+            '3 months': 70,
+            '6 months': 60,
+            '12 months': 45
         },
-        "user_growth": {
-            "Jan": 35,
-            "Feb": 42,
-            "Mar": 38,
-            "Apr": 45,
-            "May": 52,
-            "Jun": 42
+        'activity_by_day': {
+            'Monday': 12,
+            'Tuesday': 14,
+            'Wednesday': 15,
+            'Thursday': 13,
+            'Friday': 18,
+            'Saturday': 22,
+            'Sunday': 16
         }
     }
     
-    # Sample points distribution data
+    # Points distribution sample data
     points_distribution = {
-        "total_points_awarded": 28500,
-        "points_change": 3200,
-        "tier_distribution": {
-            "Bronze": 8500,
-            "Silver": 12000,
-            "Gold": 6000,
-            "Platinum": 2000
+        'total_points_awarded': 12500,
+        'points_change': 1800,
+        'average_points_per_user': 50,
+        'points_by_activity': {
+            'Event Attendance': 45,
+            'Volunteering': 25,
+            'Referrals': 15,
+            'Challenges': 10,
+            'Other': 5
         },
-        "event_type_points": {
-            "Outdoor": 9500,
-            "Conservation": 7800,
-            "Education": 5200,
-            "Community": 4000,
-            "Wellness": 2000
-        },
-        "monthly_points": {
-            "Jan": 3500,
-            "Feb": 4200,
-            "Mar": 4800,
-            "Apr": 5100,
-            "May": 5400,
-            "Jun": 5500
+        'top_earners': [
+            {'name': 'John D.', 'points': 520},
+            {'name': 'Sarah M.', 'points': 480},
+            {'name': 'Robert T.', 'points': 450},
+            {'name': 'Emily K.', 'points': 420},
+            {'name': 'Michael P.', 'points': 400}
+        ],
+        'points_by_month': {
+            'Jan': 1800,
+            'Feb': 2100,
+            'Mar': 2300,
+            'Apr': 2500,
+            'May': 2800,
+            'Jun': 3000
         }
     }
     

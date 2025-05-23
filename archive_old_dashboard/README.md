@@ -1,52 +1,46 @@
-# Pine Time Admin Dashboard
+# [ARCHIVED] Pine Time Admin Dashboard
 
-A comprehensive admin dashboard for the Pine Time Experience platform built with Streamlit.
+**IMPORTANT: This is an archived version of the old Streamlit-based admin dashboard. It has been replaced by the React-based admin dashboard in the `pine-time-admin` directory.**
 
-## Features
+This code is kept for reference purposes only and should not be used for new development.
 
-1. **Authentication**: Secure login with JWT token handling and role-based access control
+## Original Features
+
+1. **Authentication**: JWT token handling and role-based access control
 2. **Dashboard Overview**: Key metrics and summary information
-3. **Event Management**: Create, read, update, and delete events, manage check-ins and completions
-4. **User Management**: Edit user profiles, adjust points, and view badge progress
-5. **Analytics**: Visualize event popularity, user engagement, and points distribution
+3. **Event Management**: CRUD operations for events, check-ins management
+4. **User Management**: Profile editing, points adjustment, badge progress tracking
+5. **Analytics**: Event popularity, user engagement, and points distribution visualizations
 
 ## Project Structure
 
 ```python
-admin_dashboard/
-├── app.py              # Main Streamlit app with navigation
-├── config.py           # Configuration settings
-├── requirements.txt    # Dependencies
+archive_old_dashboard/   # Previously admin_dashboard/
+├── app.py                # Main Streamlit app with navigation
+├── config.py             # Configuration settings
 ├── utils/
-│   ├── auth.py         # JWT handling and session management
-│   └── api.py          # API connection functions
-└── pages/              # Different dashboard sections
-    ├── dashboard.py    # Main dashboard overview
-    ├── events.py       # Event management
-    ├── users.py        # User management
-    └── analytics.py    # Analytics visualizations
+│   ├── auth.py           # JWT handling and session management
+│   ├── api.py            # API connection functions
+│   ├── postgres_utils.py # PostgreSQL utilities
+│   └── db.py             # Database connection utilities
+└── pages/                # Different dashboard sections
+    ├── dashboard.py      # Main dashboard overview
+    ├── events.py         # Event management
+    ├── users.py          # User management
+    └── analytics.py      # Analytics visualizations
 ```
 
-## Setup and Installation
+## Migration Notes
 
-1. Make sure you have Python 3.8+ installed
+The Streamlit admin dashboard has been replaced with a React-based admin dashboard that provides:
 
-2. Install the required dependencies:
+1. Better UI/UX consistency with the user frontend (also React-based)
+2. Improved performance and responsiveness
+3. Centralized theming and styling
+4. More robust error handling and state management
+5. Better developer experience with TypeScript
 
-   ```bash
-   cd admin_dashboard
-   pip install -r requirements.txt
-   ```
-
-3. Configure the API endpoint in `config.py` to point to your FastAPI backend:
-
-   ```python
-   API_BASE_URL = "http://localhost:8000"  # Change this to your FastAPI backend URL
-   ```
-
-## Running the Dashboard
-
-Start the Streamlit application:
+For new development, please refer to the `pine-time-admin` directory.
 
 ```bash
 cd admin_dashboard

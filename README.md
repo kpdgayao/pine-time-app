@@ -1,8 +1,8 @@
 # Pine Time Experience Baguio
 
-> **Migration Note (April 2025):**
+> **Migration Note (May 2025):**
 >
-> The Pine Time application now features a modern React frontend (Vite + TypeScript) for end users, in addition to the legacy Streamlit admin dashboard. All new user-facing features are being developed in React. See below for updated setup instructions and project structure.
+> The Pine Time application now features modern React frontends (Vite + TypeScript) for both end users and administrators. The legacy Streamlit admin dashboard has been replaced with a React-based implementation for improved performance and maintainability. All Streamlit files have been archived in `archive_old_dashboard/`. See below for updated setup instructions and project structure.
 
 A web application for Pine Time Experience Baguio, a community that hosts trivia nights, murder mysteries, and game nights in Baguio City. The app connects locals with local businesses and artisans.
 
@@ -27,11 +27,22 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 
 ```text
 pine-time-app/
-├── admin_dashboard/       # Streamlit admin dashboard (legacy/admin)
-│   ├── pages/             # Dashboard page components
+├── archive_old_dashboard/ # Archived Streamlit admin dashboard (legacy)
+│   ├── pages/             # Dashboard page components (Streamlit)
 │   ├── utils/             # Utility modules (auth, API, DB, connection)
-│   ├── app.py             # Admin dashboard entry point
-│   └── user_app_postgres.py # User interface entry point with PostgreSQL support
+│   ├── app.py             # Legacy admin dashboard entry point
+│   └── user_app_postgres.py # Legacy user interface entry point
+├── pine-time-admin/       # React-based admin dashboard (current)
+│   ├── src/               # React source code for admin dashboard
+│   │   ├── api/           # API clients and services
+│   │   ├── components/    # Reusable UI components
+│   │   ├── contexts/      # React contexts (Auth, Loading, etc.)
+│   │   ├── pages/         # Page components organized by feature
+│   │   ├── types/         # TypeScript interfaces and type definitions
+│   │   ├── utils/         # Utility functions and helpers
+│   │   ├── App.tsx        # Main application component
+│   │   └── main.tsx       # Application entry point
+│   └── vite.config.ts     # Vite configuration with proxy settings
 ├── app/                   # FastAPI backend
 │   ├── api/               # API endpoints (all backend routes are prefixed with /api)
 │   │   └── endpoints/     # API endpoint modules (events, users, gamification, etc.)
@@ -43,7 +54,7 @@ pine-time-app/
 │   │   ├── badge_manager.py  # Badge management service
 │   │   └── points_manager.py # Points management service
 │   └── main.py            # Backend entry point
-├── pine-time-frontend/    # React frontend (Vite + TypeScript)
+├── pine-time-frontend/    # React frontend for users (Vite + TypeScript)
 │   ├── src/               # React source code
 │   │   ├── components/    # Reusable UI components
 │   │   │   └── dashboard/ # Dashboard-specific components
@@ -106,6 +117,46 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+## Admin Dashboard Migration
+
+The Pine Time Admin Dashboard has been completely migrated from Streamlit to React for improved performance, better user experience, and enhanced maintainability.
+
+### Key Improvements
+
+- **Performance**: Significantly faster page loads and transitions
+- **User Experience**: More responsive UI with better navigation
+- **Code Organization**: Feature-based directory structure
+- **Type Safety**: Full TypeScript implementation with comprehensive interfaces
+- **Error Handling**: Following Pine Time's established robust error handling patterns
+
+### Admin Dashboard Setup
+
+1. Navigate to the admin dashboard directory:
+
+   ```bash
+   cd pine-time-admin
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install --legacy-peer-deps
+   ```
+
+3. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+   The admin dashboard will be available at `http://localhost:5174`
+
+4. Login with admin credentials to access the dashboard
+
+### API Integration
+
+The admin dashboard communicates with the backend API using a development proxy configuration in `vite.config.ts`, which handles CORS issues and properly routes API requests. The dashboard adheres to the Pine Time API path handling pattern, ensuring consistent communication with the backend.
+
 ## Production Deployment
 
 The Pine Time application is deployed using AWS services with a custom domain (pinetimeapp.com) managed through Route 53.
@@ -143,12 +194,13 @@ The Pine Time application is deployed using AWS services with a custom domain (p
 
 - **Backend**: FastAPI (with all routes under `/api`) and SQLAlchemy ORM
 - **Database**: PostgreSQL 17.4 (production), SQLite (development/testing)
-- **Frontend**: React (Vite + TypeScript) for users, Streamlit (legacy/admin)
+- **Frontend**: React (Vite + TypeScript) for both user interface and admin dashboard
 - **Proxy**: Vercel proxy for frontend-backend integration and CORS handling
-- **React Frontend**: Uses axios (with JWT auth), react-router-dom, jwt-decode, custom hooks, robust error handling
-- **Admin Dashboard**: Streamlit-based admin tools
-- **Authentication**: JWT-based auth system with refresh token logic (frontend and backend)
+- **React User Frontend**: Uses axios (with JWT auth), react-router-dom, jwt-decode, custom hooks, Material UI
+- **React Admin Dashboard**: Uses Material UI v7, Recharts for visualization, and context-based state management
+- **Authentication**: JWT-based auth system with refresh token logic and role-based access control
 - **Payment System**: Context-based payment management with database integration and step-based payment flow
+- **Error Handling**: Comprehensive error handling with graceful degradation across all components
 - **Styling**: Custom theme system with light/dark mode support and Pine Time green theme (#2E7D32)
 - **Gamification**: Badge and points system with progress tracking and visual celebrations
 - **UI Components**: Custom-designed reusable components (PineTimeButton, PineTimeCard, etc.)
