@@ -12,7 +12,6 @@ import { PaymentProvider } from './contexts/PaymentContext';
 import LoadingInitializer from './components/LoadingInitializer';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
-import AdminOnly from './components/AdminOnly';
 import LazyRoute from './components/LazyRoute';
 
 // Lazy load pages to improve initial load performance
@@ -26,7 +25,8 @@ const PointsPage = lazy(() => import('./pages/PointsPage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
-const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+// Admin dashboard is now in a separate application
+// const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 
 function App() {
   return (
@@ -52,7 +52,7 @@ function App() {
                   <Route path="/leaderboard" element={<PrivateRoute><LazyRoute component={LeaderboardPage} pageName="Leaderboard" /></PrivateRoute>} />
                   <Route path="/forgot-password" element={<LazyRoute component={ForgotPasswordPage} pageName="Password Recovery" />} />
                   <Route path="/reset-password" element={<LazyRoute component={ResetPasswordPage} pageName="Password Reset" />} />
-                  <Route path="/admin" element={<PrivateRoute><AdminOnly><LazyRoute component={AdminDashboardPage} pageName="Admin Dashboard" /></AdminOnly></PrivateRoute>} />
+                  {/* Admin route is now handled by adminAccess.ts utility */}
                   </Routes>
                 </div>
               </Router>

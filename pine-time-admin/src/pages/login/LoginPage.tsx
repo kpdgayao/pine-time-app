@@ -38,12 +38,47 @@ const LoginPage: React.FC = () => {
   // Get the redirect URL from location state or default to dashboard
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || ADMIN_ROUTES.DASHBOARD;
   
-  // Redirect if already authenticated
+  // Enhanced token check with debugging information
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(from, { replace: true });
-    }
-  }, [isAuthenticated, navigate, from]);
+    const checkTokens = async () => {
+      console.log('LoginPage: Starting token check');
+      
+      // First check for main app tokens
+      const mainToken = localStorage.getItem('access_token');
+      const mainRefreshToken = localStorage.getItem('refresh_token');
+      
+      if (mainToken && mainRefreshToken) {
+        console.log('LoginPage: Found tokens from main app, transferring to admin format');
+        localStorage.setItem('admin_access_token', mainToken);
+        localStorage.setItem('admin_refresh_token', mainRefreshToken);
+        
+        // Allow time for token storage
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Attempt login using the tokens
+        try {
+          const authResult = await login('', '', true); // Using third parameter to indicate token-based login
+          console.log('LoginPage: Auto-login result:', authResult);
+          
+          if (authResult) {
+            console.log('LoginPage: Auto-login successful, redirecting to dashboard');
+            navigate(from, { replace: true });
+            return;
+          }
+        } catch (error) {
+          console.error('LoginPage: Auto-login failed:', error);
+        }
+      }
+      
+      // Check if already authenticated
+      if (isAuthenticated) {
+        console.log('LoginPage: User is already authenticated, redirecting to', from);
+        navigate(from, { replace: true });
+      }
+    };
+    
+    checkTokens();
+  }, [isAuthenticated, navigate, from, login]);
   
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

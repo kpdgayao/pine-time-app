@@ -25,7 +25,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, useExistingToken?: boolean) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => boolean;
 }
@@ -82,13 +82,72 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   // Check authentication on initial load
   useEffect(() => {
-    checkAuth();
+    // Check for direct authentication flag
+    const directAuth = localStorage.getItem('pine_time_direct_auth');
+    
+    // First, check for tokens transferred from the main app
+    const mainToken = localStorage.getItem('access_token');
+    const mainRefreshToken = localStorage.getItem('refresh_token');
+    
+    // If tokens from main app exist, transfer them
+    if (mainToken && mainRefreshToken) {
+      localStorage.setItem('admin_access_token', mainToken);
+      localStorage.setItem('admin_refresh_token', mainRefreshToken);
+      console.log('Tokens transferred from main app');
+    }
+
+    // Clear the direct auth flag
+    if (directAuth) {
+      localStorage.removeItem('pine_time_direct_auth');
+    }
+    
+    // Then proceed with normal auth check
+    const isAuth = checkAuth();
+    
+    // If we came from direct auth and authentication succeeded, force reload to dashboard
+    if (directAuth && isAuth && window.location.pathname !== '/') {
+      console.log('Direct auth successful, forcing navigation to dashboard');
+      // Use import.meta.env.DEV instead of process.env to match Vite's environment variables
+      window.location.replace(window.location.origin + 
+        (import.meta.env.DEV ? '' : '/admin'));
+    }
   }, []);
 
-  // Check if the user is authenticated
+  // Check if the user is authenticated with enhanced token handling
   const checkAuth = (): boolean => {
-    const token = localStorage.getItem('admin_access_token');
+    console.log('Checking authentication status...');
+    
+    // Try all possible token locations
+    const adminToken = localStorage.getItem('admin_access_token');
+    const adminRefreshToken = localStorage.getItem('admin_refresh_token');
+    const mainToken = localStorage.getItem('access_token');
+    const mainRefreshToken = localStorage.getItem('refresh_token');
+    
+    console.log('Token status:', { 
+      adminToken: !!adminToken, 
+      mainToken: !!mainToken 
+    });
+    
+    // Determine which token to use - prefer admin tokens first
+    let token = adminToken;
+    let refreshToken = adminRefreshToken;
+    
+    // If admin tokens aren't found, try main app tokens
+    if (!token && mainToken) {
+      console.log('Using main app tokens');
+      token = mainToken;
+      refreshToken = mainRefreshToken;
+      
+      // If using main app tokens, also store them as admin tokens
+      if (token && refreshToken) {
+        localStorage.setItem('admin_access_token', token);
+        localStorage.setItem('admin_refresh_token', refreshToken);
+      }
+    }
+    
+    // If still no token, user is not authenticated
     if (!token) {
+      console.log('No valid tokens found');
       setIsAuthenticated(false);
       setUser(null);
       setIsAdmin(false);
@@ -124,31 +183,51 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     return true;
   };
 
-  // Login function
-  const login = async (email: string, password: string): Promise<boolean> => {
+  // Enhanced login function with support for token-based authentication
+  const login = async (email: string, password: string, useExistingToken: boolean = false): Promise<boolean> => {
     try {
-      const response = await api.post('/login/access-token', 
-        new URLSearchParams({
-          username: email,
-          password: password,
-        }), 
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
+      // If using existing tokens, skip the API call
+      let access_token: string;
+      let refresh_token: string;
+      
+      if (useExistingToken) {
+        console.log('Using existing token for authentication');
+        // Get tokens from localStorage
+        access_token = localStorage.getItem('admin_access_token') || '';
+        refresh_token = localStorage.getItem('admin_refresh_token') || '';
+        
+        if (!access_token || !refresh_token) {
+          console.error('No existing tokens found');
+          return false;
         }
-      );
-      
-      const { access_token, refresh_token } = response.data;
-      
-      // Store tokens securely
-      localStorage.setItem('admin_access_token', access_token);
-      localStorage.setItem('admin_refresh_token', refresh_token);
+      } else {
+        console.log('Authenticating with username and password');
+        // Perform standard username/password authentication
+        const response = await api.post('/login/access-token', 
+          new URLSearchParams({
+            username: email,
+            password: password,
+          }), 
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          }
+        );
+        
+        // Extract tokens from response
+        access_token = response.data.access_token;
+        refresh_token = response.data.refresh_token;
+        
+        // Store tokens securely
+        localStorage.setItem('admin_access_token', access_token);
+        localStorage.setItem('admin_refresh_token', refresh_token);
+      }
       
       // Verify token and extract user data
       const userData = parseToken(access_token);
       if (!userData) {
-        console.error('Invalid token received from server');
+        console.error('Invalid token');
         return false;
       }
       

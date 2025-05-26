@@ -15,6 +15,8 @@ import ListItemText from '@mui/material/ListItemText';
 import Chip from '@mui/material/Chip';
 import Badge from '@mui/material/Badge';
 import LinearProgress from '@mui/material/LinearProgress';
+// Import the admin access utility - we only need hasAdminAccess now
+import { hasAdminAccess } from '../utils/adminAccess';
 
 import MenuIcon from '@mui/icons-material/Menu';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -319,11 +321,9 @@ const Navbar = (): React.ReactNode => {
         )}
         
         {/* Admin link */}
-        {(user && (user.is_superuser || user.user_type === 'admin')) && (
+        {user && hasAdminAccess(user) && (
           <Button
-            key={adminLink.to}
-            component={RouterLink}
-            to={adminLink.to}
+            key="admin-dashboard"
             color={isActive(adminLink.to) ? 'secondary' : 'inherit'}
             sx={{
               fontWeight: isActive(adminLink.to) ? 700 : 500,
@@ -339,7 +339,37 @@ const Navbar = (): React.ReactNode => {
                   ? theme.palette.secondary.contrastText
                   : theme.palette.primary.contrastText),
             }}
-            onClick={isDrawer ? closeDrawer : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              if (isDrawer) closeDrawer();
+              
+              // SIMPLIFIED DIRECT APPROACH
+              // Instead of complex token transfers, we'll use a direct dashboard access
+              const isDev = import.meta.env.DEV;
+              
+              // First, verify we have a token to avoid unnecessary redirects
+              const token = localStorage.getItem('access_token');
+              if (!token) {
+                // No token found, need to login first
+                const loginUrl = isDev 
+                  ? 'http://localhost:5173/login?admin=true' 
+                  : '/login?admin=true';
+                  
+                window.location.href = loginUrl;
+                return;
+              }
+              
+              // Direct navigation to admin dashboard in the same tab
+              const adminUrl = isDev 
+                ? 'http://localhost:5174/' 
+                : '/admin/';
+                
+              console.log('Direct navigation to admin dashboard:', adminUrl);
+              // Navigate in the same tab now that authentication issues are fixed
+              window.location.href = adminUrl;
+              
+              // We don't need a fallback since this is already the simplest approach
+            }}
           >
             {adminLink.label}
           </Button>

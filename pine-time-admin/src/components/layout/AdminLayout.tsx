@@ -15,7 +15,8 @@ import {
   Typography,
   Avatar,
   Menu,
-  MenuItem
+  MenuItem,
+  Button
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -26,11 +27,13 @@ import {
   EmojiEvents as BadgesIcon,
   Stars as PointsIcon,
   Logout as LogoutIcon,
-  AccountCircle
+  AccountCircle,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ADMIN_ROUTES } from '../../config';
 import { useAuth } from '../../contexts/AuthContext';
+import { returnToMainApp } from '../../utils/mainAppAccess';
 
 const drawerWidth = 240;
 
@@ -148,9 +151,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {navItems.find(item => item.route === location.pathname)?.text || 'Admin Dashboard'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <Button
+              color="inherit"
+              startIcon={<ArrowBackIcon />}
+              onClick={returnToMainApp}
+              sx={{ mr: 2, textTransform: 'none' }}
+            >
+              Return to Main App
+            </Button>
+            <Typography variant="h6" noWrap component="div">
+              {navItems.find(item => item.route === location.pathname)?.text || 'Admin Dashboard'}
+            </Typography>
+          </Box>
           
           {/* User menu */}
           <div>

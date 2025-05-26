@@ -16,7 +16,7 @@ A web application for Pine Time Experience Baguio, a community that hosts trivia
 - **Points & Rewards**: Track points, view leaderboards, and earn rewards with detailed transaction history
 - **Streak Tracking**: Rewards for consistent weekly attendance with visual indicators
 - **Achievement Celebrations**: Visual celebrations when users earn new badges
-- **Admin Dashboard**: Comprehensive tools for managing users, events, and analytics
+- **Admin Dashboard**: Comprehensive tools for managing users, events, and analytics with seamless authentication from the main app
 - **User Interface**: Mobile-friendly design with intuitive navigation
 - **Demo Mode**: Test the application without backend connection
 - **Enhanced Error Handling**: Robust error handling with graceful degradation
@@ -385,6 +385,25 @@ The application implements a robust error handling system with multiple layers:
 - **Custom Exceptions**: Specialized exception classes for different error types (APIError, PostgreSQLError)
 - **User Points & Badges**: Endpoints and logic for awarding points, redeeming points, managing user badges, and providing detailed statistics, all with admin and user role checks
 - **Response Format Handling**: Support for both list and dictionary response formats from API endpoints
+
+## Admin Dashboard Integration
+
+The admin dashboard is fully integrated with the main application, providing a seamless experience:
+
+- **Unified Authentication**: Automatic token sharing between main app and admin dashboard
+- **Seamless Navigation**: Single-tab experience with preserved authentication state
+- **Role-Based Access**: Only users with admin privileges can access the dashboard
+- **Comprehensive Error Handling**: Clear feedback during authentication issues
+- **Debugging Tools**: Built-in debugging panels for troubleshooting authentication flows
+
+## AWS Amplify Deployment
+
+The application is configured for deployment on AWS Amplify:
+
+- **Main App**: Deployed at the root path (`/`)
+- **Admin Dashboard**: Deployed as a subdirectory (`/admin`)
+- **Authentication**: Shared authentication state between both applications
+- **Navigation**: Direct links between applications maintain authentication context
 
 ## PostgreSQL Integration
 
