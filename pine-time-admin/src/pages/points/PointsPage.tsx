@@ -31,7 +31,6 @@ import {
 import { 
   Add, 
   Edit, 
-  Delete, 
   TrendingUp, 
   TrendingDown,
   EmojiEvents
