@@ -10,7 +10,6 @@ import {
   TableHead, 
   TableRow,
   TablePagination,
-  IconButton,
   Chip,
   Button,
   Dialog,
@@ -27,23 +26,20 @@ import {
   Grid,
   Card,
   CardContent,
-  CardHeader,
-  Divider
+  CardHeader
 } from '@mui/material';
 import { 
   Add, 
   Edit, 
   Delete, 
-  Check, 
-  Close, 
   TrendingUp, 
   TrendingDown,
   EmojiEvents
 } from '@mui/icons-material';
 import { AdminLayout } from '../../components/layout/AdminLayout';
-import { PointsService, UserService, BadgeService } from '../../api/services';
+import { PointsService, UserService } from '../../api/services';
 import { useLoading } from '../../contexts/LoadingContext';
-import { PointsTransaction, User, Badge } from '../../types/api';
+import type { PointsTransaction, User } from '../../types/api';
 
 /**
  * Points management page component
@@ -155,7 +151,7 @@ const PointsPage: React.FC = () => {
   /**
    * Handle form input changes
    */
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<{ name?: string; value: unknown }>) => {
     const name = e.target.name as string;
     const value = e.target.value;
     
@@ -526,7 +522,7 @@ const PointsPage: React.FC = () => {
                   labelId="user-select-label"
                   name="userId"
                   value={formData.userId}
-                  onChange={handleInputChange}
+                  onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement>)}
                   label="User"
                 >
                   {users.map((user) => (
@@ -542,7 +538,7 @@ const PointsPage: React.FC = () => {
                 name="amount"
                 type="number"
                 value={formData.amount}
-                onChange={handleInputChange as any}
+                onChange={(e) => handleInputChange(e)}
                 fullWidth
                 variant="outlined"
                 required
@@ -560,7 +556,7 @@ const PointsPage: React.FC = () => {
                 label="Reason"
                 name="reason"
                 value={formData.reason}
-                onChange={handleInputChange as any}
+                onChange={(e) => handleInputChange(e)}
                 fullWidth
                 variant="outlined"
                 required
