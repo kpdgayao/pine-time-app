@@ -4,7 +4,7 @@
  */
 
 import api, { safeApiCall, extractItems } from './index';
-import { DashboardMetrics, User, Event, Badge, PointsTransaction, RecentActivity } from '../types/api';
+import type { DashboardMetrics, User, Event, Badge, PointsTransaction, RecentActivity } from '../types/api';
 
 /**
  * Dashboard API Services
@@ -60,7 +60,15 @@ export const UserService = {
   getUser: (userId: string) => 
     safeApiCall<User>(
       api.get(`/users/${userId}`),
-      null
+      {
+        id: '',
+        username: '',
+        email: '',
+        is_active: false,
+        is_superuser: false,
+        created_at: '',
+        role: ''
+      }
     ),
 
   /**
@@ -72,7 +80,15 @@ export const UserService = {
   updateUser: (userId: string, userData: Partial<User>) => 
     safeApiCall<User>(
       api.put(`/users/${userId}`, userData),
-      null
+      {
+        id: '',
+        username: '',
+        email: '',
+        is_active: false,
+        is_superuser: false,
+        created_at: '',
+        role: ''
+      }
     ),
 
   /**
@@ -113,7 +129,21 @@ export const EventService = {
   getEvent: (eventId: string) => 
     safeApiCall<Event>(
       api.get(`/events/${eventId}`),
-      null
+      {
+        id: '',
+        title: '',
+        description: '',
+        location: '',
+        event_type: '',
+        start_time: '',
+        end_time: '',
+        max_participants: 0,
+        current_participants: 0,
+        points_reward: 0,
+        created_at: '',
+        updated_at: '',
+        status: 'draft'
+      }
     ),
 
   /**
@@ -124,7 +154,21 @@ export const EventService = {
   createEvent: (eventData: Partial<Event>) => 
     safeApiCall<Event>(
       api.post('/events/', eventData),
-      null
+      {
+        id: '',
+        title: '',
+        description: '',
+        location: '',
+        event_type: '',
+        start_time: '',
+        end_time: '',
+        max_participants: 0,
+        current_participants: 0,
+        points_reward: 0,
+        created_at: '',
+        updated_at: '',
+        status: 'draft'
+      }
     ),
 
   /**
@@ -136,7 +180,21 @@ export const EventService = {
   updateEvent: (eventId: string, eventData: Partial<Event>) => 
     safeApiCall<Event>(
       api.put(`/events/${eventId}`, eventData),
-      null
+      {
+        id: '',
+        title: '',
+        description: '',
+        location: '',
+        event_type: '',
+        start_time: '',
+        end_time: '',
+        max_participants: 0,
+        current_participants: 0,
+        points_reward: 0,
+        created_at: '',
+        updated_at: '',
+        status: 'draft'
+      }
     ),
 
   /**
@@ -173,7 +231,15 @@ export const BadgeService = {
   getBadge: (badgeId: string) => 
     safeApiCall<Badge>(
       api.get(`/badges/${badgeId}`),
-      null
+      {
+        id: '',
+        name: '',
+        description: '',
+        category: '',
+        level: 0,
+        requirements: '',
+        points_reward: 0
+      }
     )
 };
 
