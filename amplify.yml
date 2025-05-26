@@ -7,14 +7,40 @@ frontend:
         - nvm use 20
         - cd pine-time-frontend
         - npm ci
+        - cd ../pine-time-admin
+        - npm ci
+        - cd ..
     build:
       commands:
+        # Build main app
+        - cd pine-time-frontend
         - npm run build
+        # Build admin dashboard with admin base path
+        - cd ../pine-time-admin
+        - npm run build
+        # Copy admin build to main app dist/admin directory
+        - cd ..
+        - mkdir -p pine-time-frontend/dist/admin
+        - cp -r pine-time-admin/dist/* pine-time-frontend/dist/admin/
   artifacts:
     baseDirectory: pine-time-frontend/dist
     files:
       - '**/*'
+  # Configure routes for SPA routing
+  customHeaders:
+    - pattern: '/admin/**/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'no-cache'
+  routes:
+    - source: '/admin/**/*'
+      target: '/admin/index.html'
+      status: '200'
+    - source: '/*'
+      target: '/index.html'
+      status: '200'
   cache:
     paths:
       - node_modules/**/*
       - pine-time-frontend/node_modules/**/*
+      - pine-time-admin/node_modules/**/*

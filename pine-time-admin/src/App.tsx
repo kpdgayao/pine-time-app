@@ -68,7 +68,8 @@ function App() {
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline /> {/* Reset CSS */}
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.PROD ? '/admin' : '/'}>
+        {/* Added basename to handle subpath in production */}
         <AuthProvider>
           <LoadingProvider>
             <Suspense fallback={<LoadingFallback />}>

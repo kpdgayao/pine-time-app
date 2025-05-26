@@ -1,11 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
-export default defineConfig({
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  // Set base path for production to '/admin/'
-  base: process.env.NODE_ENV === 'production' ? '/admin/' : '/',
+  // Set base path for production to '/admin/' using the mode parameter for consistency
+  base: mode === 'production' ? '/admin/' : '/',
   server: {
     host: 'localhost',
     port: 5174, // Using a different port than frontend (5173)
@@ -24,4 +24,4 @@ export default defineConfig({
       }
     }
   },
-})
+}))
