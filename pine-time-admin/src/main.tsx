@@ -14,8 +14,10 @@ console.log('Environment:', import.meta.env.MODE);
 console.log('BASE_URL:', import.meta.env.BASE_URL);
 console.log('Using BrowserRouter with basename for subdirectory routing');
 
-// Use basename "/admin" in production for subdirectory deployment
-const basename = import.meta.env.MODE === 'production' ? '/admin' : '/';
+// For proper subdirectory deployment, we need to correctly set the basename
+// When deployed to /admin, we need an empty basename because the URL already includes /admin
+// This is critical - with BrowserRouter, the URL is already at /admin, so we don't need to add it again
+const basename = '';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

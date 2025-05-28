@@ -13,7 +13,7 @@
         console.log('Raw URL:', window.location.href);
         console.log('Path:', window.location.pathname);
         
-        // Debug mode for troubleshooting deployment issues
+        // Enhanced debug mode for troubleshooting routing issues
         window.PINE_TIME_DEBUG = {
           startTime: new Date().toISOString(),
           initialUrl: window.location.href,
@@ -21,11 +21,15 @@
           userAgent: navigator.userAgent
         };
         
-        // Route handling for BrowserRouter in subdirectory deployment
-        // If we detect we're at /admin/ without a specific path, redirect to dashboard
-        const path = window.location.pathname;
-        if (path === '/admin/' || path === '/admin') {
-          console.log('At admin root, will render dashboard');
+        console.log('PINE TIME DEBUG INFO:', window.PINE_TIME_DEBUG);
+        
+        // EMERGENCY DIRECT REDIRECTION
+        // If we're at exactly /admin, redirect to /admin/ (trailing slash matters)
+        if (window.location.pathname === '/admin') {
+          console.log('REDIRECTING: /admin → /admin/');
+          window.location.replace('/admin/');
+        } else {
+          console.log('PATH OK:', window.location.pathname);
         }
         
         console.log('---- END DASHBOARD INIT ----');

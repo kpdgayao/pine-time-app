@@ -98,12 +98,18 @@ function App() {
         {/* Special transition route for direct navigation from main app */}
         <Route path="transition" element={<TransitionPage />} />
         
+        {/* Root route - match exactly /admin in production */}
+        <Route path="/" element={
+          isAuthenticated ? <Navigate to="dashboard" replace /> : <Navigate to="login" replace />
+        } />
+
         {/* Protected routes - require authentication */}
         {isAuthenticated ? (
           <Route element={<AdminLayout>
             {/* AdminLayout needs children prop */}
             <Outlet />
           </AdminLayout>}>
+            {/* Match empty path (/) which becomes /admin/ in production with basename */}
             <Route path="" element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="users" element={<UsersPage />} />
