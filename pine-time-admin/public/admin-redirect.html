@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pine Time Admin Redirect</title>
+  <script>
+    // Simple redirect script to handle admin dashboard routing
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Admin redirect page loaded');
+      console.log('Current URL:', window.location.href);
+      console.log('Current pathname:', window.location.pathname);
+      console.log('Current hash:', window.location.hash);
+      
+      // Determine if we are in the admin subdirectory
+      const isInAdminPath = window.location.pathname.includes('/admin');
+      console.log('Is in admin path:', isInAdminPath);
+      
+      // Construct the correct URL for the admin dashboard
+      // This bypasses the React Router issues by forcing a direct hash route
+      let targetUrl;
+      if (isInAdminPath) {
+        // We're already in the admin path, just use the proper hash format
+        targetUrl = window.location.origin + window.location.pathname + '#/dashboard';
+      } else {
+        // We need to go to the admin path
+        targetUrl = window.location.origin + '/admin/#/dashboard';
+      }
+      
+      console.log('Redirecting to:', targetUrl);
+      
+      // Perform the redirect
+      window.location.href = targetUrl;
+    });
+  </script>
+</head>
+<body>
+  <h1>Redirecting to Pine Time Admin Dashboard...</h1>
+  <p>If you are not redirected automatically, <a href="/admin/#/dashboard">click here</a>.</p>
+</body>
+</html>

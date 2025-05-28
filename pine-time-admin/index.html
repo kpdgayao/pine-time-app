@@ -5,13 +5,29 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Pine Time Admin Dashboard - Manage events, users, badges and more" />
-    <!-- No base tag needed with HashRouter approach -->
     <title>Pine Time Admin Dashboard</title>
     <script>
-      // Log initial path information for debugging
+      // Enhanced route handling with direct path manipulation
       window.addEventListener('DOMContentLoaded', function() {
-        console.log('Admin dashboard loaded, path:', window.location.pathname);
+        console.log('---- PINE TIME ADMIN DASHBOARD INIT ----');
+        console.log('Raw URL:', window.location.href);
+        console.log('Path:', window.location.pathname);
         console.log('Hash:', window.location.hash);
+
+        // Fix common routing issues with direct hash handling
+        if (window.location.pathname.includes('/admin') && (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#')) {
+          console.log('Detected admin path with missing or root hash - fixing route');
+          // Force dashboard path with proper hash format
+          window.location.replace(window.location.pathname + '#/dashboard');
+        }
+
+        // Fix for /admin/#/ route (no specific path)
+        if (window.location.hash === '#/') {
+          console.log('Fixing root hash route');
+          window.location.replace(window.location.pathname + '#/dashboard');
+        }
+        
+        console.log('---- END DASHBOARD INIT ----');
       });
     </script>
   </head>

@@ -56,7 +56,7 @@ frontend:
         - key: 'Cache-Control'
           value: 'public, max-age=31536000, immutable'
   routes:
-    # ADMIN DASHBOARD SPA ROUTING WITH HASHROUTER
+    # ADMIN DASHBOARD DIRECT HTML ROUTING
     # Explicitly route all admin dashboard assets
     - source: '/admin/assets/**/*'
       status: '200'
@@ -66,6 +66,9 @@ frontend:
       status: '200'
     - source: '/admin/'
       target: '/admin/index.html'
+      status: '200'
+    # Special redirect for problematic paths
+    - source: '/admin/admin-redirect.html'
       status: '200'
     # Critical fix: Any path under /admin must serve index.html
     # This ensures the SPA router handles all routes
