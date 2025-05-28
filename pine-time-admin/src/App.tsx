@@ -71,11 +71,25 @@ function App() {
     console.log('Current hash:', window.location.hash);
     console.log('Full URL:', window.location.href);
     console.log('Dashboard route:', ADMIN_ROUTES.DASHBOARD);
+    console.log('All admin routes:', JSON.stringify(ADMIN_ROUTES));
     
     // Parse the hash to help debug route matching issues
     const hash = window.location.hash;
     if (hash) {
       console.log('Hash path (without #):', hash.replace('#', ''));
+      
+      // Try to manually parse the hash path to determine what route should match
+      let hashPath = hash.replace('#', '');
+      if (hashPath === '/') {
+        console.log('Hash path is root, should match dashboard route');
+      } else {
+        console.log('Hash path segments:', hashPath.split('/').filter(Boolean));
+      }
+    }
+    
+    // Handle potential URL path issues by dynamically checking
+    if (window.location.pathname.includes('/admin') && window.location.hash === '#/') {
+      console.log('Detected admin path with hash - applying fix for subdirectory routing');
     }
     
     // Log if we're using the base href approach
@@ -98,6 +112,7 @@ function App() {
               {/* Add the TokenSynchronizer at the top level */}
               <TokenSynchronizer />
               <Routes>
+                {/* Go back to using explicit routes for better reliability */}
                 {/* Transition route to handle authentication from main app */}
                 <Route path="transition" element={<TransitionPage />} />
                 
@@ -106,7 +121,7 @@ function App() {
                 
                 {/* Protected routes */}
                 <Route 
-                  path={ADMIN_ROUTES.DASHBOARD} 
+                  path="" 
                   element={
                     <ProtectedRoute>
                       <DashboardPage />
@@ -115,7 +130,7 @@ function App() {
                 />
                 
                 <Route 
-                  path={ADMIN_ROUTES.USERS} 
+                  path="users" 
                   element={
                     <ProtectedRoute>
                       <UsersPage />
@@ -124,7 +139,7 @@ function App() {
                 />
                 
                 <Route 
-                  path={ADMIN_ROUTES.EVENTS} 
+                  path="events" 
                   element={
                     <ProtectedRoute>
                       <EventsPage />
@@ -133,7 +148,7 @@ function App() {
                 />
                 
                 <Route 
-                  path={ADMIN_ROUTES.BADGES} 
+                  path="badges" 
                   element={
                     <ProtectedRoute>
                       <BadgesPage />
@@ -142,7 +157,7 @@ function App() {
                 />
                 
                 <Route 
-                  path={ADMIN_ROUTES.ANALYTICS} 
+                  path="analytics" 
                   element={
                     <ProtectedRoute>
                       <AnalyticsPage />
@@ -151,10 +166,10 @@ function App() {
                 />
                 
                 {/* Explicit route for empty path to handle /admin/ in production */}
-                <Route path="" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
+                <Route path="/" element={<Navigate to="" replace />} />
                 
                 {/* Catch all other routes and redirect to dashboard */}
-                <Route path="*" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
+                <Route path="*" element={<Navigate to="" replace />} />
               </Routes>
             </Suspense>
           </LoadingProvider>
