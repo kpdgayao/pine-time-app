@@ -1,68 +1,109 @@
 import { useEffect } from 'react'
-import { ThemeProvider, CssBaseline, Typography, Box, Container, AppBar, Toolbar, Button } from '@mui/material'
+import { Routes, Route, Navigate, useLocation, useNavigate, Outlet } from 'react-router-dom'
+import { ThemeProvider, CssBaseline, CircularProgress, Box } from '@mui/material'
 import { lightTheme } from './theme/theme'
+import { useAuth } from './contexts/AuthContext'
+import { useLoading } from './contexts/LoadingContext'
+
+// Layout components
+import { AdminLayout } from './components/layout/AdminLayout'
+
+// Page components
+import DashboardPage from './pages/dashboard/DashboardPage'
+import UsersPage from './pages/users/UsersPage'
+import EventsPage from './pages/events/EventsPage'
+import BadgesPage from './pages/badges/BadgesPage'
+import PointsPage from './pages/points/PointsPage'
+import AnalyticsPage from './pages/analytics/AnalyticsPage'
+import LoginPage from './pages/login/LoginPage'
+import TransitionPage from './pages/TransitionPage'
+
+// Stylesheets
 import './App.css'
 
 /**
- * Simple Admin Dashboard
- * This is a minimal implementation to ensure the admin dashboard loads correctly
+ * Main App component with routing configuration
+ * Handles authentication state and protected routes
  */
 function App() {
+  const { isAuthenticated, isAdmin, checkAuth } = useAuth();
+  const { loading } = useLoading();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   // Log debugging information to help diagnose issues
   useEffect(() => {
     console.log('Pine Time Admin Dashboard loaded');
     console.log('URL:', window.location.href);
-    console.log('Path:', window.location.pathname);
-    console.log('Hash:', window.location.hash);
+    console.log('Path:', location.pathname);
+    console.log('Auth state:', { isAuthenticated, isAdmin });
     
-    // Check for authentication token
-    const token = localStorage.getItem('access_token');
-    console.log('Auth token exists:', !!token);
-  }, []);
+    // Check authentication on route change
+    const isAuth = checkAuth();
+    console.log('Auth check result:', isAuth);
+    
+    // Redirect to login if not authenticated and not already on login page
+    if (!isAuth && !location.pathname.includes('/login')) {
+      console.log('Not authenticated, redirecting to login');
+      navigate('/login', { replace: true });
+    }
+  }, [location, isAuthenticated, isAdmin, checkAuth, navigate]);
+
+  // Show loading indicator when authentication state is being determined
+  if (loading) {
+    return (
+      <ThemeProvider theme={lightTheme}>
+        <CssBaseline />
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '100vh' 
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Pine Time Admin Dashboard
-            </Typography>
-            <Button color="inherit" onClick={() => window.location.href = '/'}>
-              Return to Main App
-            </Button>
-          </Toolbar>
-        </AppBar>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+        } />
         
-        <Container sx={{ mt: 4, mb: 4, flexGrow: 1 }}>
-          <Box sx={{ py: 4, textAlign: 'center' }}>
-            <Typography variant="h4" gutterBottom>
-              Welcome to Pine Time Admin Dashboard
-            </Typography>
-            <Typography variant="body1">
-              This dashboard provides administration capabilities for the Pine Time application.
-            </Typography>
+        {/* Special transition route for direct navigation from main app */}
+        <Route path="/transition" element={<TransitionPage />} />
+        
+        {/* Protected routes - require authentication */}
+        {isAuthenticated ? (
+          <Route element={<AdminLayout>
+            {/* AdminLayout needs children prop */}
+            <Outlet />
+          </AdminLayout>}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/badges" element={<BadgesPage />} />
+            <Route path="/points" element={<PointsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             
-            {/* Basic navigation buttons */}
-            <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button variant="contained">Dashboard</Button>
-              <Button variant="outlined">Users</Button>
-              <Button variant="outlined">Events</Button>
-              <Button variant="outlined">Badges</Button>
-              <Button variant="outlined">Analytics</Button>
-            </Box>
-          </Box>
-        </Container>
-        
-        <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 2, textAlign: 'center' }}>
-          <Typography variant="body2">
-            Pine Time Admin Dashboard © {new Date().getFullYear()}
-          </Typography>
-        </Box>
-      </Box>
+            {/* Fallback route */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        ) : (
+          // Catch-all route when not authenticated
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        )}
+      </Routes>
     </ThemeProvider>
-  )
+  );
 }
 
 export default App
