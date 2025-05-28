@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     // Set base path for production to '/admin/' using the mode parameter for consistency
-    base: mode === 'production' ? '/admin/' : '/',
+    // This must match the base href in index.html
+    base: '/admin/',
     build: {
       outDir: 'dist',
       // Clean the output directory to ensure a fresh build

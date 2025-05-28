@@ -68,15 +68,22 @@ function App() {
   // Log the current pathname to help with debugging
   useEffect(() => {
     console.log('Current pathname:', window.location.pathname);
-    console.log('Using basename:', import.meta.env.PROD ? '/admin' : '/');
     console.log('Dashboard route:', ADMIN_ROUTES.DASHBOARD);
+    
+    // Log if we're using the base href approach
+    const baseElement = document.querySelector('base');
+    if (baseElement) {
+      console.log('Using base href:', baseElement.getAttribute('href'));
+    } else {
+      console.log('No base href found in document');
+    }
   }, []);
 
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline /> {/* Reset CSS */}
-      <BrowserRouter basename={import.meta.env.PROD ? '/admin' : '/'}>
-        {/* Added basename to handle subpath in production */}
+      <BrowserRouter>
+        {/* Using base href in HTML instead of basename prop */}
         <AuthProvider>
           <LoadingProvider>
             <Suspense fallback={<LoadingFallback />}>
