@@ -1,0 +1,5 @@
+# SPA fallback for admin dashboard
+/*    /index.html   200
+
+# Ensure assets are properly served
+/assets/*  /assets/:splat  200

@@ -15,13 +15,20 @@ frontend:
         # Build main app
         - cd pine-time-frontend
         - npm run build
-        # Build admin dashboard with admin base path
-        - cd ../pine-time-admin
+        # Clean target directory first to avoid stale files
+        - cd ..
+        - rm -rf pine-time-frontend/dist/admin
+        - mkdir -p pine-time-frontend/dist/admin
+        # Build admin dashboard with correct base path (/admin/)
+        - cd pine-time-admin
         - npm run build
         # Copy admin build to main app dist/admin directory
         - cd ..
-        - mkdir -p pine-time-frontend/dist/admin
         - cp -r pine-time-admin/dist/* pine-time-frontend/dist/admin/
+        # Ensure proper SPA routing with redirects
+        - cp pine-time-admin/public/_redirects pine-time-frontend/dist/admin/
+        # Debugging: List files to verify correct structure
+        - ls -la pine-time-frontend/dist/admin/
   artifacts:
     baseDirectory: pine-time-frontend/dist
     files:

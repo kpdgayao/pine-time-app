@@ -7,9 +7,9 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    // Fix: Use root base path with HashRouter for proper path resolution
-    // HashRouter will handle the routing internally after the # symbol
-    base: '/',
+    // CRITICAL FIX: Must match the deployment subdirectory in production
+    // This ensures assets are referenced with the correct base path
+    base: mode === 'production' ? '/admin/' : '/',
     build: {
       outDir: 'dist',
       // Clean the output directory to ensure a fresh build
@@ -18,11 +18,17 @@ export default defineConfig(({ mode }) => {
       assetsDir: 'assets',
       // Add source maps for better debugging
       sourcemap: true,
-      // Split chunks for better caching
+      // Fix asset paths to ensure they're loaded correctly
+      assetsInlineLimit: 0,
+      // Split chunks for better caching with predictable paths
       rollupOptions: {
         output: {
+          // Ensure assets have predictable and absolute paths
+          assetFileNames: 'assets/[name]-[hash][extname]',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          // Create separate chunks for large dependencies
           manualChunks: (id) => {
-            // Create separate chunks for large dependencies
             if (id.includes('node_modules')) {
               if (id.includes('@mui')) return 'vendor-mui';
               return 'vendor';
