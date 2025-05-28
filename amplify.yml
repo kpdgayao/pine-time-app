@@ -32,10 +32,26 @@ frontend:
       headers:
         - key: 'Cache-Control'
           value: 'no-cache'
+    - pattern: '/admin/assets/**/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
   routes:
+    # Admin static assets (JS, CSS, images) - don't rewrite these
+    - source: '/admin/assets/**/*'
+      status: '200'
+      # No target - serve the file directly
+    # Admin application routes - serve index.html for client-side routing
+    - source: '/admin'
+      target: '/admin/index.html'
+      status: '200'
+    - source: '/admin/'
+      target: '/admin/index.html'
+      status: '200'
     - source: '/admin/**/*'
       target: '/admin/index.html'
       status: '200'
+    # Main application routes - serve index.html for client-side routing
     - source: '/*'
       target: '/index.html'
       status: '200'

@@ -65,6 +65,13 @@ const TokenSynchronizer = () => {
  * Main App component with routing, theming, and global context providers
  */
 function App() {
+  // Log the current pathname to help with debugging
+  useEffect(() => {
+    console.log('Current pathname:', window.location.pathname);
+    console.log('Using basename:', import.meta.env.PROD ? '/admin' : '/');
+    console.log('Dashboard route:', ADMIN_ROUTES.DASHBOARD);
+  }, []);
+
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline /> {/* Reset CSS */}
@@ -128,7 +135,10 @@ function App() {
                   } 
                 />
                 
-                {/* Redirect to dashboard by default */}
+                {/* Explicit route for empty path to handle /admin/ in production */}
+                <Route path="" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
+                
+                {/* Catch all other routes and redirect to dashboard */}
                 <Route path="*" element={<Navigate to={ADMIN_ROUTES.DASHBOARD} replace />} />
               </Routes>
             </Suspense>
