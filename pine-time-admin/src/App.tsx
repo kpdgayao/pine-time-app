@@ -43,9 +43,9 @@ function App() {
     console.log('Auth check result:', isAuth);
     
     // Redirect to login if not authenticated and not already on login page
-    if (!isAuth && !location.pathname.includes('/login')) {
+    if (!isAuth && !location.pathname.includes('login')) {
       console.log('Not authenticated, redirecting to login');
-      navigate('/login', { replace: true });
+      navigate('login', { replace: true });
     }
   }, [location, isAuthenticated, isAdmin, checkAuth, navigate]);
 
@@ -73,12 +73,12 @@ function App() {
       <CssBaseline />
       <Routes>
         {/* Public routes */}
-        <Route path="/login" element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+        <Route path="login" element={
+          isAuthenticated ? <Navigate to="dashboard" replace /> : <LoginPage />
         } />
         
         {/* Special transition route for direct navigation from main app */}
-        <Route path="/transition" element={<TransitionPage />} />
+        <Route path="transition" element={<TransitionPage />} />
         
         {/* Protected routes - require authentication */}
         {isAuthenticated ? (
@@ -86,20 +86,20 @@ function App() {
             {/* AdminLayout needs children prop */}
             <Outlet />
           </AdminLayout>}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/badges" element={<BadgesPage />} />
-            <Route path="/points" element={<PointsPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="" element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="events" element={<EventsPage />} />
+            <Route path="badges" element={<BadgesPage />} />
+            <Route path="points" element={<PointsPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
             
             {/* Fallback route */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Route>
         ) : (
           // Catch-all route when not authenticated
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="login" replace />} />
         )}
       </Routes>
     </ThemeProvider>

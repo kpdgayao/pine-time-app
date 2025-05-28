@@ -1,28 +1,26 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingProvider } from './contexts/LoadingContext'
 
-// Use the correct basename based on environment
-// In production, the app is served from /admin
-// In development, it's served from the root
-const basename = import.meta.env.PROD ? '/admin' : '/';
+// HashRouter doesn't need basename for subdirectory deployments
+// It automatically handles paths based on the hash fragment
 
 // Log environment information for debugging
 console.log('Environment:', import.meta.env.MODE);
-console.log('Using basename:', basename);
+console.log('Using HashRouter for more reliable routing');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter basename={basename}>
+    <HashRouter>
       <LoadingProvider>
         <AuthProvider>
           <App />
         </AuthProvider>
       </LoadingProvider>
-    </BrowserRouter>
+    </HashRouter>
   </StrictMode>,
 )
