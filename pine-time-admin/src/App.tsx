@@ -1,12 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Navigate, createHashRouter, RouterProvider } from 'react-router-dom'
 import { ThemeProvider, CssBaseline, CircularProgress, Box } from '@mui/material'
 import { lightTheme } from './theme/theme'
 import { AuthProvider } from './contexts/AuthContext'
 import { LoadingProvider } from './contexts/LoadingContext'
-import ProtectedRoute from './components/auth/ProtectedRoute'
 import { useAuth } from './contexts/AuthContext'
-import { ADMIN_ROUTES } from './config'
 import './App.css'
 
 // Lazy load pages for better performance
@@ -64,8 +62,79 @@ const TokenSynchronizer = () => {
 /**
  * Main App component with routing, theming, and global context providers
  */
+// Configuration for data router with authentication handling
+const withAuth = (Component: React.ComponentType) => {
+  const AuthWrapper = () => {
+    const { isAuthenticated, isAdmin } = useAuth();
+    
+    // Debug authentication status
+    console.log('Auth status:', { isAuthenticated, isAdmin });
+    
+    if (!isAuthenticated || !isAdmin) {
+      console.log('Not authenticated, redirecting to login');
+      return <Navigate to="/login" replace />;
+    }
+    
+    return <Component />;
+  };
+  
+  return <AuthWrapper />;
+};
+
+// Create the router configuration with data API
+const createAppRouter = () => {
+  // Debug router creation
+  console.log('Creating hash router with full path handling');
+  
+  return createHashRouter([
+    // Root route with fallback to dashboard
+    {
+      path: '/',
+      element: <Navigate to="/dashboard" replace />
+    },
+    
+    // Admin dashboard main routes
+    {
+      path: '/dashboard',
+      element: withAuth(DashboardPage),
+    },
+    {
+      path: '/users',
+      element: withAuth(UsersPage),
+    },
+    {
+      path: '/events',
+      element: withAuth(EventsPage),
+    },
+    {
+      path: '/badges',
+      element: withAuth(BadgesPage),
+    },
+    {
+      path: '/analytics',
+      element: withAuth(AnalyticsPage),
+    },
+    
+    // Auth routes
+    {
+      path: '/login',
+      element: <LoginPage />
+    },
+    {
+      path: '/transition',
+      element: <TransitionPage />
+    },
+    
+    // Catch-all route
+    {
+      path: '*',
+      element: <Navigate to="/dashboard" replace />
+    }
+  ]);
+};
+
 function App() {
-  // Enhanced comprehensive debugging for HashRouter path resolution
+  // Enhanced comprehensive debugging for router configuration
   useEffect(() => {
     console.log('---- PINE TIME ADMIN DASHBOARD PATH DEBUGGING ----');
     console.log('Raw URL:', window.location.href);
@@ -74,123 +143,32 @@ function App() {
     console.log('Pathname:', window.location.pathname);
     console.log('Hash:', window.location.hash);
     console.log('Search:', window.location.search);
-    console.log('Routes config:', JSON.stringify(ADMIN_ROUTES));
     
     // Attempt to detect deployed environment
     const isAdminSubdirectory = window.location.pathname.includes('/admin');
     console.log('Is in /admin/ subdirectory:', isAdminSubdirectory);
     
-    // Parse the hash to help debug route matching issues
-    const hash = window.location.hash;
-    if (hash) {
-      // Extract the path from the hash
-      const hashPath = hash.replace('#', '');
-      console.log('Hash path (without #):', hashPath);
-      
-      // Expected route matching
-      const expectedRoute = hashPath || '/';
-      console.log('Expected route to match:', expectedRoute);
-      
-      // Detailed path segments analysis
-      const segments = hashPath.split('/').filter(Boolean);
-      console.log('Path segments:', segments);
-      console.log('Number of segments:', segments.length);
-      
-      // Try to determine which route should match
-      if (segments.length === 0) {
-        console.log('Should match dashboard route (empty path)');
-      } else {
-        console.log('Should match route:', segments[0]);
-      }
-    }
-    
-    // Check for any base href element
-    const baseElement = document.querySelector('base');
-    if (baseElement) {
-      console.log('Base href found:', baseElement.getAttribute('href'));
-    } else {
-      console.log('No base href element in document');
-    }
-    
-    // Log HashRouter configuration
-    console.log('HashRouter configured with empty basename');
+    // Log detailed environment information
+    console.log('Using Data Router API (createHashRouter)');
     console.log('---- END PATH DEBUGGING ----');
   }, []);
+  
+  // Create the router configuration
+  const router = createAppRouter();
 
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline /> {/* Reset CSS */}
-      <HashRouter basename="">
-        {/* Using HashRouter with empty basename to prevent path conflicts */}
-        <AuthProvider>
-          <LoadingProvider>
-            <Suspense fallback={<LoadingFallback />}>
-              {/* Add the TokenSynchronizer at the top level */}
-              <TokenSynchronizer />
-              <Routes>
-                {/* Go back to using explicit routes for better reliability */}
-                {/* Transition route to handle authentication from main app */}
-                <Route path="transition" element={<TransitionPage />} />
-                
-                {/* Login page - only for direct access or fallback */}
-                <Route path="login" element={<LoginPage />} />
-                
-                {/* Protected routes */}
-                <Route 
-                  path="" 
-                  element={
-                    <ProtectedRoute>
-                      <DashboardPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                <Route 
-                  path="users" 
-                  element={
-                    <ProtectedRoute>
-                      <UsersPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                <Route 
-                  path="events" 
-                  element={
-                    <ProtectedRoute>
-                      <EventsPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                <Route 
-                  path="badges" 
-                  element={
-                    <ProtectedRoute>
-                      <BadgesPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                <Route 
-                  path="analytics" 
-                  element={
-                    <ProtectedRoute>
-                      <AnalyticsPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                
-                {/* Explicit route for empty path to handle /admin/ in production */}
-                <Route path="/" element={<Navigate to="" replace />} />
-                
-                {/* Catch all other routes and redirect to dashboard */}
-                <Route path="*" element={<Navigate to="" replace />} />
-              </Routes>
-            </Suspense>
-          </LoadingProvider>
-        </AuthProvider>
-      </HashRouter>
+      <AuthProvider>
+        <LoadingProvider>
+          <Suspense fallback={<LoadingFallback />}>
+            {/* Add the TokenSynchronizer at the top level */}
+            <TokenSynchronizer />
+            {/* Use RouterProvider instead of HashRouter+Routes */}
+            <RouterProvider router={router} />
+          </Suspense>
+        </LoadingProvider>
+      </AuthProvider>
     </ThemeProvider>
   )
 }
