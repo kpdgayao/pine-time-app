@@ -25,6 +25,8 @@ frontend:
         # Copy admin build to main app dist/admin directory
         - cd ..
         - cp -r pine-time-admin/dist/* pine-time-frontend/dist/admin/
+        # Copy standalone admin HTML as fallback
+        - cp pine-time-admin/public/standalone-admin.html pine-time-frontend/dist/admin/index.html
         # Ensure proper SPA routing with redirects
         - cp pine-time-admin/public/_redirects pine-time-frontend/dist/admin/
         # Debugging: List files to verify correct structure
