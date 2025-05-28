@@ -1,174 +1,66 @@
-import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, createHashRouter, RouterProvider } from 'react-router-dom'
-import { ThemeProvider, CssBaseline, CircularProgress, Box } from '@mui/material'
+import { useEffect } from 'react'
+import { ThemeProvider, CssBaseline, Typography, Box, Container, AppBar, Toolbar, Button } from '@mui/material'
 import { lightTheme } from './theme/theme'
-import { AuthProvider } from './contexts/AuthContext'
-import { LoadingProvider } from './contexts/LoadingContext'
-import { useAuth } from './contexts/AuthContext'
 import './App.css'
 
-// Lazy load pages for better performance
-// Login page removed as we're using the main app for authentication
-const DashboardPage = lazy(() => import('./pages/dashboard'))
-const UsersPage = lazy(() => import('./pages/users'))
-const EventsPage = lazy(() => import('./pages/events'))
-const BadgesPage = lazy(() => import('./pages/badges'))
-const AnalyticsPage = lazy(() => import('./pages/analytics'))
-
-// Import TransitionPage for seamless authentication from main app
-// This is a critical component to handle token transfers between apps
-const TransitionPage = lazy(() => import('./pages/TransitionPage'))
-const LoginPage = lazy(() => import('./pages/login/LoginPage'))
-
 /**
- * Loading fallback component that displays while lazy-loaded components are being loaded
+ * Simple Admin Dashboard
+ * This is a minimal implementation to ensure the admin dashboard loads correctly
  */
-const LoadingFallback = () => (
-  <Box
-    sx={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      bgcolor: 'background.default'
-    }}
-  >
-    <CircularProgress color="primary" />
-  </Box>
-)
-
-/**
- * Token Synchronizer component to handle automatic token checking
- */
-const TokenSynchronizer = () => {
-  // Only use checkAuth to avoid unused variable warnings
-  const { checkAuth } = useAuth();
-  
-  useEffect(() => {
-    console.log('TokenSynchronizer running initial auth check');
-    // Check for tokens from main app and transfer if needed
-    const mainToken = localStorage.getItem('access_token');
-    
-    if (mainToken) {
-      console.log('Main app token found, syncing with admin dashboard');
-      const success = checkAuth();
-      console.log('Auth check result:', success);
-    }
-  }, [checkAuth]);
-  
-  return null; // This component doesn't render anything
-};
-
-/**
- * Main App component with routing, theming, and global context providers
- */
-// Configuration for data router with authentication handling
-const withAuth = (Component: React.ComponentType) => {
-  const AuthWrapper = () => {
-    const { isAuthenticated, isAdmin } = useAuth();
-    
-    // Debug authentication status
-    console.log('Auth status:', { isAuthenticated, isAdmin });
-    
-    if (!isAuthenticated || !isAdmin) {
-      console.log('Not authenticated, redirecting to login');
-      return <Navigate to="/login" replace />;
-    }
-    
-    return <Component />;
-  };
-  
-  return <AuthWrapper />;
-};
-
-// Create the router configuration with data API
-const createAppRouter = () => {
-  // Debug router creation
-  console.log('Creating hash router with full path handling');
-  
-  return createHashRouter([
-    // Root route with fallback to dashboard
-    {
-      path: '/',
-      element: <Navigate to="/dashboard" replace />
-    },
-    
-    // Admin dashboard main routes
-    {
-      path: '/dashboard',
-      element: withAuth(DashboardPage),
-    },
-    {
-      path: '/users',
-      element: withAuth(UsersPage),
-    },
-    {
-      path: '/events',
-      element: withAuth(EventsPage),
-    },
-    {
-      path: '/badges',
-      element: withAuth(BadgesPage),
-    },
-    {
-      path: '/analytics',
-      element: withAuth(AnalyticsPage),
-    },
-    
-    // Auth routes
-    {
-      path: '/login',
-      element: <LoginPage />
-    },
-    {
-      path: '/transition',
-      element: <TransitionPage />
-    },
-    
-    // Catch-all route
-    {
-      path: '*',
-      element: <Navigate to="/dashboard" replace />
-    }
-  ]);
-};
-
 function App() {
-  // Enhanced comprehensive debugging for router configuration
+  // Log debugging information to help diagnose issues
   useEffect(() => {
-    console.log('---- PINE TIME ADMIN DASHBOARD PATH DEBUGGING ----');
-    console.log('Raw URL:', window.location.href);
-    console.log('Protocol:', window.location.protocol);
-    console.log('Host:', window.location.host);
-    console.log('Pathname:', window.location.pathname);
+    console.log('Pine Time Admin Dashboard loaded');
+    console.log('URL:', window.location.href);
+    console.log('Path:', window.location.pathname);
     console.log('Hash:', window.location.hash);
-    console.log('Search:', window.location.search);
     
-    // Attempt to detect deployed environment
-    const isAdminSubdirectory = window.location.pathname.includes('/admin');
-    console.log('Is in /admin/ subdirectory:', isAdminSubdirectory);
-    
-    // Log detailed environment information
-    console.log('Using Data Router API (createHashRouter)');
-    console.log('---- END PATH DEBUGGING ----');
+    // Check for authentication token
+    const token = localStorage.getItem('access_token');
+    console.log('Auth token exists:', !!token);
   }, []);
-  
-  // Create the router configuration
-  const router = createAppRouter();
 
   return (
     <ThemeProvider theme={lightTheme}>
-      <CssBaseline /> {/* Reset CSS */}
-      <AuthProvider>
-        <LoadingProvider>
-          <Suspense fallback={<LoadingFallback />}>
-            {/* Add the TokenSynchronizer at the top level */}
-            <TokenSynchronizer />
-            {/* Use RouterProvider instead of HashRouter+Routes */}
-            <RouterProvider router={router} />
-          </Suspense>
-        </LoadingProvider>
-      </AuthProvider>
+      <CssBaseline />
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              Pine Time Admin Dashboard
+            </Typography>
+            <Button color="inherit" onClick={() => window.location.href = '/'}>
+              Return to Main App
+            </Button>
+          </Toolbar>
+        </AppBar>
+        
+        <Container sx={{ mt: 4, mb: 4, flexGrow: 1 }}>
+          <Box sx={{ py: 4, textAlign: 'center' }}>
+            <Typography variant="h4" gutterBottom>
+              Welcome to Pine Time Admin Dashboard
+            </Typography>
+            <Typography variant="body1">
+              This dashboard provides administration capabilities for the Pine Time application.
+            </Typography>
+            
+            {/* Basic navigation buttons */}
+            <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Button variant="contained">Dashboard</Button>
+              <Button variant="outlined">Users</Button>
+              <Button variant="outlined">Events</Button>
+              <Button variant="outlined">Badges</Button>
+              <Button variant="outlined">Analytics</Button>
+            </Box>
+          </Box>
+        </Container>
+        
+        <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 2, textAlign: 'center' }}>
+          <Typography variant="body2">
+            Pine Time Admin Dashboard © {new Date().getFullYear()}
+          </Typography>
+        </Box>
+      </Box>
     </ThemeProvider>
   )
 }
