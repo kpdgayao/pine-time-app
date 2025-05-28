@@ -65,47 +65,63 @@ const TokenSynchronizer = () => {
  * Main App component with routing, theming, and global context providers
  */
 function App() {
-  // Enhanced debugging for HashRouter
+  // Enhanced comprehensive debugging for HashRouter path resolution
   useEffect(() => {
-    console.log('Current pathname:', window.location.pathname);
-    console.log('Current hash:', window.location.hash);
-    console.log('Full URL:', window.location.href);
-    console.log('Dashboard route:', ADMIN_ROUTES.DASHBOARD);
-    console.log('All admin routes:', JSON.stringify(ADMIN_ROUTES));
+    console.log('---- PINE TIME ADMIN DASHBOARD PATH DEBUGGING ----');
+    console.log('Raw URL:', window.location.href);
+    console.log('Protocol:', window.location.protocol);
+    console.log('Host:', window.location.host);
+    console.log('Pathname:', window.location.pathname);
+    console.log('Hash:', window.location.hash);
+    console.log('Search:', window.location.search);
+    console.log('Routes config:', JSON.stringify(ADMIN_ROUTES));
+    
+    // Attempt to detect deployed environment
+    const isAdminSubdirectory = window.location.pathname.includes('/admin');
+    console.log('Is in /admin/ subdirectory:', isAdminSubdirectory);
     
     // Parse the hash to help debug route matching issues
     const hash = window.location.hash;
     if (hash) {
-      console.log('Hash path (without #):', hash.replace('#', ''));
+      // Extract the path from the hash
+      const hashPath = hash.replace('#', '');
+      console.log('Hash path (without #):', hashPath);
       
-      // Try to manually parse the hash path to determine what route should match
-      let hashPath = hash.replace('#', '');
-      if (hashPath === '/') {
-        console.log('Hash path is root, should match dashboard route');
+      // Expected route matching
+      const expectedRoute = hashPath || '/';
+      console.log('Expected route to match:', expectedRoute);
+      
+      // Detailed path segments analysis
+      const segments = hashPath.split('/').filter(Boolean);
+      console.log('Path segments:', segments);
+      console.log('Number of segments:', segments.length);
+      
+      // Try to determine which route should match
+      if (segments.length === 0) {
+        console.log('Should match dashboard route (empty path)');
       } else {
-        console.log('Hash path segments:', hashPath.split('/').filter(Boolean));
+        console.log('Should match route:', segments[0]);
       }
     }
     
-    // Handle potential URL path issues by dynamically checking
-    if (window.location.pathname.includes('/admin') && window.location.hash === '#/') {
-      console.log('Detected admin path with hash - applying fix for subdirectory routing');
-    }
-    
-    // Log if we're using the base href approach
+    // Check for any base href element
     const baseElement = document.querySelector('base');
     if (baseElement) {
-      console.log('Using base href:', baseElement.getAttribute('href'));
+      console.log('Base href found:', baseElement.getAttribute('href'));
     } else {
-      console.log('No base href found in document');
+      console.log('No base href element in document');
     }
+    
+    // Log HashRouter configuration
+    console.log('HashRouter configured with empty basename');
+    console.log('---- END PATH DEBUGGING ----');
   }, []);
 
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline /> {/* Reset CSS */}
-      <HashRouter>
-        {/* Using HashRouter for more reliable routing in production */}
+      <HashRouter basename="">
+        {/* Using HashRouter with empty basename to prevent path conflicts */}
         <AuthProvider>
           <LoadingProvider>
             <Suspense fallback={<LoadingFallback />}>

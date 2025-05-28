@@ -56,23 +56,24 @@ frontend:
         - key: 'Cache-Control'
           value: 'public, max-age=31536000, immutable'
   routes:
-    # Admin static assets - don't rewrite these (improved for HashRouter)
+    # ADMIN DASHBOARD SPA ROUTING WITH HASHROUTER
+    # Explicitly route all admin dashboard assets
     - source: '/admin/assets/**/*'
       status: '200'
-    # Admin application routes - serve index.html for HashRouter
+    # Primary route for admin dashboard - must serve index.html for all paths
     - source: '/admin'
       target: '/admin/index.html'
       status: '200'
     - source: '/admin/'
       target: '/admin/index.html'
       status: '200'
-    - source: '/admin/index.html'
-      status: '200'
-    # Allow direct access to the admin index.html since HashRouter handles routing client-side
-    - source: '/admin/**/*'
+    # Critical fix: Any path under /admin must serve index.html
+    # This ensures the SPA router handles all routes
+    - source: '/admin/**'
       target: '/admin/index.html'
       status: '200'
-    # Main application routes - serve index.html for client-side routing
+    # MAIN APPLICATION SPA ROUTING
+    # Serve main app index.html for client-side routing
     - source: '/*'
       target: '/index.html'
       status: '200'
