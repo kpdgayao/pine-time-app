@@ -25,8 +25,9 @@ frontend:
         # Copy admin build to main app dist/admin directory
         - cd ..
         - cp -r pine-time-admin/dist/* pine-time-frontend/dist/admin/
-        # Use the React app build (SPA) instead of the standalone HTML
-        # DO NOT overwrite the React build with standalone HTML
+        # TEMPORARY SOLUTION: Use standalone HTML to ensure admin dashboard works
+        # This is a reliable fallback until routing issues are fully resolved
+        - cp pine-time-admin/public/standalone-admin.html pine-time-frontend/dist/admin/index.html
         # Ensure proper SPA routing with redirects
         - cp pine-time-admin/public/_redirects pine-time-frontend/dist/admin/
         # Debugging: List files to verify correct structure

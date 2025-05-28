@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pine Time Admin Dashboard</title>
+  <!-- Base tag to handle any asset references -->
+  <base href="/admin/">
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -129,22 +131,64 @@
     .status-value {
       color: #666;
     }
+    .header-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    #user-info {
+      color: white;
+      font-size: 0.9rem;
+    }
+    .error-message {
+      background-color: #ffebee;
+      color: #d32f2f;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      border-left: 4px solid #d32f2f;
+    }
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .action-button {
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-button:hover {
+      background-color: #e0e0e0;
+    }
+    .admin-section {
+      margin-top: 1.5rem;
+      transition: all 0.3s ease;
+    }
     footer {
       background-color: #1976d2;
       color: white;
       padding: 1rem;
       text-align: center;
       font-size: 0.9rem;
+      margin-top: 2rem;
     }
   </style>
 </head>
 <body>
   <div class="app-container">
     <header>
-      <div class="header-content">
-        <h1 class="app-title">Pine Time Admin Dashboard</h1>
-        <button class="main-button" onclick="window.location.href='/'">Return to Main App</button>
-      </div>
+        <div class="header-content">
+          <h1 class="app-title">Pine Time Admin Dashboard</h1>
+          <div class="header-info">
+            <span id="user-info">Loading user info...</span>
+            <button class="main-button" onclick="window.location.href='/'">Return to Main App</button>
+          </div>
+        </div>
     </header>
     
     <main>
@@ -156,15 +200,20 @@
         </p>
         
         <div class="nav-buttons">
-          <button class="nav-button primary-button">Dashboard</button>
-          <button class="nav-button secondary-button">Users</button>
-          <button class="nav-button secondary-button">Events</button>
-          <button class="nav-button secondary-button">Badges</button>
-          <button class="nav-button secondary-button">Analytics</button>
+          <button class="nav-button primary-button" data-section="dashboard">Dashboard</button>
+          <button class="nav-button secondary-button" data-section="users">Users</button>
+          <button class="nav-button secondary-button" data-section="events">Events</button>
+          <button class="nav-button secondary-button" data-section="badges">Badges</button>
+          <button class="nav-button secondary-button" data-section="points">Points</button>
+          <button class="nav-button secondary-button" data-section="analytics">Analytics</button>
         </div>
+        
+        <!-- Error message display -->
+        <div id="error-message" class="error-message" style="display: none;"></div>
       </section>
       
-      <section class="status-panel">
+      <!-- Dashboard Section -->
+      <section id="dashboard-section" class="admin-section status-panel">
         <h3 class="status-title">System Status</h3>
         <div class="status-item">
           <span class="status-label">Authentication:</span>
@@ -177,6 +226,56 @@
         <div class="status-item">
           <span class="status-label">Last Updated:</span>
           <span class="status-value" id="last-updated"></span>
+        </div>
+      </section>
+      
+      <!-- Users Section -->
+      <section id="users-section" class="admin-section status-panel" style="display: none;">
+        <h3 class="status-title">User Management</h3>
+        <p>View and manage user accounts, permissions, and activity.</p>
+        <div class="action-buttons">
+          <button class="action-button">View All Users</button>
+          <button class="action-button">Search Users</button>
+        </div>
+      </section>
+      
+      <!-- Events Section -->
+      <section id="events-section" class="admin-section status-panel" style="display: none;">
+        <h3 class="status-title">Event Management</h3>
+        <p>Create, edit, and monitor events, registrations, and attendance.</p>
+        <div class="action-buttons">
+          <button class="action-button">View All Events</button>
+          <button class="action-button">Create New Event</button>
+        </div>
+      </section>
+      
+      <!-- Badges Section -->
+      <section id="badges-section" class="admin-section status-panel" style="display: none;">
+        <h3 class="status-title">Badge Management</h3>
+        <p>Manage user badges, achievement criteria, and progression.</p>
+        <div class="action-buttons">
+          <button class="action-button">View All Badges</button>
+          <button class="action-button">Create New Badge</button>
+        </div>
+      </section>
+      
+      <!-- Points Section -->
+      <section id="points-section" class="admin-section status-panel" style="display: none;">
+        <h3 class="status-title">Points Management</h3>
+        <p>Manage user points, transactions, and rewards.</p>
+        <div class="action-buttons">
+          <button class="action-button">View Points Transactions</button>
+          <button class="action-button">Adjust User Points</button>
+        </div>
+      </section>
+      
+      <!-- Analytics Section -->
+      <section id="analytics-section" class="admin-section status-panel" style="display: none;">
+        <h3 class="status-title">Analytics Dashboard</h3>
+        <p>View system metrics, user engagement, and performance data.</p>
+        <div class="action-buttons">
+          <button class="action-button">View User Analytics</button>
+          <button class="action-button">View Event Analytics</button>
         </div>
       </section>
     </main>
@@ -193,8 +292,67 @@
     // Set last updated timestamp
     document.getElementById('last-updated').textContent = new Date().toLocaleString();
     
-    // Check authentication status
-    window.addEventListener('DOMContentLoaded', function() {
+    // Pine Time admin dashboard API integration
+    const API_BASE_URL = 'https://api.pinetimeapp.com/api/v1';
+    const DEFAULT_TIMEOUT = 10000;
+    
+    // Error handling utilities following Pine Time guidelines
+    function handleApiError(error, fallbackMessage = 'An error occurred') {
+      console.error('API Error:', error);
+      let errorMessage = fallbackMessage;
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response:', error.response.status, error.response.data);
+        errorMessage = `Error ${error.response.status}: ${error.response.data.detail || fallbackMessage}`;
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('Error request:', error.request);
+        errorMessage = 'No response received from server. Please check your connection.';
+      }
+      
+      // Display error message to user
+      const errorElement = document.getElementById('error-message');
+      if (errorElement) {
+        errorElement.textContent = errorMessage;
+        errorElement.style.display = 'block';
+      }
+      
+      return null;
+    }
+    
+    // Safe API call with proper error handling
+    async function safeApiCall(url, options = {}) {
+      try {
+        const token = localStorage.getItem('access_token');
+        const headers = {
+          'Content-Type': 'application/json',
+          ...options.headers
+        };
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(API_BASE_URL + url, {
+          ...options,
+          headers,
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw { response };
+        }
+        
+        return await response.json();
+      } catch (error) {
+        return handleApiError(error);
+      }
+    }
+    
+    // Initialize admin dashboard functionality
+    window.addEventListener('DOMContentLoaded', async function() {
       console.log('Pine Time Standalone Admin Dashboard loaded');
       
       // Log current location for debugging
@@ -202,19 +360,58 @@
       console.log('Current pathname:', window.location.pathname);
       console.log('Current hash:', window.location.hash);
       
+      // Setup button navigation handlers
+      document.querySelectorAll('.nav-button').forEach(button => {
+        button.addEventListener('click', function() {
+          const section = this.getAttribute('data-section');
+          if (section) {
+            // Handle section navigation
+            document.querySelectorAll('.admin-section').forEach(s => s.style.display = 'none');
+            document.getElementById(section + '-section').style.display = 'block';
+            
+            // Update active button styling
+            document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('primary-button'));
+            document.querySelectorAll('.nav-button').forEach(b => b.classList.add('secondary-button'));
+            this.classList.remove('secondary-button');
+            this.classList.add('primary-button');
+          }
+        });
+      });
+      
       // Check for authentication token
       const token = localStorage.getItem('access_token');
+      const adminToken = localStorage.getItem('admin_access_token');
       const authStatus = document.getElementById('auth-status');
       
-      if (token) {
+      // Check both possible token locations (main app and admin)
+      if (token || adminToken) {
         console.log('Authentication token found');
         authStatus.textContent = 'Authenticated';
         authStatus.style.color = '#4caf50';
+        
+        // If we only have the main app token, copy it to admin token
+        if (token && !adminToken) {
+          localStorage.setItem('admin_access_token', token);
+        }
+        
+        // Try to fetch current user info
+        try {
+          const userData = await safeApiCall('/users/me');
+          if (userData) {
+            document.getElementById('user-info').textContent = 
+              `Logged in as: ${userData.full_name || userData.email || 'Administrator'}`;
+          }
+        } catch (error) {
+          console.error('Failed to fetch user data:', error);
+        }
       } else {
         console.log('No authentication token found');
         authStatus.textContent = 'Not Authenticated';
         authStatus.style.color = '#f44336';
       }
+      
+      // Start on dashboard section by default
+      document.querySelector('.nav-button[data-section="dashboard"]').click();
     });
   </script>
 </body>
