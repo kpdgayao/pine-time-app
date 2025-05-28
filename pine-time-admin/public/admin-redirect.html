@@ -3,39 +3,195 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pine Time Admin Redirect</title>
-  <script>
-    // Simple redirect script to handle admin dashboard routing
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('Admin redirect page loaded');
-      console.log('Current URL:', window.location.href);
-      console.log('Current pathname:', window.location.pathname);
-      console.log('Current hash:', window.location.hash);
-      
-      // Determine if we are in the admin subdirectory
-      const isInAdminPath = window.location.pathname.includes('/admin');
-      console.log('Is in admin path:', isInAdminPath);
-      
-      // Construct the correct URL for the admin dashboard
-      // This bypasses the React Router issues by forcing a direct hash route
-      let targetUrl;
-      if (isInAdminPath) {
-        // We're already in the admin path, just use the proper hash format
-        targetUrl = window.location.origin + window.location.pathname + '#/dashboard';
-      } else {
-        // We need to go to the admin path
-        targetUrl = window.location.origin + '/admin/#/dashboard';
-      }
-      
-      console.log('Redirecting to:', targetUrl);
-      
-      // Perform the redirect
-      window.location.href = targetUrl;
-    });
-  </script>
+  <title>Pine Time Admin Dashboard</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background-color: #2E7D32; /* Pine Time green theme */
+      color: white;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .app-title {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    .main-button {
+      background-color: white;
+      color: #2E7D32;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    .main-button:hover {
+      background-color: #f0f0f0;
+    }
+    main {
+      flex: 1;
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    h1, h2, h3 {
+      color: #2E7D32;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .admin-btn {
+      background-color: #2E7D32;
+      color: white;
+      border: none;
+      padding: 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.3s;
+    }
+    .admin-btn:hover {
+      background-color: #1B5E20;
+    }
+    .admin-btn-secondary {
+      background-color: white;
+      color: #2E7D32;
+      border: 1px solid #2E7D32;
+    }
+    .admin-btn-secondary:hover {
+      background-color: #f0f7f0;
+    }
+    footer {
+      background-color: #2E7D32;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+  </style>
 </head>
 <body>
-  <h1>Redirecting to Pine Time Admin Dashboard...</h1>
-  <p>If you are not redirected automatically, <a href="/admin/#/dashboard">click here</a>.</p>
+  <div class="app-container">
+    <header>
+      <div class="header-content">
+        <h1 class="app-title">Pine Time Admin Dashboard</h1>
+        <button class="main-button" onclick="window.location.href = '/'">Return to Main App</button>
+      </div>
+    </header>
+    
+    <main>
+      <div class="card">
+        <h2>Welcome to the Admin Dashboard</h2>
+        <p>This is a simplified admin dashboard for Pine Time Experience Baguio. Use the buttons below to navigate to specific admin functions.</p>
+        
+        <div class="btn-grid">
+          <a href="/" class="admin-btn">Main Dashboard</a>
+          <a href="/" class="admin-btn">User Management</a>
+          <a href="/" class="admin-btn">Event Management</a>
+          <a href="/" class="admin-btn">Badge Management</a>
+          <a href="/" class="admin-btn">Points System</a>
+          <a href="/" class="admin-btn">Analytics</a>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>System Status</h3>
+        <p id="status-message">Checking authentication status...</p>
+        <p id="api-status">Checking API connection...</p>
+      </div>
+    </main>
+    
+    <footer>
+      Pine Time Admin Dashboard © <span id="current-year"></span>
+    </footer>
+  </div>
+  
+  <script>
+    // Set current year
+    document.getElementById('current-year').textContent = new Date().getFullYear();
+    
+    // Check authentication status
+    window.addEventListener('DOMContentLoaded', function() {
+      // Log for debugging
+      console.log('Emergency Admin Dashboard loaded');
+      console.log('URL:', window.location.href);
+      
+      // Check for tokens
+      const mainToken = localStorage.getItem('access_token');
+      const adminToken = localStorage.getItem('admin_access_token');
+      
+      // Update status message
+      const statusElement = document.getElementById('status-message');
+      if (mainToken || adminToken) {
+        statusElement.textContent = 'Authenticated ✓';
+        statusElement.style.color = '#2E7D32';
+        
+        // If we have main token but no admin token, copy it
+        if (mainToken && !adminToken) {
+          localStorage.setItem('admin_access_token', mainToken);
+          console.log('Copied main token to admin token');
+        }
+      } else {
+        statusElement.textContent = 'Not authenticated. Please log in through the main application first.';
+        statusElement.style.color = '#D32F2F';
+      }
+      
+      // Check API status
+      const apiElement = document.getElementById('api-status');
+      fetch('https://api.pinetimeapp.com/api/v1/health', { method: 'GET' })
+        .then(response => {
+          if (response.ok) {
+            apiElement.textContent = 'API connection successful ✓';
+            apiElement.style.color = '#2E7D32';
+          } else {
+            throw new Error('API returned status ' + response.status);
+          }
+        })
+        .catch(error => {
+          console.error('API check failed:', error);
+          apiElement.textContent = 'API connection failed. Some features may be unavailable.';
+          apiElement.style.color = '#D32F2F';
+        });
+    });
+  </script>
 </body>
 </html>
