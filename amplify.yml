@@ -26,28 +26,49 @@ frontend:
     baseDirectory: pine-time-frontend/dist
     files:
       - '**/*'
-  # Configure routes for SPA routing
+  # Configure routes for SPA routing with HashRouter for admin dashboard
   customHeaders:
-    - pattern: '/admin/**/*'
+    # Default cache headers for admin static assets
+    - pattern: '/admin/assets/**/*.js'
       headers:
         - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '/admin/assets/**/*.css'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '/admin/assets/**/*.woff*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    # Dynamic HTML and non-cacheable admin content
+    - pattern: '/admin/*.html'
+      headers:
+        - key: 'Cache-Control'
+          value: 'no-cache, no-store, must-revalidate'
+        - key: 'Pragma'
           value: 'no-cache'
-    - pattern: '/admin/assets/**/*'
+        - key: 'Expires'
+          value: '0'
+    # Main app assets
+    - pattern: '/assets/**/*'
       headers:
         - key: 'Cache-Control'
           value: 'public, max-age=31536000, immutable'
   routes:
-    # Admin static assets (JS, CSS, images) - don't rewrite these
+    # Admin static assets - don't rewrite these (improved for HashRouter)
     - source: '/admin/assets/**/*'
       status: '200'
-      # No target - serve the file directly
-    # Admin application routes - serve index.html for client-side routing
+    # Admin application routes - serve index.html for HashRouter
     - source: '/admin'
       target: '/admin/index.html'
       status: '200'
     - source: '/admin/'
       target: '/admin/index.html'
       status: '200'
+    - source: '/admin/index.html'
+      status: '200'
+    # Allow direct access to the admin index.html since HashRouter handles routing client-side
     - source: '/admin/**/*'
       target: '/admin/index.html'
       status: '200'
