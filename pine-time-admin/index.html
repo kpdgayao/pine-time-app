@@ -7,24 +7,25 @@
     <meta name="description" content="Pine Time Admin Dashboard - Manage events, users, badges and more" />
     <title>Pine Time Admin Dashboard</title>
     <script>
-      // Enhanced route handling with direct path manipulation
+      // Enhanced route handling for subdirectory deployment with BrowserRouter
       window.addEventListener('DOMContentLoaded', function() {
         console.log('---- PINE TIME ADMIN DASHBOARD INIT ----');
         console.log('Raw URL:', window.location.href);
         console.log('Path:', window.location.pathname);
-        console.log('Hash:', window.location.hash);
-
-        // Fix common routing issues with direct hash handling
-        if (window.location.pathname.includes('/admin') && (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#')) {
-          console.log('Detected admin path with missing or root hash - fixing route');
-          // Force dashboard path with proper hash format
-          window.location.replace(window.location.pathname + '#/dashboard');
-        }
-
-        // Fix for /admin/#/ route (no specific path)
-        if (window.location.hash === '#/') {
-          console.log('Fixing root hash route');
-          window.location.replace(window.location.pathname + '#/dashboard');
+        
+        // Debug mode for troubleshooting deployment issues
+        window.PINE_TIME_DEBUG = {
+          startTime: new Date().toISOString(),
+          initialUrl: window.location.href,
+          initialPath: window.location.pathname,
+          userAgent: navigator.userAgent
+        };
+        
+        // Route handling for BrowserRouter in subdirectory deployment
+        // If we detect we're at /admin/ without a specific path, redirect to dashboard
+        const path = window.location.pathname;
+        if (path === '/admin/' || path === '/admin') {
+          console.log('At admin root, will render dashboard');
         }
         
         console.log('---- END DASHBOARD INIT ----');

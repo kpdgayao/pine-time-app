@@ -1,0 +1,20 @@
+[
+  {
+    "source": "/admin",
+    "target": "/admin/",
+    "status": "301",
+    "condition": null
+  },
+  {
+    "source": "/admin/*",
+    "target": "/admin/index.html",
+    "status": "200",
+    "condition": null
+  },
+  {
+    "source": "/admin/assets/*",
+    "target": "/admin/assets/:splat",
+    "status": "200",
+    "condition": null
+  }
+]

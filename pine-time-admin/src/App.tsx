@@ -31,16 +31,34 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Log debugging information to help diagnose issues
+  // Enhanced debugging to diagnose deployment and routing issues
   useEffect(() => {
+    // Basic app diagnostics
     console.log('Pine Time Admin Dashboard loaded');
-    console.log('URL:', window.location.href);
-    console.log('Path:', location.pathname);
-    console.log('Auth state:', { isAuthenticated, isAdmin });
     
-    // Check authentication on route change
+    // Enhanced routing diagnostics
+    console.log('Navigation diagnostics:', {
+      fullUrl: window.location.href,
+      pathname: location.pathname,
+      baseUrl: import.meta.env.BASE_URL,
+      mode: import.meta.env.MODE,
+      hash: window.location.hash,
+      search: window.location.search,
+      host: window.location.host
+    });
+    
+    // Authentication diagnostics
+    console.log('Auth state:', { isAuthenticated, isAdmin });
     const isAuth = checkAuth();
     console.log('Auth check result:', isAuth);
+    
+    // Asset path diagnostics
+    console.log('Asset path resolution:', {
+      relativePath: 'assets/logo.png',
+      withBaseUrl: `${import.meta.env.BASE_URL}assets/logo.png`,
+      withSlash: '/assets/logo.png',
+      withoutSlash: 'assets/logo.png'
+    });
     
     // Redirect to login if not authenticated and not already on login page
     if (!isAuth && !location.pathname.includes('login')) {

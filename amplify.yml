@@ -25,9 +25,8 @@ frontend:
         # Copy admin build to main app dist/admin directory
         - cd ..
         - cp -r pine-time-admin/dist/* pine-time-frontend/dist/admin/
-        # EMERGENCY FIX: Use direct admin-redirect.html as main admin dashboard
-        # This completely bypasses React Router and ensures a working admin interface
-        - cp pine-time-admin/public/admin-redirect.html pine-time-frontend/dist/admin/index.html
+        # Use the properly configured React admin dashboard with BrowserRouter
+        # No longer need the emergency redirect fix with our proper routing configuration
         # Ensure proper SPA routing with redirects
         - cp pine-time-admin/public/_redirects pine-time-frontend/dist/admin/
         # Debugging: List files to verify correct structure
@@ -36,7 +35,7 @@ frontend:
     baseDirectory: pine-time-frontend/dist
     files:
       - '**/*'
-  # Configure routes for SPA routing with HashRouter for admin dashboard
+  # Configure routes for SPA routing with BrowserRouter for admin dashboard
   customHeaders:
     # Default cache headers for admin static assets
     - pattern: '/admin/assets/**/*.js'
