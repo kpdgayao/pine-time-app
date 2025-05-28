@@ -33,14 +33,16 @@ export const DEFAULT_TIMEOUT = 10000;
 export const EXTENDED_TIMEOUT = 30000;
 
 // Admin-specific configuration
+// For HashRouter, we need to ensure routes don't include a leading slash
+// This ensures they're correctly handled as relative paths to the hash base
 export const ADMIN_ROUTES = {
-  DASHBOARD: '/',
-  USERS: '/users',
-  EVENTS: '/events',
-  ANALYTICS: '/analytics',
-  BADGES: '/badges',
-  POINTS: '/points',
-  LOGIN: '/login',
+  DASHBOARD: '',  // Empty string instead of '/' for the root dashboard route
+  USERS: 'users',  // No leading slash for HashRouter
+  EVENTS: 'events',
+  ANALYTICS: 'analytics',
+  BADGES: 'badges',
+  POINTS: 'points',
+  LOGIN: 'login',
 };
 
 // Log environment mode

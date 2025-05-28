@@ -65,10 +65,18 @@ const TokenSynchronizer = () => {
  * Main App component with routing, theming, and global context providers
  */
 function App() {
-  // Log the current pathname to help with debugging
+  // Enhanced debugging for HashRouter
   useEffect(() => {
     console.log('Current pathname:', window.location.pathname);
+    console.log('Current hash:', window.location.hash);
+    console.log('Full URL:', window.location.href);
     console.log('Dashboard route:', ADMIN_ROUTES.DASHBOARD);
+    
+    // Parse the hash to help debug route matching issues
+    const hash = window.location.hash;
+    if (hash) {
+      console.log('Hash path (without #):', hash.replace('#', ''));
+    }
     
     // Log if we're using the base href approach
     const baseElement = document.querySelector('base');
@@ -91,10 +99,10 @@ function App() {
               <TokenSynchronizer />
               <Routes>
                 {/* Transition route to handle authentication from main app */}
-                <Route path="/transition" element={<TransitionPage />} />
+                <Route path="transition" element={<TransitionPage />} />
                 
                 {/* Login page - only for direct access or fallback */}
-                <Route path="/login" element={<LoginPage />} />
+                <Route path="login" element={<LoginPage />} />
                 
                 {/* Protected routes */}
                 <Route 
