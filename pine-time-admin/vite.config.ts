@@ -7,9 +7,9 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    // Set base path for production to '/admin/' using the mode parameter for consistency
-    // This must match the base href in index.html
-    base: '/admin/',
+    // Set base path for assets but routes will be handled by HashRouter
+    // For HashRouter, we need assets in /admin/ but no path prefix for routes
+    base: mode === 'production' ? '/admin/' : '/',
     build: {
       outDir: 'dist',
       // Clean the output directory to ensure a fresh build

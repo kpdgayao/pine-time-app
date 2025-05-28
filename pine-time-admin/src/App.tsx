@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider, CssBaseline, CircularProgress, Box } from '@mui/material'
 import { lightTheme } from './theme/theme'
 import { AuthProvider } from './contexts/AuthContext'
@@ -82,8 +82,8 @@ function App() {
   return (
     <ThemeProvider theme={lightTheme}>
       <CssBaseline /> {/* Reset CSS */}
-      <BrowserRouter>
-        {/* Using base href in HTML instead of basename prop */}
+      <HashRouter>
+        {/* Using HashRouter for more reliable routing in production */}
         <AuthProvider>
           <LoadingProvider>
             <Suspense fallback={<LoadingFallback />}>
@@ -151,7 +151,7 @@ function App() {
             </Suspense>
           </LoadingProvider>
         </AuthProvider>
-      </BrowserRouter>
+      </HashRouter>
     </ThemeProvider>
   )
 }
