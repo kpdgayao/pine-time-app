@@ -1,96 +1,50 @@
 version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - nvm install 20
-        - nvm use 20
-        - cd pine-time-frontend
-        - npm install
-        - cd ../pine-time-admin
-        - npm install
-        - cd ..
-    build:
-      commands:
-        # Build main app
-        - cd pine-time-frontend
-        - npm run build
-        # Clean target directory first to avoid stale files
-        - cd ..
-        - rm -rf pine-time-frontend/dist/admin
-        - mkdir -p pine-time-frontend/dist/admin
-        # Build admin dashboard with correct base path (/admin/)
-        - cd pine-time-admin
-        - npm run build
-        # Copy admin build to main app dist/admin directory
-        - cd ..
-        - cp -r pine-time-admin/dist/* pine-time-frontend/dist/admin/
-        # Use the properly configured React admin dashboard with BrowserRouter
-        # No longer need the emergency redirect fix with our proper routing configuration
-        # Ensure proper SPA routing with redirects
-        - cp pine-time-admin/public/_redirects pine-time-frontend/dist/admin/
-        # Debugging: List files to verify correct structure
-        - ls -la pine-time-frontend/dist/admin/
-  artifacts:
-    baseDirectory: pine-time-frontend/dist
-    files:
-      - '**/*'
-  # Configure routes for SPA routing with BrowserRouter for admin dashboard
-  customHeaders:
-    # Default cache headers for admin static assets
-    - pattern: '/admin/assets/**/*.js'
-      headers:
-        - key: 'Cache-Control'
-          value: 'public, max-age=31536000, immutable'
-    - pattern: '/admin/assets/**/*.css'
-      headers:
-        - key: 'Cache-Control'
-          value: 'public, max-age=31536000, immutable'
-    - pattern: '/admin/assets/**/*.woff*'
-      headers:
-        - key: 'Cache-Control'
-          value: 'public, max-age=31536000, immutable'
-    # Dynamic HTML and non-cacheable admin content
-    - pattern: '/admin/*.html'
-      headers:
-        - key: 'Cache-Control'
-          value: 'no-cache, no-store, must-revalidate'
-        - key: 'Pragma'
-          value: 'no-cache'
-        - key: 'Expires'
-          value: '0'
-    # Main app assets
-    - pattern: '/assets/**/*'
-      headers:
-        - key: 'Cache-Control'
-          value: 'public, max-age=31536000, immutable'
-  routes:
-    # ADMIN DASHBOARD DIRECT HTML ROUTING
-    # Explicitly route all admin dashboard assets
-    - source: '/admin/assets/**/*'
-      status: '200'
-    # Primary route for admin dashboard - must serve index.html for all paths
-    - source: '/admin'
-      target: '/admin/index.html'
-      status: '200'
-    - source: '/admin/'
-      target: '/admin/index.html'
-      status: '200'
-    # Special redirect for problematic paths
-    - source: '/admin/admin-redirect.html'
-      status: '200'
-    # Critical fix: Any path under /admin must serve index.html
-    # This ensures the SPA router handles all routes
-    - source: '/admin/**'
-      target: '/admin/index.html'
-      status: '200'
-    # MAIN APPLICATION SPA ROUTING
-    # Serve main app index.html for client-side routing
-    - source: '/*'
-      target: '/index.html'
-      status: '200'
-  cache:
-    paths:
-      - node_modules/**/*
-      - pine-time-frontend/node_modules/**/*
-      - pine-time-admin/node_modules/**/*
+# Monorepo configuration for Pine Time
+applications:
+  # Frontend Application
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - nvm install 20
+            - nvm use 20
+            - npm install
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      routes:
+        - source: '/**'
+          target: '/index.html'
+          status: '200'
+      cache:
+        paths:
+          - node_modules/**/*
+    appRoot: pine-time-frontend
+    
+  # Admin Application
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - nvm install 20
+            - nvm use 20
+            - npm install
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      routes:
+        - source: '/**'
+          target: '/index.html'
+          status: '200'
+      cache:
+        paths:
+          - node_modules/**/*
+    appRoot: pine-time-admin
