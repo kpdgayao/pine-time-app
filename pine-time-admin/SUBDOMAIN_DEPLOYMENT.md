@@ -34,10 +34,12 @@ This guide outlines the process of deploying the Pine Time Admin Dashboard to a 
 4. Choose GitHub as your repository source
 5. Select your repository and branch
 6. Configure build settings:
+
    ```yaml
    # Use the amplify.yml from the pine-time-admin directory
    baseDirectory: dist
    ```
+
 7. Deploy the application
 
 ## Step 3: Configure Custom Domain in Amplify
@@ -56,6 +58,7 @@ This guide outlines the process of deploying the Pine Time Admin Dashboard to a 
 Since the admin dashboard will now be on a different domain, you need to handle authentication:
 
 1. **Token Sharing**:
+
    ```javascript
    // When logging in from main application
    localStorage.setItem('admin_token', token);
