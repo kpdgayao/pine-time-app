@@ -1,0 +1,21 @@
+{
+  "domain": {
+    "domainName": "admin.pinetimeapp.com",
+    "enableAutoSubDomain": false,
+    "certificateSettings": {
+      "type": "AMPLIFY_MANAGED"
+    },
+    "customRules": [
+      {
+        "source": "/<*>",
+        "target": "/index.html",
+        "status": "200"
+      },
+      {
+        "source": "http://admin.pinetimeapp.com/<*>",
+        "target": "https://admin.pinetimeapp.com/<*>",
+        "status": "301"
+      }
+    ]
+  }
+}
