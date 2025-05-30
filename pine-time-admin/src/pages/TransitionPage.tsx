@@ -9,18 +9,33 @@ import { jwtDecode } from 'jwt-decode';
  * It checks for authentication tokens and redirects accordingly
  */
 const TransitionPage: React.FC = () => {
-  // Include isAuthenticated for token status display
-  const { checkAuth, isAuthenticated } = useAuth();
+  // Include enhanced auth state from context
+  const { checkAuth, isAuthenticated, authState, login } = useAuth();
   const navigate = useNavigate();
   const [message, setMessage] = useState('Authenticating...');
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<string[]>([]);
+  const [authAttempting, setAuthAttempting] = useState(false);
   
-  // Helper function to add debug messages
+  // Helper function to add debug messages with timestamp
   const addDebug = (msg: string) => {
-    console.log('TransitionPage Debug:', msg);
-    setDebug(prev => [...prev, msg]);
+    const timestamp = new Date().toISOString().split('T')[1].substring(0, 8);
+    const debugMsg = `[${timestamp}] ${msg}`;
+    console.log('TransitionPage Debug:', debugMsg);
+    setDebug(prev => [...prev, debugMsg]);
   };
+
+  // Add a timeout for authentication operations
+  useEffect(() => {
+    const authTimer = setTimeout(() => {
+      if (!isAuthenticated && authAttempting) {
+        setError('Authentication timed out. Please try again.');
+        addDebug('Authentication operation timed out after 10 seconds');
+      }
+    }, 10000); // 10 seconds timeout
+
+    return () => clearTimeout(authTimer);
+  }, [isAuthenticated, authAttempting]);
 
   // Single useEffect with clear authentication logic
   // Using a ref to prevent multiple executions
@@ -34,6 +49,7 @@ const TransitionPage: React.FC = () => {
     
     // Mark that we've attempted authentication
     authAttemptedRef.current = true;
+    setAuthAttempting(true);
     
     const handleAuthentication = async () => {
       try {
@@ -61,6 +77,7 @@ const TransitionPage: React.FC = () => {
                 setError('Authentication expired. Please try again.');
                 // Clean up expired key
                 sessionStorage.removeItem(oneTimeAuthKey);
+                setAuthAttempting(false);
                 return;
               }
               
@@ -82,6 +99,7 @@ const TransitionPage: React.FC = () => {
                   
                   if (!isAdmin) {
                     setError('Your account does not have admin privileges');
+                    setAuthAttempting(false);
                     return;
                   }
                   
@@ -94,16 +112,36 @@ const TransitionPage: React.FC = () => {
                   // Clean up the one-time auth key
                   sessionStorage.removeItem(oneTimeAuthKey);
                   
-                  // Force authentication check
-                  const authResult = checkAuth();
-                  addDebug(`Auth check result: ${authResult}`);
+                  // Use the login method with existing token
+                  addDebug('Logging in with existing token');
+                  const loginSuccess = await login('', '', true);
+                  addDebug(`Login with existing token result: ${loginSuccess}`);
                   
-                  // Wait for a moment to allow token processing
+                  // Use auth state to track the authentication progress
+                  // Updated timing with logging
                   await new Promise(resolve => setTimeout(resolve, 500));
                   
+                  setAuthAttempting(false);
+                  
                   // Go to dashboard
-                  navigate('/');
-                  return;
+                  if (isAuthenticated) {
+                    addDebug('Authentication confirmed, redirecting to dashboard');
+                    navigate('/dashboard', { replace: true });
+                  } else {
+                    // Check auth state to provide better feedback
+                    addDebug(`Authentication state: ${JSON.stringify({
+                      isAuthenticated,
+                      error: authState.error,
+                      isInitialized: authState.isInitialized,
+                      isValidating: authState.isValidating
+                    })}`);
+                    
+                    if (authState.error) {
+                      setError(`Authentication failed: ${authState.error}`);
+                    } else {
+                      setError('Authentication failed. Please try logging in directly.');
+                    }
+                  }
                 } catch (tokenError) {
                   addDebug(`Token decode error: ${tokenError}`);
                   setError('Invalid authentication token');
@@ -126,38 +164,35 @@ const TransitionPage: React.FC = () => {
         const mainToken = localStorage.getItem('access_token');
         const mainRefreshToken = localStorage.getItem('refresh_token');
         const adminToken = localStorage.getItem('admin_access_token');
-        const adminRefreshToken = localStorage.getItem('admin_refresh_token');
         
         addDebug(`Main token exists: ${!!mainToken}`);
         addDebug(`Admin token exists: ${!!adminToken}`);
         
-        // Check for valid tokens in admin storage
-        if (adminToken && adminRefreshToken) {
-          addDebug('Using existing admin tokens');
-          const authResult = checkAuth();
-          addDebug(`Auth check result: ${authResult}`);
-          
-          if (authResult) {
-            setMessage('Already authenticated, redirecting to dashboard...');
-            navigate('/');
-            return;
-          }
+        // Try to check current authentication first
+        addDebug('Trying direct authentication check');
+        const authResult = await checkAuth();
+        addDebug(`Auth check result: ${authResult}`);
+        
+        if (authResult === true) {
+          setMessage('Already authenticated, redirecting to dashboard...');
+          navigate('/dashboard', { replace: true });
+          return;
         }
         
         // Try with main app tokens as last resort
         if (mainToken && mainRefreshToken) {
           addDebug('Trying with main app tokens');
           
-          // Transfer tokens to admin format
+          // Transfer main tokens to admin format
           localStorage.setItem('admin_access_token', mainToken);
           localStorage.setItem('admin_refresh_token', mainRefreshToken);
           
-          // Force authentication check
-          const authResult = checkAuth();
-          addDebug(`Auth check result: ${authResult}`);
+          // Check authentication again
+          const mainTokenResult = await checkAuth();
+          addDebug(`Main token auth result: ${mainTokenResult}`);
           
-          if (authResult) {
-            navigate('/');
+          if (mainTokenResult === true) {
+            navigate('/dashboard', { replace: true });
             return;
           }
         }
@@ -174,11 +209,8 @@ const TransitionPage: React.FC = () => {
     };
     
     handleAuthentication();
-  }, [navigate, checkAuth]);
+  }, [navigate, checkAuth, login, isAuthenticated, authState]);
   
-  // This was causing an infinite loop - we need to prevent multiple redirects
-  // We'll combine all authentication logic into a single useEffect
-
   return (
     <Box 
       sx={{ 
@@ -203,22 +235,23 @@ const TransitionPage: React.FC = () => {
         {/* Debug information section */}
         <Box sx={{ mt: 4, mb: 2, textAlign: 'left', border: '1px solid #eee', p: 2, borderRadius: 1 }}>
           <Typography variant="subtitle2" color="primary" gutterBottom>
-            Authentication Debug Information
+            Debug Information
           </Typography>
-          <Box component="pre" sx={{ 
-            backgroundColor: '#f5f5f5', 
-            p: 2, 
-            borderRadius: 1, 
-            fontSize: '0.75rem',
-            overflowX: 'auto',
-            maxHeight: '200px',
-            overflowY: 'auto'
-          }}>
+          <ul className="debug-logs">
             {debug.map((msg, index) => (
-              <Box key={index} component="div">
-                {index + 1}. {msg}
-              </Box>
+              <li key={index}>{msg}</li>
             ))}
+          </ul>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption">Auth Status: {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</Typography>
+            <br />
+            <Typography variant="caption">Auth State: {authState.isInitialized ? 'Initialized' : 'Not Initialized'}, 
+                                          {authState.isValidating ? 'Validating' : 'Not Validating'}</Typography>
+            {authState.error && (
+              <Typography variant="caption" color="error">
+                <br />Auth Error: {authState.error}
+              </Typography>
+            )}
           </Box>
           
           {/* Token information */}
@@ -263,18 +296,24 @@ const TransitionPage: React.FC = () => {
             <Button 
               variant="contained" 
               color="primary"
-              onClick={() => {
-                // Force check auth and redirect
-                const result = checkAuth();
-                addDebug(`Manual auth check: ${result}`);
-                if (result) {
-                  navigate('/');
-                } else {
+              onClick={async () => {
+                try {
+                  setError(null);
+                  setMessage('Attempting to login directly...');
+                  const result = await checkAuth();
+                  if (result === true) {
+                    navigate('/dashboard');
+                  } else {
+                    navigate('/login');
+                  }
+                } catch (error) {
+                  console.error('Authentication retry failed:', error);
+                  setError(`Authentication retry failed: ${(error as Error).message}`);
                   navigate('/login');
                 }
               }}
             >
-              Try Authentication Again
+              Try Again
             </Button>
           )}
         </Box>

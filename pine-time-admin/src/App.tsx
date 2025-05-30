@@ -26,36 +26,45 @@ import './App.css'
  * Handles authentication state and protected routes
  */
 function App() {
-  const { isAuthenticated, isAdmin, checkAuth } = useAuth();
+  const { isAuthenticated, isAdmin, authState, checkAuth } = useAuth();
   const { loading } = useLoading();
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Router debug helper (TEMPORARY) - per suggested solution
+  // Enhanced router debug and authentication management
   useEffect(() => {
     // Basic app diagnostics
     console.log('Pine Time Admin Dashboard loaded');
     
     // Router debug information to verify basename is working correctly
     console.log('Router Debug:', {
-      basename: '/admin', // This should match the basename we set in main.tsx
-      currentPath: location.pathname, // This should be "/" when at "/admin/"
-      fullURL: window.location.pathname, // This should be "/admin/" or whatever page we're on
+      basename: '', // This should match the basename we set in main.tsx
+      currentPath: location.pathname, // This should be "/" when at root
+      fullURL: window.location.pathname, // This should show the full path
       baseURL: import.meta.env.BASE_URL,
       mode: import.meta.env.MODE
     });
     
     // Authentication diagnostics
-    console.log('Auth state:', { isAuthenticated, isAdmin });
-    const isAuth = checkAuth();
-    console.log('Auth check result:', isAuth);
+    console.log('Auth state:', { 
+      isAuthenticated, 
+      isAdmin, 
+      authState: authState,
+      path: location.pathname 
+    });
     
-    // Redirect to login if not authenticated and not already on login page
-    if (!isAuth && !location.pathname.includes('/login')) {
-      console.log('Not authenticated, redirecting to login');
-      navigate('/login', { replace: true });
+    // Only handle redirects after authentication is initialized
+    if (authState.isInitialized && !authState.isValidating) {
+      // Redirect to login if not authenticated and not already on login or transition page
+      const isLoginPage = location.pathname.includes('/login');
+      const isTransitionPage = location.pathname.includes('/transition');
+      
+      if (!isAuthenticated && !isLoginPage && !isTransitionPage) {
+        console.log('Not authenticated, redirecting to login');
+        navigate('/login', { replace: true });
+      }
     }
-  }, [location, isAuthenticated, isAdmin, checkAuth, navigate]);
+  }, [location, isAuthenticated, isAdmin, authState, navigate]);
 
   // Show loading indicator when authentication state is being determined
   if (loading) {
