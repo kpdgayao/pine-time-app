@@ -127,6 +127,7 @@ src/
 ├── App.tsx       # Main application component
 └── main.tsx      # Application entry point
 ```
+
 - Database operations are wrapped in try/catch blocks
 - User-friendly error messages are displayed
 - Comprehensive logging is implemented
@@ -142,6 +143,15 @@ This generates optimized production files in the `dist/` directory, ready for de
 
 ## Deployment
 
-The production build is configured to connect to `https://api.pinetimeapp.com` automatically. Deployment can be done to any static hosting service that supports single-page applications (like AWS Amplify, Netlify, or Vercel).
+### Subdomain Deployment
+
+The admin dashboard is now deployed as a subdomain (`admin.pinetimeapp.com`) rather than a subdirectory for improved security and routing:
+
+- **Dedicated AWS Amplify App**: The admin dashboard uses its own Amplify app for deployment
+- **Custom Domain**: Configured with `admin.pinetimeapp.com` subdomain
+- **Cross-Domain Authentication**: Uses token-bridge.js to maintain authentication between domains
+- **API Connection**: Configured to connect to `https://api.pinetimeapp.com/api/v1`
+
+For detailed setup instructions, refer to `SUBDOMAIN_DEPLOYMENT.md` which contains comprehensive guidance on setting up DNS, configuring AWS Amplify, and implementing cross-domain authentication.
 
 For more information on the Pine Time project architecture, refer to the main project documentation.

@@ -400,10 +400,10 @@ The admin dashboard is fully integrated with the main application, providing a s
 
 The application is configured for deployment on AWS Amplify:
 
-- **Main App**: Deployed at the root path (`/`)
-- **Admin Dashboard**: Deployed as a subdirectory (`/admin`)
-- **Authentication**: Shared authentication state between both applications
-- **Navigation**: Direct links between applications maintain authentication context
+- **Main App**: Deployed at the root domain (`pinetimeapp.com`)
+- **Admin Dashboard**: Deployed as a subdomain (`admin.pinetimeapp.com`) for improved security and routing
+- **Cross-Domain Authentication**: Seamless token transfer between domains via token-bridge mechanism
+- **Navigation**: Direct links between applications maintain authentication context with URL parameter token passing
 
 ## PostgreSQL Integration
 
