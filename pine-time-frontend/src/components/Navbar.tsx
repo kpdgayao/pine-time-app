@@ -359,13 +359,13 @@ const Navbar = (): React.ReactNode => {
                 return;
               }
               
-              // Direct navigation to admin dashboard in the same tab using HashRouter format
+              // Direct navigation to admin dashboard in the same tab using BrowserRouter format
               const adminUrl = isDev 
-                ? 'http://localhost:5174/#/' 
-                : '/admin/#/';
+                ? 'http://localhost:5174/' 
+                : '/admin/';
                 
-              console.log('Direct navigation to admin dashboard with hash routing:', adminUrl);
-              // Navigate in the same tab with the hash format for proper routing
+              console.log('Direct navigation to admin dashboard with BrowserRouter:', adminUrl);
+              // Navigate in the same tab with the standard format for proper routing
               window.location.href = adminUrl;
               
               // We don't need a fallback since this is already the simplest approach
