@@ -377,8 +377,13 @@ const Navbar = (): React.ReactNode => {
                 console.warn('Unable to set cookie:', err);
               }
               
+              // Add token as a URL parameter for immediate authentication
+              // This ensures the admin dashboard can authenticate without a refresh
+              const adminUrlWithToken = `${adminUrl}?token=${encodeURIComponent(token)}&source=main_app`;
+              console.log('Navigating to admin dashboard with token parameter');
+              
               // Navigate to the admin subdomain with the token for authentication
-              window.location.href = adminUrl;
+              window.location.href = adminUrlWithToken;
               
               // We don't need a fallback since this is already the simplest approach
             }}
