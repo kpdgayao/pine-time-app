@@ -11,6 +11,8 @@ frontend:
         # Build admin dashboard for subdomain deployment
         - echo "Building Pine Time Admin Dashboard for subdomain deployment"
         - npm run build
+        # Check build output for troubleshooting
+        - ls -la dist
   artifacts:
     baseDirectory: dist
     files:
@@ -46,3 +48,26 @@ frontend:
           value: 'SAMEORIGIN'
         - key: 'X-XSS-Protection'
           value: '1; mode=block'
+        - key: 'X-Content-Type-Options'
+          value: 'nosniff'
+  # Explicit routes for SPA navigation
+  routes:
+    # Handle direct asset requests
+    - source: '/assets/**/*'
+      status: '200'
+    # Redirect HTTP to HTTPS
+    - source: 'http://*'
+      target: 'https://:splat'
+      status: '301'
+      condition: 'Protocol=HTTP'
+    # SPA routing - all other paths should serve index.html
+    - source: '/'
+      target: '/index.html'
+      status: '200'
+    - source: '/**'
+      target: '/index.html'
+      status: '200'
+  # Cache node_modules for faster builds
+  cache:
+    paths:
+      - 'node_modules/**/*'
