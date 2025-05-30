@@ -1,0 +1,18 @@
+{
+  "hosting": {
+    "amplifyhosting": {
+      "type": "CUSTOM",
+      "rules": [
+        {
+          "source": "/<*>",
+          "target": "/index.html",
+          "status": "200"
+        }
+      ],
+      "renderingMode": "SPA",
+      "environment": {
+        "AMPLIFY_MONOREPO_APP_ROOT": "pine-time-admin"
+      }
+    }
+  }
+}

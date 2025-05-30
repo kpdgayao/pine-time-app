@@ -1,11 +1,101 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Pine Time Admin Dashboard - Manage events, users, badges and more" />
     <title>Pine Time Admin Dashboard</title>
+    <script>
+      // Diagnostic code for debugging 403 errors
+      window.addEventListener('DOMContentLoaded', function() {
+        // Check if we're in diagnostic mode (add ?diagnostic=true to URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        const isDiagnostic = urlParams.get('diagnostic') === 'true';
+        
+        if (isDiagnostic) {
+          // Create diagnostic overlay
+          const diagnosticDiv = document.createElement('div');
+          diagnosticDiv.style.position = 'fixed';
+          diagnosticDiv.style.top = '0';
+          diagnosticDiv.style.left = '0';
+          diagnosticDiv.style.width = '100%';
+          diagnosticDiv.style.padding = '20px';
+          diagnosticDiv.style.backgroundColor = 'rgba(0,0,0,0.8)';
+          diagnosticDiv.style.color = 'white';
+          diagnosticDiv.style.fontFamily = 'monospace';
+          diagnosticDiv.style.zIndex = '9999';
+          
+          // Display hostname and location info
+          diagnosticDiv.innerHTML = `
+            <h2>Pine Time Admin Diagnostic Mode</h2>
+            <p>Hostname: ${window.location.hostname}</p>
+            <p>Path: ${window.location.pathname}</p>
+            <p>Protocol: ${window.location.protocol}</p>
+            <p>User Agent: ${navigator.userAgent}</p>
+            <h3>Authentication Check:</h3>
+            <div id="auth-status">Checking...</div>
+            <h3>API Connection:</h3>
+            <div id="api-status">Checking...</div>
+            <h3>Cookie Status:</h3>
+            <div id="cookie-status">Checking...</div>
+            <button id="clear-storage">Clear Storage</button>
+          `;
+          
+          document.body.appendChild(diagnosticDiv);
+          
+          // Check authentication status
+          const authStatus = document.getElementById('auth-status');
+          const apiStatus = document.getElementById('api-status');
+          const cookieStatus = document.getElementById('cookie-status');
+          const clearButton = document.getElementById('clear-storage');
+          
+          // Display all stored tokens
+          const accessToken = localStorage.getItem('access_token');
+          const adminToken = localStorage.getItem('admin_token');
+          
+          authStatus.innerHTML = `
+            <p>access_token: ${accessToken ? 'Present' : 'Not found'}</p>
+            <p>admin_token: ${adminToken ? 'Present' : 'Not found'}</p>
+          `;
+          
+          // Display cookies
+          cookieStatus.innerHTML = `<p>Cookies: ${document.cookie || 'None found'}</p>`;
+          
+          // Add clear button functionality
+          clearButton.addEventListener('click', function() {
+            localStorage.clear();
+            sessionStorage.clear();
+            document.cookie.split(';').forEach(function(c) {
+              document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+            });
+            location.reload();
+          });
+          
+          // Check API connection
+          fetch('https://api.pinetimeapp.com/api/v1/health', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(response => {
+            if (response.ok) {
+              apiStatus.innerHTML = '<p style="color:green">API connection successful!</p>';
+              return response.json();
+            } else {
+              apiStatus.innerHTML = `<p style="color:red">API connection failed with status: ${response.status}</p>`;
+              throw new Error('API connection failed');
+            }
+          })
+          .then(data => {
+            apiStatus.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+          })
+          .catch(error => {
+            apiStatus.innerHTML += `<p style="color:red">Error: ${error.message}</p>`;
+          });
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

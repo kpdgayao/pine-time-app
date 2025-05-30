@@ -1,0 +1,41 @@
+{
+  "CustomErrorResponses": {
+    "Quantity": 3,
+    "Items": [
+      {
+        "ErrorCode": 403,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 0
+      },
+      {
+        "ErrorCode": 404,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 0
+      },
+      {
+        "ErrorCode": 500,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 0
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "AllowedMethods": {
+      "Items": ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"],
+      "Quantity": 7
+    },
+    "DefaultTTL": 0,
+    "MaxTTL": 0,
+    "MinTTL": 0
+  },
+  "CORSConfiguration": {
+    "AllowedOrigins": ["*"],
+    "AllowedMethods": ["GET", "HEAD", "OPTIONS", "PUT", "POST", "DELETE", "PATCH"],
+    "AllowedHeaders": ["*"],
+    "MaxAge": 3600,
+    "ExposeHeaders": ["ETag"]
+  }
+}

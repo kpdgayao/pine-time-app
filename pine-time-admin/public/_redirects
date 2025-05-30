@@ -1,10 +1,7 @@
-# CRITICAL: Order matters for these rules
+# Redirects for subdomain deployment (admin.pinetimeapp.com)
 
-# First rule: Redirect /admin to /admin/ (trailing slash important)
-/admin    /admin/   301
-
-# Second rule: SPA fallback for admin dashboard
-/admin/*  /admin/index.html  200
+# For SPA routing - all paths should serve index.html
+/*    /index.html    200
 
 # Ensure assets are properly served
 /assets/*  /assets/:splat  200

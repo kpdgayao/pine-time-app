@@ -359,13 +359,25 @@ const Navbar = (): React.ReactNode => {
                 return;
               }
               
-              // Direct navigation to admin dashboard in the same tab using BrowserRouter format
+              // Direct navigation to admin dashboard using subdomain approach
               const adminUrl = isDev 
                 ? 'http://localhost:5174/' 
-                : '/admin/';
+                : 'https://admin.pinetimeapp.com/';
                 
-              console.log('Direct navigation to admin dashboard with BrowserRouter:', adminUrl);
-              // Navigate in the same tab with the standard format for proper routing
+              console.log('Direct navigation to admin subdomain:', adminUrl);
+              
+              // Store token explicitly for cross-domain authentication
+              // This ensures the token is available on the admin subdomain
+              localStorage.setItem('admin_token', token);
+              
+              try {
+                // Use document.cookie as a fallback mechanism (secure, httpOnly)
+                document.cookie = `admin_token=${token}; path=/; domain=pinetimeapp.com; secure; max-age=3600`;
+              } catch (err) {
+                console.warn('Unable to set cookie:', err);
+              }
+              
+              // Navigate to the admin subdomain with the token for authentication
               window.location.href = adminUrl;
               
               // We don't need a fallback since this is already the simplest approach
