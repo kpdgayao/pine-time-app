@@ -14,10 +14,10 @@ console.log('Environment:', import.meta.env.MODE);
 console.log('BASE_URL:', import.meta.env.BASE_URL);
 console.log('Using BrowserRouter with basename for subdirectory routing');
 
-// For proper subdirectory deployment, we need to correctly set the basename
-// When deployed to /admin, we need an empty basename because the URL already includes /admin
-// This is critical - with BrowserRouter, the URL is already at /admin, so we don't need to add it again
-const basename = '';
+// CRITICAL FIX: basename must be '/admin' for subdirectory deployment
+// This tells React Router to strip '/admin' from the URL before matching routes
+// Without this, React Router looks for routes at '/admin' instead of '/'
+const basename = '/admin';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

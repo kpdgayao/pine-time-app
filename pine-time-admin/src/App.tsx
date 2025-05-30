@@ -31,20 +31,18 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Enhanced debugging to diagnose deployment and routing issues
+  // Router debug helper (TEMPORARY) - per suggested solution
   useEffect(() => {
     // Basic app diagnostics
     console.log('Pine Time Admin Dashboard loaded');
     
-    // Enhanced routing diagnostics
-    console.log('Navigation diagnostics:', {
-      fullUrl: window.location.href,
-      pathname: location.pathname,
-      baseUrl: import.meta.env.BASE_URL,
-      mode: import.meta.env.MODE,
-      hash: window.location.hash,
-      search: window.location.search,
-      host: window.location.host
+    // Router debug information to verify basename is working correctly
+    console.log('Router Debug:', {
+      basename: '/admin', // This should match the basename we set in main.tsx
+      currentPath: location.pathname, // This should be "/" when at "/admin/"
+      fullURL: window.location.pathname, // This should be "/admin/" or whatever page we're on
+      baseURL: import.meta.env.BASE_URL,
+      mode: import.meta.env.MODE
     });
     
     // Authentication diagnostics
@@ -52,18 +50,10 @@ function App() {
     const isAuth = checkAuth();
     console.log('Auth check result:', isAuth);
     
-    // Asset path diagnostics
-    console.log('Asset path resolution:', {
-      relativePath: 'assets/logo.png',
-      withBaseUrl: `${import.meta.env.BASE_URL}assets/logo.png`,
-      withSlash: '/assets/logo.png',
-      withoutSlash: 'assets/logo.png'
-    });
-    
     // Redirect to login if not authenticated and not already on login page
-    if (!isAuth && !location.pathname.includes('login')) {
+    if (!isAuth && !location.pathname.includes('/login')) {
       console.log('Not authenticated, redirecting to login');
-      navigate('login', { replace: true });
+      navigate('/login', { replace: true });
     }
   }, [location, isAuthenticated, isAdmin, checkAuth, navigate]);
 
@@ -90,17 +80,17 @@ function App() {
     <ThemeProvider theme={lightTheme}>
       <CssBaseline />
       <Routes>
-        {/* Public routes */}
-        <Route path="login" element={
-          isAuthenticated ? <Navigate to="dashboard" replace /> : <LoginPage />
+        {/* Public routes - with leading slashes for subdirectory deployment */}
+        <Route path="/login" element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
         } />
         
         {/* Special transition route for direct navigation from main app */}
-        <Route path="transition" element={<TransitionPage />} />
+        <Route path="/transition" element={<TransitionPage />} />
         
-        {/* Root route - match exactly /admin in production */}
+        {/* Root route - match exactly / after basename is applied */}
         <Route path="/" element={
-          isAuthenticated ? <Navigate to="dashboard" replace /> : <Navigate to="login" replace />
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
         } />
 
         {/* Protected routes - require authentication */}
@@ -109,21 +99,20 @@ function App() {
             {/* AdminLayout needs children prop */}
             <Outlet />
           </AdminLayout>}>
-            {/* Match empty path (/) which becomes /admin/ in production with basename */}
-            <Route path="" element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="events" element={<EventsPage />} />
-            <Route path="badges" element={<BadgesPage />} />
-            <Route path="points" element={<PointsPage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
+            {/* All routes with leading slashes for subdirectory deployment */}
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/badges" element={<BadgesPage />} />
+            <Route path="/points" element={<PointsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             
             {/* Fallback route */}
-            <Route path="*" element={<Navigate to="dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         ) : (
           // Catch-all route when not authenticated
-          <Route path="*" element={<Navigate to="login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         )}
       </Routes>
     </ThemeProvider>

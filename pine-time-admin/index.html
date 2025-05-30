@@ -6,35 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Pine Time Admin Dashboard - Manage events, users, badges and more" />
     <title>Pine Time Admin Dashboard</title>
-    <script>
-      // Enhanced route handling for subdirectory deployment with BrowserRouter
-      window.addEventListener('DOMContentLoaded', function() {
-        console.log('---- PINE TIME ADMIN DASHBOARD INIT ----');
-        console.log('Raw URL:', window.location.href);
-        console.log('Path:', window.location.pathname);
-        
-        // Enhanced debug mode for troubleshooting routing issues
-        window.PINE_TIME_DEBUG = {
-          startTime: new Date().toISOString(),
-          initialUrl: window.location.href,
-          initialPath: window.location.pathname,
-          userAgent: navigator.userAgent
-        };
-        
-        console.log('PINE TIME DEBUG INFO:', window.PINE_TIME_DEBUG);
-        
-        // EMERGENCY DIRECT REDIRECTION
-        // If we're at exactly /admin, redirect to /admin/ (trailing slash matters)
-        if (window.location.pathname === '/admin') {
-          console.log('REDIRECTING: /admin → /admin/');
-          window.location.replace('/admin/');
-        } else {
-          console.log('PATH OK:', window.location.pathname);
-        }
-        
-        console.log('---- END DASHBOARD INIT ----');
-      });
-    </script>
   </head>
   <body>
     <div id="root"></div>

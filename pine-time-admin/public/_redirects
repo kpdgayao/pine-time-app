@@ -1,11 +1,10 @@
-# SPA fallback for admin dashboard with subdirectory support
-/*    /index.html   200
+# CRITICAL: Order matters for these rules
 
-# Ensure assets are properly served with proper caching
-/assets/*  /assets/:splat  200
+# First rule: Redirect /admin to /admin/ (trailing slash important)
+/admin    /admin/   301
 
-# Handle nested routes in the admin dashboard
+# Second rule: SPA fallback for admin dashboard
 /admin/*  /admin/index.html  200
 
-# Redirect /admin to /admin/ (trailing slash important)
-/admin    /admin/   301
+# Ensure assets are properly served
+/assets/*  /assets/:splat  200

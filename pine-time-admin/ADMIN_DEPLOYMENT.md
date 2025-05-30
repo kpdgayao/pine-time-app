@@ -1,79 +1,96 @@
 # Pine Time Admin Dashboard Deployment Guide
 
-This document provides detailed instructions for deploying the Pine Time Admin Dashboard in a subdirectory (`/admin`) of the main application.
+## Updated Configuration for Subdirectory Deployment
 
-## Deployment Architecture
+This document provides instructions for deploying the Pine Time Admin Dashboard in the `/admin` subdirectory with proper routing.
 
-The Pine Time Admin Dashboard is deployed as part of the main application, with these key components:
+## Critical Configuration Components
 
-- **Main Application**: Served from the root path (`/`)
-- **Admin Dashboard**: Served from a subdirectory (`/admin/`)
-- **Single AWS Amplify Deployment**: Both applications are deployed together
+### 1. React Router Configuration
 
-## Deployment Steps
+```typescript
+// in main.tsx
+import { BrowserRouter } from 'react-router-dom'
+
+// CRITICAL: basename must be '/admin' for subdirectory deployment
+const basename = '/admin';
+
+<BrowserRouter basename={basename}>
+  <App />
+</BrowserRouter>
+```
+
+### 2. Route Structure
+
+All routes must use leading slashes:
+
+```typescript
+// in App.tsx
+<Routes>
+  <Route path="/login" element={<LoginPage />} />
+  <Route path="/" element={/* root content */} />
+  <Route path="/dashboard" element={<DashboardPage />} />
+  <Route path="/users" element={<UsersPage />} />
+  {/* other routes */}
+</Routes>
+```
+
+### 3. AWS Amplify Rewrites and Redirects
+
+In AWS Amplify Console, the following rules MUST be added in this exact order:
+
+```
+1. Source: /admin
+   Target: /admin/
+   Type: 301 Redirect
+
+2. Source: /admin/<*>
+   Target: /admin/index.html
+   Type: 200 Rewrite
+```
+
+## Deployment Process
 
 ### 1. Build Configuration
 
-The build process is handled automatically in `amplify.yml` with these steps:
+The build process is handled in `amplify.yml`:
 - Build main frontend app
-- Build admin dashboard with base path `/admin/`
+- Build admin dashboard with correct base path
 - Copy admin dashboard build to `dist/admin/` directory
-- Copy `_redirects` file for proper SPA routing
 
-### 2. AWS Amplify Configuration
+### 2. Verification Steps
 
-After deployment, configure the following in the AWS Amplify Console:
+After deployment, verify:
 
-1. Navigate to **AWS Amplify Console** → **App settings** → **Rewrites and redirects**
-2. Add the following rules (order is important):
+1. **Router Debug Information**:
+   - Check console for: `basename: '/admin'`
+   - When at `/admin/`, `currentPath` should show `/`
 
-```
-Source pattern: /admin
-Target address: /admin/
-Type: Redirect (301)
+2. **URL Patterns**:
+   - `/admin` should redirect to `/admin/` (with trailing slash)
+   - `/admin/` should load the dashboard or login page
+   - `/admin/dashboard` should load the dashboard page
+   - Browser refresh should work on all routes
 
-Source pattern: /admin/*
-Target address: /admin/index.html
-Type: Rewrite (200)
-```
-
-3. Save the configuration
-
-### 3. Verification Steps
-
-After deployment, verify the following:
-
-1. **Asset Path Resolution**:
-   - Check browser console for path resolution diagnostics
+3. **Assets**:
    - All assets should load from `/admin/assets/...`
-
-2. **Navigation**:
-   - Direct navigation to `/admin/dashboard` should work
-   - Direct navigation to `/admin/users` should work
-   - Refreshing any admin page should not result in 404 errors
-
-3. **API Integration**:
-   - API requests should be made to the correct endpoints
-   - Authentication should work correctly
 
 ## Troubleshooting
 
-If issues persist after deployment, check the following:
+### Common Issues
 
-1. **Browser Console**:
-   - Look for the enhanced debugging information
-   - Check for any asset loading errors
-   - Verify base URL configuration
+1. **Blank Page with "No routes matched location "/admin""**:
+   - Check that basename is set to '/admin' in main.tsx
+   - Verify AWS Amplify rewrite rules are in the correct order
 
-2. **AWS Amplify Console**:
-   - Verify build logs for any errors
-   - Confirm rewrites and redirects are configured correctly
+2. **Assets Not Loading**:
+   - Verify that vite.config.ts has `base: '/admin/'` for production
 
-3. **Network Requests**:
-   - Inspect network requests for 404 errors
-   - Verify API requests are correctly routed
+3. **AWS Amplify Cache Issues**:
+   - Clear the AWS Amplify cache in the console
+   - Trigger a new build and deploy
 
-4. **Common Issues**:
-   - 404 errors for routes: Check the rewrites and redirects configuration
-   - Missing assets: Check the base path configuration in `vite.config.ts`
-   - API errors: Verify API configuration and path handling
+4. **Missing Trailing Slash Redirect**:
+   - Ensure the first rewrite rule redirects `/admin` → `/admin/`
+
+If issues persist after trying these solutions, consider deploying to a subdomain (admin.pinetimeapp.com) instead of a subdirectory for simpler routing.
