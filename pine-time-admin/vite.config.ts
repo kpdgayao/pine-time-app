@@ -7,9 +7,9 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    // CRITICAL FIX: Must match the deployment subdirectory in production
-    // This ensures assets are referenced with the correct base path
-    base: mode === 'production' ? '/admin/' : '/',
+    // SUBDOMAIN DEPLOYMENT: Use root path for subdomain (admin.pinetimeapp.com)
+    // This ensures assets are referenced from the root of the domain
+    base: '/',
     build: {
       outDir: 'dist',
       // Clean the output directory to ensure a fresh build

@@ -18,8 +18,8 @@ export const API_BASE_URL = isDevelopment
   ? '' // Empty string for development with proxy
   : 'https://api.pinetimeapp.com';
 
-// Flag to determine if we're running on the main domain (pinetimeapp.com)
-export const IS_MAIN_DOMAIN = !isDevelopment && 
+// Flag to determine if we're running on the admin subdomain
+export const IS_ADMIN_SUBDOMAIN = !isDevelopment && 
   (typeof window !== 'undefined' && window.location.hostname === 'admin.pinetimeapp.com');
 
 // API version prefix
@@ -33,16 +33,16 @@ export const DEFAULT_TIMEOUT = 10000;
 export const EXTENDED_TIMEOUT = 30000;
 
 // Admin-specific configuration
-// For HashRouter, we need to ensure routes don't include a leading slash
-// This ensures they're correctly handled as relative paths to the hash base
+// For BrowserRouter with subdomain deployment, we use leading slashes
+// This ensures proper routing at the root of the subdomain
 export const ADMIN_ROUTES = {
-  DASHBOARD: '',  // Empty string instead of '/' for the root dashboard route
-  USERS: 'users',  // No leading slash for HashRouter
-  EVENTS: 'events',
-  ANALYTICS: 'analytics',
-  BADGES: 'badges',
-  POINTS: 'points',
-  LOGIN: 'login',
+  DASHBOARD: '/',  // Root route for dashboard
+  USERS: '/users',  // Leading slash for BrowserRouter
+  EVENTS: '/events',
+  ANALYTICS: '/analytics',
+  BADGES: '/badges',
+  POINTS: '/points',
+  LOGIN: '/login',
 };
 
 // Log environment mode

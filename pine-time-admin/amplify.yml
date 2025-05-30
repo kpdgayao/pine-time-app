@@ -1,0 +1,48 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 20
+        - nvm use 20
+        - npm install
+    build:
+      commands:
+        # Build admin dashboard for subdomain deployment
+        - echo "Building Pine Time Admin Dashboard for subdomain deployment"
+        - npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  # Configure headers for better caching and security
+  customHeaders:
+    # Default cache headers for static assets
+    - pattern: '/assets/**/*.js'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '/assets/**/*.css'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '/assets/**/*.woff*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    - pattern: '/assets/images/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=86400'
+    # No cache for index.html to ensure fresh content
+    - pattern: '/index.html'
+      headers:
+        - key: 'Cache-Control'
+          value: 'no-cache, no-store, must-revalidate'
+    # Enable SPA routing
+    - pattern: '/**'
+      headers:
+        - key: 'X-Frame-Options'
+          value: 'SAMEORIGIN'
+        - key: 'X-XSS-Protection'
+          value: '1; mode=block'

@@ -14,10 +14,10 @@ console.log('Environment:', import.meta.env.MODE);
 console.log('BASE_URL:', import.meta.env.BASE_URL);
 console.log('Using BrowserRouter with basename for subdirectory routing');
 
-// CRITICAL FIX: basename must be '/admin' for subdirectory deployment
-// This tells React Router to strip '/admin' from the URL before matching routes
-// Without this, React Router looks for routes at '/admin' instead of '/'
-const basename = '/admin';
+// SUBDOMAIN DEPLOYMENT: For admin.pinetimeapp.com we don't need a basename
+// Since we're at the root of the subdomain, we use an empty string or '/'
+// This simplifies routing and eliminates path conflicts
+const basename = '';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
